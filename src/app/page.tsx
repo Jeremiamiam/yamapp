@@ -10,9 +10,16 @@ import { ClientDetail, ClientsList, DocumentModal } from '@/features/clients/com
 import { ComptaView } from '@/features/compta/components';
 
 export default function Home() {
+  const loadData = useAppStore((state) => state.loadData);
   const currentView = useAppStore((state) => state.currentView);
   const navigateToTimeline = useAppStore((state) => state.navigateToTimeline);
+  const isLoading = useAppStore((state) => state.isLoading);
+  const loadingError = useAppStore((state) => state.loadingError);
   const { role, loading } = useUserRole();
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Éditeur qui tente d'accéder à la compta → redirection Calendrier
   useEffect(() => {
@@ -20,6 +27,36 @@ export default function Home() {
       navigateToTimeline();
     }
   }, [loading, role, currentView, navigateToTimeline]);
+
+  if (isLoading) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gradient-mesh relative">
+        <div className="noise-overlay" />
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          <div className="h-12 w-12 rounded-full border-2 border-[var(--accent-lime)] border-t-transparent animate-spin" />
+          <p className="text-[var(--text-secondary)]">Chargement des données…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingError) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gradient-mesh relative p-6">
+        <div className="noise-overlay" />
+        <div className="relative z-10 text-center max-w-md">
+          <p className="text-[var(--accent-coral)] mb-4">{loadingError}</p>
+          <button
+            type="button"
+            onClick={() => loadData()}
+            className="px-4 py-2 rounded-lg bg-[var(--accent-lime)] text-[var(--bg-primary)] font-medium"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (currentView === 'client-detail') {
     return (

@@ -10,7 +10,7 @@ export function createClient() {
 
   if (!url || !key) {
     throw new Error(
-      'Missing Supabase env: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set.'
+      'Supabase non configuré : ajoute NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY dans les variables d’environnement (Netlify → Site settings → Environment variables), puis redéploie le site.'
     );
   }
 

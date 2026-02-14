@@ -18,6 +18,22 @@ Le projet contient déjà un `netlify.toml` (build Next.js). Deux options :
 5. Netlify détecte Next.js ; les réglages du `netlify.toml` sont appliqués. **Deploy site**.
 6. Une fois le premier déploiement terminé, note l’URL du site (ex. `yamapp-xxx.netlify.app`).
 
+### Variables d’environnement (obligatoire pour l’auth)
+
+Sans ces variables, l’app affiche en prod : *"Your project's URL and Key are required to create a Supabase client!"*
+
+1. Dans Netlify : **Site** → ton site → **Site configuration** (ou **Site settings**) → **Environment variables**.
+2. **Add a variable** / **Add environment variables** :
+   - **Key** : `NEXT_PUBLIC_SUPABASE_URL`  
+     **Value** : l’URL de ton projet (ex. `https://xxxxx.supabase.co`).  
+     Tu la trouves dans [Supabase Dashboard](https://supabase.com/dashboard) → ton projet → **Settings** → **API** → **Project URL**.
+   - **Key** : `NEXT_PUBLIC_SUPABASE_ANON_KEY`  
+     **Value** : la clé **anon public**.  
+     Même écran Supabase → **Project API keys** → **anon** **public** (tu peux la copier).
+3. **Scopes** : coche au minimum **Builds** et **Deploy previews** (ou **All**).
+4. **Sauvegarde**.
+5. **Redéploie** le site : **Deploys** → **Trigger deploy** → **Deploy site** (pour que le prochain build prenne les variables en compte).
+
 ### B. Via le CLI (après avoir créé le site une fois)
 
 Si le site **yamapp** existe déjà sur Netlify (créé via A) :

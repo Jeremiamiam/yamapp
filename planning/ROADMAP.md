@@ -154,9 +154,10 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Client Cards & Detail Views | 1/1 | ✅ Complete | 2026-02-13 |
 | 3. Deliverables & Calls Management | 1/1 | ✅ Complete | 2026-02-13 |
 | 4. Text Notes & Files (Documents) | 2/2 | ✅ Complete | 2026-02-13 |
-| 5. Mobile & Polish | 0/1 | 🔄 Current | - |
+| 5. Mobile & Polish | 0/1 | 📋 Planned | - |
 | 6. Vue Comptabilité | 0/4 | 📋 Planned | - |
 | 7. Supabase & Persistence | 0/4 | 📋 Planned | - |
+| 7.1. Security (Auth + RLS) | 0/1 | 📋 Planned | - |
 
 ### Phase 6: Vue Comptabilité / Facturation
 
@@ -195,14 +196,40 @@ Plans:
   5. (Optionnel) Auth Supabase pour protéger l’app
 
 Plans:
-- [ ] 07-01: Créer projet Supabase + schéma (tables, RLS basique)
-- [ ] 07-02: Script seed : JSON → Supabase
-- [ ] 07-03: Adapter le store / couche data pour Supabase (remplacer mock-data)
-- [ ] 07-04: Tests de bout en bout et corrections
+- [ ] 07-01: Setup Supabase & Schema (Jour 1 - 3-4h)
+- [ ] 07-02: Script seed JSON → Supabase (Jour 2 - 3-4h)
+- [ ] 07-03: Adapter store Zustand pour Supabase (Jour 3 - 5-6h)
+- [ ] 07-04: Tests CRUD complet & Polish (Jour 4 - 3-4h)
+
+**Plan détaillé**: `planning/PHASE-7-SUPABASE-PLAN.md` (créé 2026-02-14)
+**Guide Cursor**: `planning/PHASE-7-CURSOR-GUIDE.md` (prompts prêts à l'emploi)
+
+### Phase 7.1: Security (Auth + RLS) 🔐
+**Goal**: Sécuriser l'app avec authentification Supabase et Row Level Security pour protéger les données en production
+**Depends on**: Phase 7
+**Type**: INSERTED - Sécurité critique avant déploiement production
+**Success Criteria** (what must be TRUE):
+  1. Auth Supabase activé (email/password)
+  2. Users créés pour l'agence (jeremy@yam.agency, etc.)
+  3. RLS activé sur 8 tables avec policies "authenticated users only"
+  4. LoginPage fonctionnelle avec design cohérent
+  5. Auth guard dans app (redirect login si non authentifié)
+  6. Bouton logout dans Header
+  7. Session persistence fonctionne
+  8. RLS bloque accès non authentifié (testé)
+
+Plans:
+- [ ] 7.1-01: Activer Auth + RLS + LoginPage + Tests (2-3h)
+
+**Plan détaillé**: `planning/PHASE-7.1-SECURITY-PLAN.md` (créé 2026-02-14)
+**Guide Cursor**: `planning/PHASE-7.1-CURSOR-GUIDE.md` (prompts prêts à l'emploi)
 
 ---
 *Roadmap created: 2026-02-13*
 *Phases 1-4 completed: 2026-02-13*
+*Phase 3.7 refactoring: 93% complete (2026-02-14)*
 *Phase 6 added: 2026-02-14 — Vue Comptabilité/Facturation*
-*Phase 7 added: Supabase & Persistence — rendre l’app viable avec BDD réelle*
-*Next: Phase 3.7 / 5 / 6 selon priorité, puis Phase 7 pour viabilité*
+*Phase 7 added: Supabase & Persistence — rendre l'app viable avec BDD réelle*
+*Phase 7 detailed plan created: 2026-02-14 (4 jours, 14-18h)*
+*Phase 7.1 added: 2026-02-14 — Security (Auth + RLS) pour production (2-3h)*
+*Next: Phase 7 (Supabase) → Phase 7.1 (Security) → Phase 5 (Mobile) ou Phase 6 (Compta)*

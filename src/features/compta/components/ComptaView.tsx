@@ -3,7 +3,6 @@
 import React, { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useModal } from '@/hooks';
-import { mockComptaMonthly } from '@/lib/mock-data';
 import type { Deliverable } from '@/types';
 
 const formatEur = (n: number) =>
@@ -33,7 +32,7 @@ const ChevronDown = ({ open }: { open: boolean }) => (
 );
 
 export function ComptaView() {
-  const { deliverables, getClientById } = useAppStore();
+  const { deliverables, comptaMonthly, getClientById } = useAppStore();
   const { openDeliverableModal } = useModal();
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
 
@@ -90,11 +89,12 @@ export function ComptaView() {
   }, [deliverables]);
 
   const maxAbs = useMemo(() => {
-    const maxE = Math.max(...mockComptaMonthly.map((m) => m.entrées));
-    const maxS = Math.max(...mockComptaMonthly.map((m) => m.sorties));
-    const maxC = Math.max(...mockComptaMonthly.map((m) => Math.abs(m.soldeCumulé)));
-    return Math.max(maxE, maxS, maxC);
-  }, []);
+    if (comptaMonthly.length === 0) return 1;
+    const maxE = Math.max(...comptaMonthly.map((m) => m.entrées));
+    const maxS = Math.max(...comptaMonthly.map((m) => m.sorties));
+    const maxC = Math.max(...comptaMonthly.map((m) => Math.abs(m.soldeCumulé)));
+    return Math.max(maxE, maxS, maxC, 1);
+  }, [comptaMonthly]);
 
   return (
     <div className="flex-1 overflow-y-auto p-8">
@@ -218,8 +218,8 @@ export function ComptaView() {
             (Mock — à calculer depuis les dates des livrables)
           </p>
           <div className="h-48 flex items-end gap-2">
-            {mockComptaMonthly.map((m) => (
-              <div key={m.month} className="flex-1 flex flex-col gap-1 items-center min-w-0">
+            {comptaMonthly.map((m) => (
+              <div key={`${m.month}-${m.year}`} className="flex-1 flex flex-col gap-1 items-center min-w-0">
                 <div className="w-full max-w-[28px] flex flex-col-reverse gap-0.5 items-center">
                   <div
                     className="w-full rounded-t bg-[#22c55e]/80"

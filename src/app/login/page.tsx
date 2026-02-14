@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { getAuthErrorMessage } from '@/lib/supabase/auth-errors';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function LoginPage() {
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (err) {
-      setError(err.message === 'Invalid login credentials' ? 'Email ou mot de passe incorrect.' : err.message);
+      setError(getAuthErrorMessage(err.message, 'login'));
       return;
     }
     router.push('/');

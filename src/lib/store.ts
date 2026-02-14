@@ -1,7 +1,22 @@
 import { create } from 'zustand';
 import { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, TeamMember, Contact, ClientDocument, DeliverableStatus } from '@/types';
-import { mockClients, mockDeliverables, mockCalls, mockTeam } from './mock-data';
 import { handleError, AppError } from './error-handler';
+import { createClient } from '@/lib/supabase/client';
+import {
+  mapTeamRow,
+  mapClientRow,
+  mapContactRow,
+  mapClientLinkRow,
+  mapDocumentRow,
+  mapDeliverableRow,
+  mapCallRow,
+  toSupabaseClient,
+  toSupabaseContact,
+  toSupabaseClientLink,
+  toSupabaseDocument,
+  toSupabaseDeliverable,
+  toSupabaseCall,
+} from './supabase-mappers';
 
 type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta';
 
@@ -28,7 +43,12 @@ interface AppState {
   deliverables: Deliverable[];
   calls: Call[];
   team: TeamMember[];
-  
+  comptaMonthly: { month: string; year: number; entrées: number; sorties: number; soldeCumulé: number }[];
+  isLoading: boolean;
+  loadingError: string | null;
+
+  loadData: () => Promise<void>;
+
   // UI State
   currentView: ViewType;
   selectedClientId: string | null;
@@ -52,35 +72,35 @@ interface AppState {
   openModal: (modal: ModalType) => void;
   closeModal: () => void;
   
-  // CRUD Actions - Contacts
-  addContact: (clientId: string, contact: Omit<Contact, 'id'>) => void;
-  updateContact: (clientId: string, contactId: string, data: Partial<Contact>) => void;
-  deleteContact: (clientId: string, contactId: string) => void;
-  
-  // CRUD Actions - Clients
-  addClient: (data: Pick<Client, 'name' | 'status'>) => void;
-  updateClient: (id: string, data: Partial<Pick<Client, 'name' | 'status'>>) => void;
-  deleteClient: (id: string) => void;
+  // CRUD Actions - Contacts (async Supabase)
+  addContact: (clientId: string, contact: Omit<Contact, 'id'>) => Promise<void>;
+  updateContact: (clientId: string, contactId: string, data: Partial<Contact>) => Promise<void>;
+  deleteContact: (clientId: string, contactId: string) => Promise<void>;
 
-  // CRUD Actions - Client links (URLs avec label)
-  addClientLink: (clientId: string, link: Omit<ClientLink, 'id'>) => void;
-  deleteClientLink: (clientId: string, linkId: string) => void;
+  // CRUD Actions - Clients (async Supabase)
+  addClient: (data: Pick<Client, 'name' | 'status'>) => Promise<void>;
+  updateClient: (id: string, data: Partial<Pick<Client, 'name' | 'status'>>) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
 
-  // CRUD Actions - Documents
-  addDocument: (clientId: string, doc: Omit<ClientDocument, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateDocument: (clientId: string, docId: string, data: Partial<ClientDocument>) => void;
-  deleteDocument: (clientId: string, docId: string) => void;
-  
-  // CRUD Actions - Deliverables
-  addDeliverable: (deliverable: Omit<Deliverable, 'id' | 'createdAt'>) => void;
-  updateDeliverable: (id: string, data: Partial<Deliverable>) => void;
-  deleteDeliverable: (id: string) => void;
-  toggleDeliverableStatus: (id: string) => void;
-  
-  // CRUD Actions - Calls
-  addCall: (call: Omit<Call, 'id' | 'createdAt'>) => void;
-  updateCall: (id: string, data: Partial<Call>) => void;
-  deleteCall: (id: string) => void;
+  // CRUD Actions - Client links (async Supabase)
+  addClientLink: (clientId: string, link: Omit<ClientLink, 'id'>) => Promise<void>;
+  deleteClientLink: (clientId: string, linkId: string) => Promise<void>;
+
+  // CRUD Actions - Documents (async Supabase)
+  addDocument: (clientId: string, doc: Omit<ClientDocument, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateDocument: (clientId: string, docId: string, data: Partial<ClientDocument>) => Promise<void>;
+  deleteDocument: (clientId: string, docId: string) => Promise<void>;
+
+  // CRUD Actions - Deliverables (async Supabase)
+  addDeliverable: (deliverable: Omit<Deliverable, 'id' | 'createdAt'>) => Promise<void>;
+  updateDeliverable: (id: string, data: Partial<Deliverable>) => Promise<void>;
+  deleteDeliverable: (id: string) => Promise<void>;
+  toggleDeliverableStatus: (id: string) => Promise<void>;
+
+  // CRUD Actions - Calls (async Supabase)
+  addCall: (call: Omit<Call, 'id' | 'createdAt'>) => Promise<void>;
+  updateCall: (id: string, data: Partial<Call>) => Promise<void>;
+  deleteCall: (id: string) => Promise<void>;
   
   // Filter Actions
   setClientStatusFilter: (status: ClientStatusFilter) => void;
@@ -114,16 +134,83 @@ const getDefaultTimelineRange = () => {
   return { start, end };
 };
 
-// Generate unique IDs
-const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
 export const useAppStore = create<AppState>((set, get) => ({
-  // Initialize with mock data
-  clients: mockClients,
-  deliverables: mockDeliverables,
-  calls: mockCalls,
-  team: mockTeam,
-  
+  clients: [],
+  deliverables: [],
+  calls: [],
+  team: [],
+  comptaMonthly: [],
+  isLoading: false,
+  loadingError: null,
+
+  loadData: async () => {
+    set({ isLoading: true, loadingError: null });
+    try {
+      const supabase = createClient();
+      const [teamRes, clientsRes, contactsRes, linksRes, docsRes, delivRes, callsRes, comptaRes] = await Promise.all([
+        supabase.from('team').select('id,name,initials,role,color,email'),
+        supabase.from('clients').select('*'),
+        supabase.from('contacts').select('*'),
+        supabase.from('client_links').select('*'),
+        supabase.from('documents').select('*'),
+        supabase.from('deliverables').select('*'),
+        supabase.from('calls').select('*'),
+        supabase.from('compta_monthly').select('month,year,entrees,sorties,solde_cumule'),
+      ]);
+      if (teamRes.error) throw teamRes.error;
+      if (clientsRes.error) throw clientsRes.error;
+      if (contactsRes.error) throw contactsRes.error;
+      if (linksRes.error) throw linksRes.error;
+      if (docsRes.error) throw docsRes.error;
+      if (delivRes.error) throw delivRes.error;
+      if (callsRes.error) throw callsRes.error;
+      if (comptaRes.error) throw comptaRes.error;
+
+      const teamRows = teamRes.data ?? [];
+      const clientsData = clientsRes.data ?? [];
+      const contactsData = contactsRes.data ?? [];
+      const linksData = linksRes.data ?? [];
+      const docsData = docsRes.data ?? [];
+      const delivData = delivRes.data ?? [];
+      const callsData = callsRes.data ?? [];
+      const comptaData = comptaRes.data ?? [];
+
+      const team = teamRows.map(mapTeamRow);
+      const clients: Client[] = clientsData.map((row) => {
+        const base = mapClientRow(row);
+        return {
+          ...base,
+          contacts: contactsData.filter((c: { client_id: string }) => c.client_id === row.id).map(mapContactRow),
+          documents: docsData.filter((d: { client_id: string }) => d.client_id === row.id).map(mapDocumentRow),
+          links: linksData.filter((l: { client_id: string }) => l.client_id === row.id).map(mapClientLinkRow),
+        };
+      });
+      const deliverables = delivData.map(mapDeliverableRow);
+      const calls = callsData.map(mapCallRow);
+      const comptaMonthly = comptaData.map((m: { month: string; year: number; entrees: number; sorties: number; solde_cumule: number }) => ({
+        month: m.month,
+        year: m.year,
+        entrées: Number(m.entrees),
+        sorties: Number(m.sorties),
+        soldeCumulé: Number(m.solde_cumule),
+      }));
+
+      set({
+        team,
+        clients,
+        deliverables,
+        calls,
+        comptaMonthly,
+        isLoading: false,
+        loadingError: null,
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      set({ isLoading: false, loadingError: message });
+      handleError(new AppError(message, 'LOAD_DATA_FAILED', 'Impossible de charger les données'));
+    }
+  },
+
   // UI State
   currentView: 'timeline',
   selectedClientId: null,
@@ -159,90 +246,126 @@ export const useAppStore = create<AppState>((set, get) => ({
   openModal: (modal) => set({ activeModal: modal }),
   closeModal: () => set({ activeModal: null }),
   
-  // CRUD Actions - Contacts
-  addContact: (clientId, contactData) => {
+  // CRUD Actions - Contacts (async Supabase)
+  addContact: async (clientId, contactData) => {
     try {
-      set(state => ({
-        clients: state.clients.map(client =>
-          client.id === clientId 
-            ? { 
-                ...client, 
-                contacts: [...client.contacts, { ...contactData, id: generateId() }],
-                updatedAt: new Date()
-              }
+      const id = `contact-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const supabase = createClient();
+      const { error } = await supabase.from('contacts').insert({
+        id,
+        client_id: clientId,
+        ...toSupabaseContact(contactData),
+      });
+      if (error) throw error;
+      const contact: Contact = { ...contactData, id };
+      set((state) => ({
+        clients: state.clients.map((client) =>
+          client.id === clientId
+            ? { ...client, contacts: [...client.contacts, contact], updatedAt: new Date() }
             : client
-        )
+        ),
       }));
     } catch (e) {
       handleError(new AppError(String(e), 'CONTACT_ADD_FAILED', "Impossible d'ajouter le contact"));
     }
   },
-  
-  updateContact: (clientId, contactId, data) => {
+
+  updateContact: async (clientId, contactId, data) => {
     try {
-      set(state => ({
-        clients: state.clients.map(client => 
-          client.id === clientId 
-            ? { 
-                ...client, 
-                contacts: client.contacts.map(c => c.id === contactId ? { ...c, ...data } : c),
-                updatedAt: new Date()
+      const supabase = createClient();
+      const payload: Record<string, unknown> = {};
+      if (data.name !== undefined) payload.name = data.name;
+      if (data.role !== undefined) payload.role = data.role;
+      if (data.email !== undefined) payload.email = data.email;
+      if (data.phone !== undefined) payload.phone = data.phone;
+      const { error } = await supabase.from('contacts').update(payload).eq('id', contactId).eq('client_id', clientId);
+      if (error) throw error;
+      set((state) => ({
+        clients: state.clients.map((client) =>
+          client.id === clientId
+            ? {
+                ...client,
+                contacts: client.contacts.map((c) => (c.id === contactId ? { ...c, ...data } : c)),
+                updatedAt: new Date(),
               }
             : client
-        )
+        ),
       }));
     } catch (e) {
       handleError(new AppError(String(e), 'CONTACT_UPDATE_FAILED', "Impossible de modifier le contact"));
     }
   },
-  
-  deleteContact: (clientId, contactId) => {
+
+  deleteContact: async (clientId, contactId) => {
     try {
-      set(state => ({
-        clients: state.clients.map(client => 
-          client.id === clientId 
-            ? { 
-                ...client, 
-                contacts: client.contacts.filter(c => c.id !== contactId),
-                updatedAt: new Date()
-              }
+      const supabase = createClient();
+      const { error } = await supabase.from('contacts').delete().eq('id', contactId).eq('client_id', clientId);
+      if (error) throw error;
+      set((state) => ({
+        clients: state.clients.map((client) =>
+          client.id === clientId
+            ? { ...client, contacts: client.contacts.filter((c) => c.id !== contactId), updatedAt: new Date() }
             : client
-        )
+        ),
       }));
     } catch (e) {
       handleError(new AppError(String(e), 'CONTACT_DELETE_FAILED', "Impossible de supprimer le contact"));
     }
   },
 
-  addClientLink: (clientId, linkData) => set(state => ({
-    clients: state.clients.map(client =>
-      client.id === clientId
-        ? {
-            ...client,
-            links: [...(client.links ?? []), { ...linkData, id: generateId() }],
-            updatedAt: new Date(),
-          }
-        : client
-    ),
-  })),
+  addClientLink: async (clientId, linkData) => {
+    try {
+      const id = `link-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const supabase = createClient();
+      const { error } = await supabase.from('client_links').insert({
+        id,
+        client_id: clientId,
+        ...toSupabaseClientLink(linkData),
+      });
+      if (error) throw error;
+      const link: ClientLink = { ...linkData, id };
+      set((state) => ({
+        clients: state.clients.map((client) =>
+          client.id === clientId
+            ? { ...client, links: [...(client.links ?? []), link], updatedAt: new Date() }
+            : client
+        ),
+      }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'LINK_ADD_FAILED', "Impossible d'ajouter le lien"));
+    }
+  },
 
-  deleteClientLink: (clientId, linkId) => set(state => ({
-    clients: state.clients.map(client =>
-      client.id === clientId
-        ? {
-            ...client,
-            links: (client.links ?? []).filter(l => l.id !== linkId),
-            updatedAt: new Date(),
-          }
-        : client
-    ),
-  })),
+  deleteClientLink: async (clientId, linkId) => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from('client_links').delete().eq('id', linkId).eq('client_id', clientId);
+      if (error) throw error;
+      set((state) => ({
+        clients: state.clients.map((client) =>
+          client.id === clientId
+            ? { ...client, links: (client.links ?? []).filter((l) => l.id !== linkId), updatedAt: new Date() }
+            : client
+        ),
+      }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'LINK_DELETE_FAILED', "Impossible de supprimer le lien"));
+    }
+  },
 
-  addClient: (data: { name: string; status: ClientStatus }) => set(state => ({
-    clients: [
-      ...state.clients,
-      {
-        id: generateId(),
+  addClient: async (data: { name: string; status: ClientStatus }) => {
+    try {
+      const id = `client-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const supabase = createClient();
+      const { error } = await supabase.from('clients').insert({
+        id,
+        ...toSupabaseClient(data),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      const client: Client = {
+        id,
         name: data.name.trim(),
         status: data.status,
         contacts: [],
@@ -250,161 +373,224 @@ export const useAppStore = create<AppState>((set, get) => ({
         links: [],
         createdAt: new Date(),
         updatedAt: new Date(),
-      },
-    ],
-  })),
-  updateClient: (id, data) => set(state => ({
-    clients: state.clients.map(c => (c.id === id ? { ...c, ...data, updatedAt: new Date() } : c)),
-  })),
-  deleteClient: (id) => set(state => ({
-    clients: state.clients.filter(c => c.id !== id),
-    deliverables: state.deliverables.filter(d => d.clientId !== id),
-    calls: state.calls.filter(c => c.clientId !== id),
-    selectedClientId: state.selectedClientId === id ? null : state.selectedClientId,
-  })),
+      };
+      set((state) => ({ clients: [...state.clients, client] }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'CLIENT_ADD_FAILED', "Impossible d'ajouter le client"));
+    }
+  },
 
-  // CRUD Actions - Documents
-  addDocument: (clientId, docData) => {
+  updateClient: async (id, data) => {
     try {
-      set(state => ({
-    clients: state.clients.map(client => 
-      client.id === clientId 
-        ? { 
-            ...client, 
-            documents: [...client.documents, { 
-              ...docData, 
-              id: generateId(), 
-              createdAt: new Date(), 
-              updatedAt: new Date() 
-            }],
-            updatedAt: new Date()
-          }
-        : client
-    )
-  }));
+      const supabase = createClient();
+      const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (data.name !== undefined) payload.name = data.name.trim();
+      if (data.status !== undefined) payload.status = data.status;
+      const { error } = await supabase.from('clients').update(payload).eq('id', id);
+      if (error) throw error;
+      set((state) => ({
+        clients: state.clients.map((c) => (c.id === id ? { ...c, ...data, updatedAt: new Date() } : c)),
+      }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'CLIENT_UPDATE_FAILED', "Impossible de modifier le client"));
+    }
+  },
+
+  deleteClient: async (id) => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from('clients').delete().eq('id', id);
+      if (error) throw error;
+      set((state) => ({
+        clients: state.clients.filter((c) => c.id !== id),
+        deliverables: state.deliverables.filter((d) => d.clientId !== id),
+        calls: state.calls.filter((c) => c.clientId !== id),
+        selectedClientId: state.selectedClientId === id ? null : state.selectedClientId,
+      }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'CLIENT_DELETE_FAILED', "Impossible de supprimer le client"));
+    }
+  },
+
+  // CRUD Actions - Documents (async Supabase)
+  addDocument: async (clientId, docData) => {
+    try {
+      const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const now = new Date();
+      const supabase = createClient();
+      const { error } = await supabase.from('documents').insert({
+        id,
+        client_id: clientId,
+        ...toSupabaseDocument(docData),
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      });
+      if (error) throw error;
+      const doc: ClientDocument = { ...docData, id, createdAt: now, updatedAt: now };
+      set((state) => ({
+        clients: state.clients.map((client) =>
+          client.id === clientId ? { ...client, documents: [...client.documents, doc], updatedAt: now } : client
+        ),
+      }));
     } catch (e) {
       handleError(new AppError(String(e), 'DOC_ADD_FAILED', "Impossible d'ajouter le document"));
     }
   },
-  
-  updateDocument: (clientId, docId, data) => {
+
+  updateDocument: async (clientId, docId, data) => {
     try {
-      set(state => ({
-    clients: state.clients.map(client => 
-      client.id === clientId 
-        ? { 
-            ...client, 
-            documents: client.documents.map(d => 
-              d.id === docId ? { ...d, ...data, updatedAt: new Date() } : d
-            ),
-            updatedAt: new Date()
-          }
-        : client
-    ),
-    // Also update selectedDocument if it's the one being edited
-    selectedDocument: state.selectedDocument?.id === docId 
-      ? { ...state.selectedDocument, ...data, updatedAt: new Date() }
-      : state.selectedDocument
-  }));
+      const supabase = createClient();
+      const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (data.type !== undefined) payload.type = data.type;
+      if (data.title !== undefined) payload.title = data.title;
+      if (data.content !== undefined) payload.content = data.content;
+      const { error } = await supabase.from('documents').update(payload).eq('id', docId).eq('client_id', clientId);
+      if (error) throw error;
+      set((state) => ({
+        clients: state.clients.map((client) =>
+          client.id === clientId
+            ? {
+                ...client,
+                documents: client.documents.map((d) => (d.id === docId ? { ...d, ...data, updatedAt: new Date() } : d)),
+                updatedAt: new Date(),
+              }
+            : client
+        ),
+        selectedDocument:
+          state.selectedDocument?.id === docId ? { ...state.selectedDocument, ...data, updatedAt: new Date() } : state.selectedDocument,
+      }));
     } catch (e) {
       handleError(new AppError(String(e), 'DOC_UPDATE_FAILED', "Impossible de modifier le document"));
     }
   },
-  
-  deleteDocument: (clientId, docId) => {
+
+  deleteDocument: async (clientId, docId) => {
     try {
-      set(state => ({
-    clients: state.clients.map(client => 
-      client.id === clientId 
-        ? { 
-            ...client, 
-            documents: client.documents.filter(d => d.id !== docId),
-            updatedAt: new Date()
-          }
-        : client
-    ),
-    selectedDocument: state.selectedDocument?.id === docId ? null : state.selectedDocument
-  }));
+      const supabase = createClient();
+      const { error } = await supabase.from('documents').delete().eq('id', docId).eq('client_id', clientId);
+      if (error) throw error;
+      set((state) => ({
+        clients: state.clients.map((client) =>
+          client.id === clientId
+            ? { ...client, documents: client.documents.filter((d) => d.id !== docId), updatedAt: new Date() }
+            : client
+        ),
+        selectedDocument: state.selectedDocument?.id === docId ? null : state.selectedDocument,
+      }));
     } catch (e) {
       handleError(new AppError(String(e), 'DOC_DELETE_FAILED', "Impossible de supprimer le document"));
     }
   },
   
-  // CRUD Actions - Deliverables
-  addDeliverable: (deliverableData) => {
+  // CRUD Actions - Deliverables (async Supabase)
+  addDeliverable: async (deliverableData) => {
     try {
-      set(state => ({
-    deliverables: [...state.deliverables, { 
-      ...deliverableData, 
-      id: generateId(), 
-      createdAt: new Date() 
-    }]
-  }));
+      const id = `deliv-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const now = new Date();
+      const supabase = createClient();
+      const { error } = await supabase.from('deliverables').insert({
+        id,
+        ...toSupabaseDeliverable(deliverableData),
+        created_at: now.toISOString(),
+      });
+      if (error) throw error;
+      const deliv: Deliverable = { ...deliverableData, id, createdAt: now };
+      set((state) => ({ deliverables: [...state.deliverables, deliv] }));
     } catch (e) {
       handleError(new AppError(String(e), 'DELIV_ADD_FAILED', "Impossible d'ajouter le livrable"));
     }
   },
-  
-  updateDeliverable: (id, data) => {
+
+  updateDeliverable: async (id, data) => {
     try {
-      set(state => ({
-        deliverables: state.deliverables.map(d => d.id === id ? { ...d, ...data } : d)
+      const supabase = createClient();
+      const payload = toSupabaseDeliverable(data);
+      const dbPayload: Record<string, unknown> = {};
+      Object.entries(payload).forEach(([k, v]) => {
+        if (v !== undefined) dbPayload[k] = v;
+      });
+      const { error } = await supabase.from('deliverables').update(dbPayload).eq('id', id);
+      if (error) throw error;
+      set((state) => ({
+        deliverables: state.deliverables.map((d) => (d.id === id ? { ...d, ...data } : d)),
       }));
     } catch (e) {
       handleError(new AppError(String(e), 'DELIV_UPDATE_FAILED', "Impossible de modifier le livrable"));
     }
   },
-  
-  deleteDeliverable: (id) => {
+
+  deleteDeliverable: async (id) => {
     try {
-      set(state => ({
-        deliverables: state.deliverables.filter(d => d.id !== id)
-      }));
+      const supabase = createClient();
+      const { error } = await supabase.from('deliverables').delete().eq('id', id);
+      if (error) throw error;
+      set((state) => ({ deliverables: state.deliverables.filter((d) => d.id !== id) }));
     } catch (e) {
       handleError(new AppError(String(e), 'DELIV_DELETE_FAILED', "Impossible de supprimer le livrable"));
     }
   },
-  
-  toggleDeliverableStatus: (id) => set(state => ({
-    deliverables: state.deliverables.map(d => {
-      if (d.id !== id) return d;
-      const statusOrder: DeliverableStatus[] = ['pending', 'in-progress', 'completed'];
-      const currentIndex = statusOrder.indexOf(d.status);
-      const nextStatus = statusOrder[(currentIndex + 1) % statusOrder.length];
-      return { ...d, status: nextStatus };
-    })
-  })),
-  
-  // CRUD Actions - Calls
-  addCall: (callData) => {
+
+  toggleDeliverableStatus: async (id) => {
+    const state = get();
+    const d = state.deliverables.find((x) => x.id === id);
+    if (!d) return;
+    const statusOrder: DeliverableStatus[] = ['pending', 'in-progress', 'completed'];
+    const nextStatus = statusOrder[(statusOrder.indexOf(d.status) + 1) % statusOrder.length];
     try {
-      set(state => ({
-    calls: [...state.calls, { 
-      ...callData, 
-      id: generateId(), 
-      createdAt: new Date() 
-    }]
-  }));
+      const supabase = createClient();
+      const { error } = await supabase.from('deliverables').update({ status: nextStatus }).eq('id', id);
+      if (error) throw error;
+      set((s) => ({
+        deliverables: s.deliverables.map((x) => (x.id === id ? { ...x, status: nextStatus } : x)),
+      }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'DELIV_UPDATE_FAILED', "Impossible de modifier le statut"));
+    }
+  },
+
+  // CRUD Actions - Calls (async Supabase)
+  addCall: async (callData) => {
+    try {
+      const id = `call-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const now = new Date();
+      const supabase = createClient();
+      const { error } = await supabase.from('calls').insert({
+        id,
+        ...toSupabaseCall(callData),
+        created_at: now.toISOString(),
+      });
+      if (error) throw error;
+      const call: Call = { ...callData, id, createdAt: now };
+      set((state) => ({ calls: [...state.calls, call] }));
     } catch (e) {
       handleError(new AppError(String(e), 'CALL_ADD_FAILED', "Impossible d'ajouter l'appel"));
     }
   },
-  
-  updateCall: (id, data) => {
+
+  updateCall: async (id, data) => {
     try {
-      set(state => ({
-        calls: state.calls.map(c => c.id === id ? { ...c, ...data } : c)
+      const supabase = createClient();
+      const payload = toSupabaseCall(data);
+      const dbPayload: Record<string, unknown> = {};
+      Object.entries(payload).forEach(([k, v]) => {
+        if (v !== undefined) dbPayload[k] = v;
+      });
+      const { error } = await supabase.from('calls').update(dbPayload).eq('id', id);
+      if (error) throw error;
+      set((state) => ({
+        calls: state.calls.map((c) => (c.id === id ? { ...c, ...data } : c)),
       }));
     } catch (e) {
       handleError(new AppError(String(e), 'CALL_UPDATE_FAILED', "Impossible de modifier l'appel"));
     }
   },
-  
-  deleteCall: (id) => {
+
+  deleteCall: async (id) => {
     try {
-      set(state => ({
-        calls: state.calls.filter(c => c.id !== id)
-      }));
+      const supabase = createClient();
+      const { error } = await supabase.from('calls').delete().eq('id', id);
+      if (error) throw error;
+      set((state) => ({ calls: state.calls.filter((c) => c.id !== id) }));
     } catch (e) {
       handleError(new AppError(String(e), 'CALL_DELETE_FAILED', "Impossible de supprimer l'appel"));
     }
