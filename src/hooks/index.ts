@@ -1,5 +1,6 @@
 export { useClient } from './useClient';
 export { useModal } from './useModal';
+export { useUserRole } from './useUserRole';
 export { useFilteredTimeline } from './useFilteredTimeline';
 export { useLocalStorage } from './useLocalStorage';
 export { useKeyPress } from './useKeyPress';

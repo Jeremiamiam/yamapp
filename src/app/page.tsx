@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Timeline, BacklogSidebar } from '@/features/timeline/components';
 import { Header } from '@/components/layout/Header';
 import { ModalManager } from '@/components/ModalManager';
@@ -9,6 +11,15 @@ import { ComptaView } from '@/features/compta/components';
 
 export default function Home() {
   const currentView = useAppStore((state) => state.currentView);
+  const navigateToTimeline = useAppStore((state) => state.navigateToTimeline);
+  const { role, loading } = useUserRole();
+
+  // Éditeur qui tente d'accéder à la compta → redirection Calendrier
+  useEffect(() => {
+    if (!loading && role === 'editor' && currentView === 'compta') {
+      navigateToTimeline();
+    }
+  }, [loading, role, currentView, navigateToTimeline]);
 
   if (currentView === 'client-detail') {
     return (
@@ -32,7 +43,7 @@ export default function Home() {
           </div>
         )}
         {currentView === 'clients' && <ClientsList />}
-        {currentView === 'compta' && <ComptaView />}
+        {currentView === 'compta' && role === 'admin' && <ComptaView />}
       </div>
       <DocumentModal />
       <ModalManager />

@@ -1,8 +1,11 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { formatHeaderDate } from '@/lib/date-utils';
 import { TimelineFilters } from '@/features/timeline/components/TimelineFilters';
+import { createClient } from '@/lib/supabase/client';
+import { useUserRole } from '@/hooks/useUserRole';
 
 // Icons
 const ChartIcon = () => (
@@ -31,8 +34,26 @@ const GridIcon = () => (
   </svg>
 );
 
+const LogoutIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+    <polyline points="16 17 21 12 16 7"/>
+    <line x1="21" y1="12" x2="9" y2="12"/>
+  </svg>
+);
+
 export function Header() {
+  const router = useRouter();
+  const { role } = useUserRole();
   const { currentView, navigateToTimeline, navigateToClients, navigateToCompta } = useAppStore();
+  const canAccessCompta = role === 'admin';
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  }
 
   return (
     <header className="flex-shrink-0 px-8 py-4 border-b border-[var(--border-subtle)] relative z-10 bg-[var(--bg-primary)]/80 backdrop-blur-sm">
@@ -67,17 +88,19 @@ export function Header() {
               <GridIcon />
               Clients
             </button>
-            <button
-              onClick={navigateToCompta}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                currentView === 'compta'
-                  ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] shadow-sm'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <ChartIcon />
-              Comptabilité
-            </button>
+            {canAccessCompta && (
+              <button
+                onClick={navigateToCompta}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  currentView === 'compta'
+                    ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] shadow-sm'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <ChartIcon />
+                Comptabilité
+              </button>
+            )}
           </div>
         </div>
         
@@ -90,10 +113,19 @@ export function Header() {
           )}
         </div>
         
-        <div className="text-right animate-slide-in flex-shrink-0" style={{ animationDelay: '0.1s' }}>
+        <div className="text-right animate-slide-in flex-shrink-0 flex items-center gap-4" style={{ animationDelay: '0.1s' }}>
           <div className="text-sm text-[var(--text-muted)] uppercase tracking-wider">
             {formatHeaderDate(new Date())}
           </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            title="Se déconnecter"
+          >
+            <LogoutIcon />
+            Déconnexion
+          </button>
         </div>
       </div>
     </header>
