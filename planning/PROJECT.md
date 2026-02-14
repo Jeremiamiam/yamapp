@@ -17,15 +17,20 @@ Avoir une vue d'ensemble claire de tous les clients et deadlines en un coup d'œ
 ### Active
 
 - [ ] Timeline horizontale affichant clients, rendus et calls en parallèle
+- [ ] Filtrage timeline par statut client et membre d'équipe
 - [ ] Créer et éditer des clients et prospects (statut commercial)
+- [ ] Liens externes sur fiches clients (Figma, sites, prototypes)
 - [ ] Créer et éditer des rendus avec deadlines et types
-- [ ] Créer et éditer des calls/réunions avec dates
+- [ ] Créer et éditer des calls/réunions avec dates et durée
+- [ ] Backlog pour items non planifiés (drag-and-drop vers timeline)
+- [ ] Assignation des rendus et calls aux membres d'équipe
 - [ ] Fiches clients avec liste de contacts
-- [ ] Fiches clients avec fichiers textes (transcriptions PLAUD traitées)
+- [ ] Documents structurés (briefs et reports PLAUD avec templates JSON)
 - [ ] Navigation fluide entre timeline et fiches clients
 - [ ] Interface ultra minimaliste et visuelle (peu de texte)
 - [ ] Système de mock data initial pour validation UX
 - [ ] Distinction visuelle claire entre prospects et clients
+- [ ] Gestion d'équipe avec avatars et rôles
 
 ### Out of Scope
 
@@ -59,9 +64,14 @@ Avoir une vue d'ensemble claire de tous les clients et deadlines en un coup d'œ
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Mock data avant vraie persistence | Valider layout, navigation et utilité avant d'investir dans le backend | — Pending |
-| Timeline horizontale (pas calendrier grid) | Besoin de voir flux temporel des rendus, pas planning détaillé | — Pending |
-| Distinction Prospect/Client | Statut commercial important pour l'équipe | — Pending |
-| Pas d'images dans fiches | Rester sobre et focus sur l'info essentielle | — Pending |
+| Timeline horizontale (pas calendrier grid) | Besoin de voir flux temporel des rendus, pas planning détaillé | ✓ Good |
+| Distinction Prospect/Client | Statut commercial important pour l'équipe | ✓ Good |
+| Pas d'images dans fiches | Rester sobre et focus sur l'info essentielle | ✓ Good |
+| Templates JSON pour documents | Structure les briefs et reports PLAUD de façon standardisée | — Pending |
+| Assignation via team members | Permet de voir qui est responsable de quoi | ✓ Good |
+| Filtres timeline (statut + équipe) | Permet de focus sur un sous-ensemble sans perdre la vue globale | ✓ Good |
+| Liens externes avec labels suggérés | Accès rapide aux assets externes (Figma, sites) | ✓ Good |
+| Backlog sidebar pour items non planifiés | Permet de créer des items sans savoir quand les faire, puis drag-and-drop sur timeline | — Pending |
 
 ---
-*Last updated: 2026-02-13 after initialization*
+*Last updated: 2026-02-13 after backlog feature addition*

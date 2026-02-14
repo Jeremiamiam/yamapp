@@ -1,0 +1,52 @@
+import { useAppStore } from '@/lib/store';
+import type { Contact, ClientDocument, Deliverable, Call } from '@/types';
+import type { CallType } from '@/types';
+
+/**
+ * Hook simplifié pour gérer l'ouverture/fermeture des modals
+ * Évite de répéter les objets de configuration partout
+ */
+export function useModal() {
+  const openModal = useAppStore((state) => state.openModal);
+  const closeModal = useAppStore((state) => state.closeModal);
+
+  return {
+    openContactModal: (clientId: string, contact?: Contact) =>
+      openModal({
+        type: 'contact',
+        mode: contact ? 'edit' : 'create',
+        clientId,
+        contact,
+      }),
+
+    openDocumentModal: (clientId: string, document?: ClientDocument) =>
+      openModal({
+        type: 'document',
+        mode: document ? 'edit' : 'create',
+        clientId,
+        document,
+      }),
+
+    openDeliverableModal: (clientId: string | undefined, deliverable?: Deliverable) =>
+      openModal({
+        type: 'deliverable',
+        mode: deliverable ? 'edit' : 'create',
+        clientId,
+        deliverable,
+      }),
+
+    openCallModal: (clientId: string | undefined, call?: Call, presetCallType?: CallType) =>
+      openModal({
+        type: 'call',
+        mode: call ? 'edit' : 'create',
+        clientId,
+        call,
+        presetCallType,
+      }),
+
+    openClientModal: () =>
+      openModal({ type: 'client', mode: 'create' }),
+
+    closeModal,
+  };
+}

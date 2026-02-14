@@ -1,0 +1,1 @@
+export { ComptaView } from './ComptaView';

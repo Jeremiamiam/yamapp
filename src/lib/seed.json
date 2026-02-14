@@ -1,0 +1,87 @@
+{
+  "team": [
+    { "id": "team-001", "name": "Jérémy", "initials": "JH", "role": "founder", "color": "#d4f542", "email": "jeremy@yam.agency" },
+    { "id": "team-002", "name": "Alex", "initials": "AK", "role": "founder", "color": "#22d3ee", "email": "alex@yam.agency" },
+    { "id": "team-003", "name": "Marie", "initials": "MC", "role": "employee", "color": "#a78bfa", "email": "marie@yam.agency" },
+    { "id": "team-004", "name": "Lucas", "initials": "LD", "role": "freelance", "color": "#fbbf24", "email": "lucas@freelance.com" },
+    { "id": "team-005", "name": "Sophie", "initials": "SB", "role": "freelance", "color": "#ff6b6b", "email": "sophie@freelance.com" }
+  ],
+  "clients": [
+    { "id": "client-001", "name": "Forge", "status": "client", "createdAt": "2024-12-31T09:00:00.000Z", "updatedAt": "2025-02-12T09:00:00.000Z" },
+    { "id": "client-002", "name": "Brutus", "status": "client", "createdAt": "2024-12-16T09:00:00.000Z", "updatedAt": "2025-02-09T09:00:00.000Z" },
+    { "id": "client-003", "name": "Les 4 Nectarines", "status": "prospect", "createdAt": "2025-02-07T09:00:00.000Z", "updatedAt": "2025-02-07T09:00:00.000Z" },
+    { "id": "client-004", "name": "Plancœur", "status": "client", "createdAt": "2024-10-07T09:00:00.000Z", "updatedAt": "2025-02-13T09:00:00.000Z" },
+    { "id": "client-005", "name": "Avel Heol", "status": "prospect", "createdAt": "2025-02-11T09:00:00.000Z", "updatedAt": "2025-02-11T09:00:00.000Z" },
+    { "id": "client-006", "name": "Norac", "status": "client", "createdAt": "2025-01-15T09:00:00.000Z", "updatedAt": "2025-02-11T09:00:00.000Z" },
+    { "id": "client-007", "name": "Tr-Avel", "status": "client", "createdAt": "2024-11-16T09:00:00.000Z", "updatedAt": "2025-02-04T09:00:00.000Z" },
+    { "id": "client-008", "name": "Ondine", "status": "prospect", "createdAt": "2025-02-12T09:00:00.000Z", "updatedAt": "2025-02-12T09:00:00.000Z" },
+    { "id": "client-009", "name": "Lait Gaillardises", "status": "client", "createdAt": "2024-08-18T09:00:00.000Z", "updatedAt": "2025-01-26T09:00:00.000Z" },
+    { "id": "client-010", "name": "June Store", "status": "client", "createdAt": "2024-12-02T09:00:00.000Z", "updatedAt": "2025-02-10T09:00:00.000Z" }
+  ],
+  "contacts": [
+    { "id": "contact-001", "clientId": "client-001", "name": "Sophie Martin", "role": "Directrice Marketing", "email": "sophie.martin@forge.fr", "phone": "06 12 34 56 78" },
+    { "id": "contact-002", "clientId": "client-002", "name": "Marc Dubois", "role": "CEO", "email": "marc@brutus.io", "phone": "06 98 76 54 32" },
+    { "id": "contact-004", "clientId": "client-003", "name": "Julie Moreau", "role": "Gérante", "email": "julie@les4nectarines.fr" },
+    { "id": "contact-005", "clientId": "client-004", "name": "Antoine Bernard", "role": "Directeur Communication", "email": "a.bernard@plancoeur.com" },
+    { "id": "contact-007", "clientId": "client-005", "name": "Emma Laurent", "role": "Fondatrice", "email": "emma@avelheol.fr" },
+    { "id": "contact-008", "clientId": "client-006", "name": "François Dupont", "role": "Propriétaire", "email": "contact@norac.fr" },
+    { "id": "contact-009", "clientId": "client-007", "name": "Nathalie Roux", "role": "Directrice", "email": "nathalie@tr-avel.com" },
+    { "id": "contact-010", "clientId": "client-008", "name": "Thomas Girard", "role": "CMO", "email": "thomas.g@ondine.com" },
+    { "id": "contact-011", "clientId": "client-009", "name": "Chef Michel", "role": "Chef propriétaire", "email": "chef@laitgaillardises.fr" },
+    { "id": "contact-012", "clientId": "client-010", "name": "Isabelle Mercier", "role": "Directrice Artistique", "email": "isabelle@junestore.fr" }
+  ],
+  "clientLinks": [],
+  "documents": [
+    { "id": "doc-001", "clientId": "client-001", "type": "brief", "title": "Brief identité visuelle", "content": "Refonte complète de l'identité visuelle. Objectif : moderniser l'image tout en conservant l'ADN artisanal. Cibles : CSP+ urbains 35-55 ans...", "createdAt": "2025-01-05T09:00:00.000Z", "updatedAt": "2025-01-05T09:00:00.000Z" },
+    { "id": "doc-002", "clientId": "client-001", "type": "report", "title": "Call kick-off 15/01", "content": "Participants : Sophie Martin, Jérémy. Points abordés : historique marque, valeurs (authenticité, savoir-faire), concurrence directe (Maison Berthot)...", "createdAt": "2025-01-15T09:00:00.000Z", "updatedAt": "2025-01-15T09:00:00.000Z" },
+    { "id": "doc-003", "clientId": "client-002", "type": "brief", "title": "Brief UX Audit", "content": "Audit complet de l'expérience utilisateur de la plateforme SaaS. Focus sur onboarding et rétention...", "createdAt": "2024-12-22T09:00:00.000Z", "updatedAt": "2024-12-22T09:00:00.000Z" },
+    { "id": "doc-004", "clientId": "client-002", "type": "report", "title": "Debrief tests utilisateurs", "content": "Tests réalisés sur 8 utilisateurs. Points de friction identifiés : inscription en 5 étapes trop long, dashboard confus...", "createdAt": "2025-01-26T09:00:00.000Z", "updatedAt": "2025-01-26T09:00:00.000Z" },
+    { "id": "doc-005", "clientId": "client-002", "type": "note", "title": "Idées V2", "content": "Pistes créatives pour la V2 : dark mode, widgets personnalisables, intégration Slack...", "createdAt": "2025-02-06T09:00:00.000Z", "updatedAt": "2025-02-06T09:00:00.000Z" },
+    { "id": "doc-006", "clientId": "client-004", "type": "brief", "title": "Brief vidéo corporate", "content": "Vidéo de présentation du groupe. Durée cible : 2min30. Ton : institutionnel mais humain...", "createdAt": "2024-10-07T09:00:00.000Z", "updatedAt": "2024-10-07T09:00:00.000Z" },
+    { "id": "doc-007", "clientId": "client-004", "type": "report", "title": "Point mensuel janvier", "content": "Avancement projets : vidéo 60% terminée, campagne print en attente validation...", "createdAt": "2025-01-31T09:00:00.000Z", "updatedAt": "2025-01-31T09:00:00.000Z" },
+    { "id": "doc-008", "clientId": "client-006", "type": "brief", "title": "Brief packaging", "content": "Nouveau packaging pour gamme bio. Contraintes : éco-responsable, recyclable, premium...", "createdAt": "2025-01-21T09:00:00.000Z", "updatedAt": "2025-01-21T09:00:00.000Z" },
+    { "id": "doc-009", "clientId": "client-010", "type": "brief", "title": "Brief campagne Instagram", "content": "Campagne influence pour collection printemps. Budget : 15K€. Objectif : +20% followers...", "createdAt": "2024-12-16T09:00:00.000Z", "updatedAt": "2024-12-16T09:00:00.000Z" },
+    { "id": "doc-010", "clientId": "client-010", "type": "report", "title": "Call stratégie social", "content": "Discussion ligne éditoriale. Décision : ton plus décontracté, behind the scenes, UGC...", "createdAt": "2024-12-31T09:00:00.000Z", "updatedAt": "2024-12-31T09:00:00.000Z" },
+    { "id": "doc-011", "clientId": "client-010", "type": "note", "title": "Inspo moodboard", "content": "Références visuelles : Jacquemus, The Row, Lemaire. Ambiance minimaliste chic...", "createdAt": "2024-12-26T09:00:00.000Z", "updatedAt": "2024-12-26T09:00:00.000Z" }
+  ],
+  "deliverables": [
+    { "id": "deliv-001", "clientId": "client-001", "name": "Logo final", "dueDate": "2025-02-14T10:00:00.000Z", "type": "creative", "status": "in-progress", "assigneeId": "team-001", "createdAt": "2025-01-25T09:00:00.000Z", "prixFacturé": 3500, "coutSousTraitance": 0 },
+    { "id": "deliv-002", "clientId": "client-002", "name": "Audit UX", "dueDate": "2025-02-14T14:30:00.000Z", "type": "document", "status": "completed", "assigneeId": "team-003", "createdAt": "2025-02-04T09:00:00.000Z", "prixFacturé": 4200, "coutSousTraitance": 800 },
+    { "id": "deliv-003", "clientId": "client-010", "name": "Shooting photo", "dueDate": "2025-02-14T16:00:00.000Z", "type": "creative", "status": "in-progress", "assigneeId": "team-005", "createdAt": "2025-01-31T09:00:00.000Z", "prixFacturé": 6500, "coutSousTraitance": 2200 },
+    { "id": "deliv-004", "clientId": "client-004", "name": "Vidéo corporate", "dueDate": "2025-02-15T09:00:00.000Z", "type": "creative", "status": "pending", "assigneeId": "team-004", "createdAt": "2025-01-21T09:00:00.000Z", "prixFacturé": 12000, "coutSousTraitance": 4500 },
+    { "id": "deliv-005", "clientId": "client-006", "name": "Packaging sachets", "dueDate": "2025-02-15T11:00:00.000Z", "type": "creative", "status": "in-progress", "assigneeId": "team-001", "createdAt": "2025-02-06T09:00:00.000Z", "prixFacturé": 2800, "coutSousTraitance": 1200 },
+    { "id": "deliv-006", "clientId": "client-001", "name": "Charte graphique", "dueDate": "2025-02-16T10:00:00.000Z", "type": "document", "status": "pending", "assigneeId": "team-002", "createdAt": "2025-01-25T09:00:00.000Z", "prixFacturé": 4500, "coutSousTraitance": 0 },
+    { "id": "deliv-007", "clientId": "client-007", "name": "Brochure été 2026", "dueDate": "2025-02-16T15:00:00.000Z", "type": "document", "status": "pending", "assigneeId": "team-003", "createdAt": "2025-02-02T09:00:00.000Z", "prixFacturé": 3800, "coutSousTraitance": 1400 },
+    { "id": "deliv-008", "clientId": "client-002", "name": "Landing page V2", "dueDate": "2025-02-17T09:30:00.000Z", "type": "creative", "status": "in-progress", "assigneeId": "team-004", "createdAt": "2025-02-04T09:00:00.000Z", "prixFacturé": 8500, "coutSousTraitance": 3200 },
+    { "id": "deliv-009", "clientId": "client-009", "name": "Menu printemps", "dueDate": "2025-02-17T14:00:00.000Z", "type": "creative", "status": "pending", "assigneeId": "team-001", "createdAt": "2025-02-09T09:00:00.000Z", "prixFacturé": 1200, "coutSousTraitance": 350 },
+    { "id": "deliv-010", "clientId": "client-010", "name": "Campagne Instagram", "dueDate": "2025-02-18T11:00:00.000Z", "type": "creative", "status": "pending", "assigneeId": "team-005", "createdAt": "2025-02-07T09:00:00.000Z", "prixFacturé": 5500, "coutSousTraitance": 1800 },
+    { "id": "deliv-011", "clientId": "client-002", "name": "Pitch deck", "dueDate": "2025-02-18T16:30:00.000Z", "type": "document", "status": "pending", "assigneeId": "team-002", "createdAt": "2025-02-09T09:00:00.000Z", "prixFacturé": 2500, "coutSousTraitance": 0 },
+    { "id": "deliv-012", "clientId": "client-006", "name": "Nouveau logo", "dueDate": "2025-02-19T10:00:00.000Z", "type": "creative", "status": "in-progress", "assigneeId": "team-001", "createdAt": "2025-02-01T09:00:00.000Z", "prixFacturé": 3200, "coutSousTraitance": 0 },
+    { "id": "deliv-backlog-001", "clientId": "client-001", "name": "Refonte site", "type": "creative", "status": "pending", "assigneeId": "team-002", "createdAt": "2025-02-09T09:00:00.000Z", "prixFacturé": 25000, "coutSousTraitance": 8000 },
+    { "id": "deliv-backlog-002", "clientId": "client-003", "name": "Carte de visite", "type": "document", "status": "pending", "createdAt": "2025-02-12T09:00:00.000Z", "prixFacturé": 800, "coutSousTraitance": 450 }
+  ],
+  "calls": [
+    { "id": "call-001", "clientId": "client-001", "title": "Point projet", "scheduledAt": "2025-02-14T11:00:00.000Z", "duration": 30, "assigneeId": "team-001", "callType": "call", "createdAt": "2025-02-11T09:00:00.000Z" },
+    { "id": "call-002", "clientId": "client-003", "title": "Call découverte", "scheduledAt": "2025-02-15T14:00:00.000Z", "duration": 45, "assigneeId": "team-002", "callType": "call", "createdAt": "2025-02-09T09:00:00.000Z" },
+    { "id": "call-003", "clientId": "client-008", "title": "Présentation agence", "scheduledAt": "2025-02-16T11:30:00.000Z", "duration": 60, "assigneeId": "team-001", "callType": "presentation", "createdAt": "2025-02-12T09:00:00.000Z" },
+    { "id": "call-004", "clientId": "client-005", "title": "Premier contact", "scheduledAt": "2025-02-17T10:00:00.000Z", "duration": 30, "assigneeId": "team-002", "callType": "call", "createdAt": "2025-02-13T09:00:00.000Z" },
+    { "id": "call-005", "clientId": "client-004", "title": "Point mensuel", "scheduledAt": "2025-02-17T16:00:00.000Z", "duration": 45, "assigneeId": "team-001", "callType": "call", "createdAt": "2025-02-04T09:00:00.000Z" },
+    { "id": "call-006", "clientId": "client-006", "title": "Validation logo", "scheduledAt": "2025-02-18T09:00:00.000Z", "duration": 30, "assigneeId": "team-001", "callType": "call", "createdAt": "2025-02-11T09:00:00.000Z" },
+    { "id": "call-007", "clientId": "client-010", "title": "Review campagne", "scheduledAt": "2025-02-19T14:30:00.000Z", "duration": 45, "assigneeId": "team-005", "callType": "call", "createdAt": "2025-02-10T09:00:00.000Z" },
+    { "id": "call-backlog-001", "clientId": "client-005", "title": "Relance découverte", "duration": 30, "callType": "call", "createdAt": "2025-02-11T09:00:00.000Z" }
+  ],
+  "comptaMonthly": [
+    { "month": "Jan", "year": 2025, "entrées": 8000, "sorties": 2800, "soldeCumulé": 5200 },
+    { "month": "Fév", "year": 2025, "entrées": 12000, "sorties": 4200, "soldeCumulé": 13000 },
+    { "month": "Mar", "year": 2025, "entrées": 15000, "sorties": 5500, "soldeCumulé": 22500 },
+    { "month": "Avr", "year": 2025, "entrées": 10000, "sorties": 3200, "soldeCumulé": 29300 },
+    { "month": "Mai", "year": 2025, "entrées": 14000, "sorties": 4800, "soldeCumulé": 38500 },
+    { "month": "Juin", "year": 2025, "entrées": 9000, "sorties": 3500, "soldeCumulé": 44000 },
+    { "month": "Juil", "year": 2025, "entrées": 11000, "sorties": 4000, "soldeCumulé": 51000 },
+    { "month": "Août", "year": 2025, "entrées": 0, "sorties": 2000, "soldeCumulé": 49000 },
+    { "month": "Sep", "year": 2025, "entrées": 13000, "sorties": 4500, "soldeCumulé": 57500 },
+    { "month": "Oct", "year": 2025, "entrées": 12000, "sorties": 3800, "soldeCumulé": 65700 },
+    { "month": "Nov", "year": 2025, "entrées": 15000, "sorties": 5200, "soldeCumulé": 75500 },
+    { "month": "Déc", "year": 2025, "entrées": 11000, "sorties": 3600, "soldeCumulé": 82900 }
+  ]
+}

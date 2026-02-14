@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(gsd:new-project)",
+      "Bash(node:*)",
+      "Bash(if [ -f .gitignore ])",
+      "Bash(then)",
+      "Bash(if ! grep -q \"^\\\\.planning/$\" .gitignore)",
+      "Bash(fi)",
+      "Bash(else)",
+      "WebSearch",
+      "WebFetch(domain:www.patterns.dev)",
+      "WebFetch(domain:quokkalabs.com)",
+      "WebFetch(domain:blog.logrocket.com)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

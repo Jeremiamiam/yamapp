@@ -1,0 +1,323 @@
+# YAM Dashboard - Cursor Rules
+
+## Project Context
+
+You are building **YAM Dashboard** - a minimalist client management web app for a communication agency.
+
+**Core Value:** Clear overview of all clients and deadlines at a glance, without information overload.
+
+**Key Documents:**
+- `planning/PROJECT.md` - Full project context, constraints, decisions
+- `planning/REQUIREMENTS.md` - 23 v1 requirements mapped to phases
+- `planning/ROADMAP.md` - 5-phase implementation plan
+- `planning/research/` - Stack, features, architecture, and pitfalls research
+
+**READ THESE FIRST** when starting work on any feature.
+
+## Critical Constraints
+
+### 1. Minimalist & Visual-First Design
+- **Problem:** Replacing Notion (too complex visually)
+- **User:** Associate is dyslexic - needs visual clarity
+- **Principles:**
+  - Large, clear typography (Arial, Verdana, OpenDyslexic)
+  - High contrast (WCAG AAA)
+  - Generous spacing (1.5-2x line height)
+  - Icons and colors over text labels
+  - No dense paragraphs or text walls
+  - Progressive disclosure (show only what's needed)
+
+### 2. Mock Data First Approach
+- **Phase 1-4:** Use mock data only (no database, no backend)
+- Store data in memory (Zustand store) or static JSON
+- Pre-populate 5-10 sample clients on load
+- Focus on UX validation before persistence
+- **Phase 5+:** Only then consider database migration
+
+### 3. Performance from Day One
+- Timeline must render < 2 seconds with 10-20 clients
+- Implement virtual scrolling if needed (research recommends it)
+- Optimize re-renders (React.memo, useMemo, useCallback)
+- Avoid prop drilling - use Zustand for global state
+
+## Tech Stack (from research)
+
+### Core Framework
+- **Next.js 16** (App Router)
+- **React 19**
+- **TypeScript** (strict mode)
+- **Tailwind CSS** (utility-first styling)
+
+### State & Data
+- **Zustand** - Global state management (lightweight, no boilerplate)
+- **TanStack Query** - Server state (for future API calls)
+- **Mock data in JSON** - Phase 1-4 (no database yet)
+
+### Timeline Visualization
+- **vis-timeline** OR **react-calendar-timeline** OR **custom with CSS Grid**
+- Research recommends evaluating in Phase 1
+- Horizontal timeline is PRIMARY interface (not buried)
+- **Backlog sidebar** for unscheduled items (drag-and-drop to timeline)
+
+### Forms & Validation
+- **React Hook Form** - Form handling
+- **Zod** - Schema validation
+
+### Future (Phase 5+)
+- **SQLite → PostgreSQL** - Database migration path
+- **Drizzle ORM** - Type-safe queries
+- **NextAuth.js** - Authentication
+
+## Code Style & Patterns
+
+### Component Structure
+```typescript
+// Feature-based organization (not by type)
+src/
+  app/              # Next.js App Router
+  features/
+    timeline/       # Timeline feature
+      components/
+      hooks/
+      types/
+    clients/        # Client management
+    deliverables/   # Deliverables & calls
+  components/       # Shared UI components
+  lib/              # Utils, mock data, stores
+  types/            # Shared types
+```
+
+### TypeScript
+- **Always use TypeScript** - No `any` types
+- Define interfaces for all data models
+- Use Zod schemas for runtime validation
+- Export types from feature folders
+
+### React Patterns
+- **Functional components only** (no class components)
+- **Hooks for logic** (custom hooks for complex logic)
+- **Container/Presentational pattern** (separate logic from UI)
+- **Composition over prop drilling** (use Zustand, not props)
+
+### Styling
+- **Tailwind utility classes** (primary method)
+- **CSS modules** (only for complex animations)
+- **Design tokens** in `tailwind.config.ts`:
+  - Colors: High contrast for dyslexia
+  - Fonts: OpenDyslexic, Arial fallback
+  - Spacing: Generous (1.5rem base)
+  - Font sizes: Larger than default (18px base)
+
+## Accessibility Requirements
+
+### Dyslexia-Friendly
+- Font: OpenDyslexic or Arial/Verdana (16-18px minimum)
+- Line height: 1.5-2x
+- Paragraph width: Max 70 characters
+- Text color: High contrast (4.5:1 minimum, 7:1 preferred)
+- Avoid: Justified text, italics, all caps, dense text
+
+### General Accessibility
+- **WCAG AAA** target (not just AA)
+- Keyboard navigation (tab, arrow keys, enter, escape)
+- Focus indicators (visible, high contrast)
+- Screen reader support (semantic HTML, ARIA when needed)
+- Touch targets: 44x44px minimum (mobile)
+
+## Anti-Patterns (DO NOT DO)
+
+### Features to Avoid
+- ❌ Custom fields/databases (Notion complexity)
+- ❌ Advanced permissions (overkill for 10-20 clients)
+- ❌ Time tracking (scope creep)
+- ❌ Automated workflows (adds complexity)
+- ❌ Real-time collaboration (Phase 1-4 - too complex)
+- ❌ Reporting/analytics (visual timeline shows everything)
+- ❌ Email integration (feature bloat)
+- ❌ Gantt dependencies (overkill)
+
+### Code Anti-Patterns
+- ❌ Premature optimization (but DO implement virtual scrolling early)
+- ❌ Over-engineering (keep it simple)
+- ❌ Prop drilling (use Zustand)
+- ❌ Magic numbers (use constants/design tokens)
+- ❌ Inline styles (use Tailwind)
+- ❌ `any` types (use proper TypeScript)
+
+## Development Workflow
+
+### Phase-by-Phase Approach
+- **Currently:** Phase 1 planning
+- **Next:** Follow `planning/ROADMAP.md` phase order (1 → 2 → 3 → 4 → 5)
+- **Each phase:** Check requirements in `planning/REQUIREMENTS.md`
+- **Success criteria:** Must meet ALL criteria before moving to next phase
+
+### Commit Messages
+```
+feat: add horizontal timeline view (TIME-01)
+fix: improve timeline performance with virtual scrolling
+refactor: extract timeline positioning logic to hook
+style: improve dyslexia-friendly typography
+docs: update README with setup instructions
+```
+
+Reference requirement IDs (TIME-01, CLIENT-02, etc.) in commits.
+
+### Testing Approach (Phase 1-4)
+- Manual testing with mock data
+- Visual regression testing (screenshots)
+- Accessibility audit (Lighthouse, axe-devtools)
+- **No backend tests yet** (mock data phase)
+
+## Data Model (Mock Phase)
+
+### Client
+```typescript
+type Client = {
+  id: string;
+  name: string;
+  status: 'prospect' | 'client';
+  links?: ClientLink[]; // External URLs (Figma, sites, etc.)
+  contacts: Contact[];
+  documents: ClientDocument[]; // Structured documents (briefs, reports)
+  createdAt: Date;
+  updatedAt: Date;
+};
+```
+
+### ClientLink
+```typescript
+type ClientLink = {
+  id: string;
+  title: string; // e.g., "Figma", "Site internet", "Proto web"
+  url: string;
+};
+```
+
+### ClientDocument
+```typescript
+type DocumentType = 'brief' | 'report' | 'note';
+
+type ClientDocument = {
+  id: string;
+  type: DocumentType;
+  title: string;
+  content: string; // JSON string for brief/report templates, plain text for notes
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+// Brief Template (JSON structure)
+interface BriefTemplate {
+  version: 1;
+  title: string;
+  clientContext?: string;
+  objectives: string[];
+  targetAudience?: string;
+  deliverables: string[];
+  constraints?: string;
+  tone?: string;
+  references?: string;
+  deadline?: string;
+  notes?: string;
+}
+
+// Report PLAUD Template (JSON structure)
+interface ReportPlaudTemplate {
+  version: 1;
+  title: string;
+  date: string;
+  duration?: number;
+  participants?: string[];
+  summary: string;
+  keyPoints: string[];
+  actionItems: { text: string; assignee?: string }[];
+  nextSteps?: string;
+  transcriptionExcerpt?: string;
+}
+```
+
+### Deliverable
+```typescript
+type Deliverable = {
+  id: string;
+  clientId: string;
+  name: string;
+  dueDate: Date;
+  type: 'creative' | 'document' | 'other';
+  status: 'pending' | 'in-progress' | 'completed';
+  assigneeId?: string; // TeamMember id
+  createdAt: Date;
+};
+```
+
+### Call
+```typescript
+type Call = {
+  id: string;
+  clientId: string;
+  title: string;
+  scheduledAt: Date;
+  duration: number; // minutes
+  assigneeId?: string; // TeamMember id
+  notes?: string;
+  createdAt: Date;
+};
+```
+
+### TeamMember
+```typescript
+type TeamMemberRole = 'founder' | 'employee' | 'freelance';
+
+type TeamMember = {
+  id: string;
+  name: string;
+  initials: string; // e.g., "JD"
+  role: TeamMemberRole;
+  color: string; // Hex color for avatar
+  email?: string;
+};
+```
+
+### Contact
+```typescript
+type Contact = {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+  phone?: string;
+};
+```
+
+## Mock Data Location
+- Store in `lib/mock-data.ts`
+- Export 5-10 sample clients with deliverables, calls, contacts
+- Include realistic edge cases:
+  - Long names (text overflow test)
+  - Many deliverables (performance test)
+  - Empty contacts (null handling)
+  - Special characters in names
+
+## Key Reminders
+
+1. **Read planning docs first** - Don't guess, everything is documented
+2. **Mock data only for Phase 1-4** - No database, no API calls yet
+3. **Horizontal timeline is PRIMARY interface** - Not a secondary view
+4. **Accessibility is non-negotiable** - Dyslexia-friendly from day one
+5. **Keep it minimal** - When in doubt, leave it out
+6. **Performance matters** - Timeline must be fast with 10-20 clients
+7. **Visual > Textual** - Use icons, colors, spacing over text labels
+
+## Questions to Ask Before Implementing
+
+- ✅ Does this align with `planning/REQUIREMENTS.md`?
+- ✅ Is this in the current phase of `planning/ROADMAP.md`?
+- ✅ Does this add complexity (if yes, is it worth it)?
+- ✅ Is this dyslexia-friendly (fonts, spacing, contrast)?
+- ✅ Can I use mock data (Phase 1-4) or do I need backend?
+- ✅ Will this perform well with 20 clients and 50+ deliverables?
+
+---
+
+**Remember:** You're building a SIMPLE alternative to Notion, not rebuilding Notion. When in doubt, choose simplicity.
