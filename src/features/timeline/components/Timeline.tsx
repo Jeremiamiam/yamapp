@@ -9,11 +9,11 @@ import { TimelineCard, TimelineCardItem } from './TimelineCard';
 import { BACKLOG_DRAG_TYPE } from './BacklogSidebar';
 
 // Timeline dimensions — plus compact sur mobile
-const HEADER_HEIGHT = 56;
-const MONTH_ROW_HEIGHT = 38; // Bande mois au-dessus des jours (scroll X)
-const TOTAL_HEADER_HEIGHT = MONTH_ROW_HEIGHT + HEADER_HEIGHT;
+const HEADER_HEIGHT = 56; // Hauteur ligne des jours (numéro + LUN/MAR...)
+const MONTH_ROW_HEIGHT = 38; // Bande mois
+const HOUR_INDEX_HEIGHT = 28; // Bande index horaires au-dessus des jours
+const TOTAL_HEADER_HEIGHT = HOUR_INDEX_HEIGHT + MONTH_ROW_HEIGHT + HEADER_HEIGHT;
 const HOUR_HEIGHT_DESKTOP = 96;
-const HOUR_HEIGHT_MOBILE = 72;
 const WEEKEND_RATIO = 0.12;
 const START_HOUR = 8;
 const END_HOUR = 20; // Grille jusqu’à 20h (créneau 19h–20h visible)
@@ -42,8 +42,16 @@ export function Timeline() {
   );
   const { openDeliverableModal, openCallModal } = useModal();
   const isMobile = useIsMobile();
-  const HOUR_HEIGHT = isMobile ? HOUR_HEIGHT_MOBILE : HOUR_HEIGHT_DESKTOP;
+  const timelineContainerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // Mobile: hauteur dynamique pour tenir la journée (8h-20h) dans le viewport
+  const HOUR_HEIGHT = useMemo(() => {
+    if (!isMobile || containerHeight < 200) return HOUR_HEIGHT_DESKTOP;
+    const gridHeight = containerHeight - TOTAL_HEADER_HEIGHT;
+    const hoursCount = END_HOUR - START_HOUR + 1;
+    return Math.max(36, Math.floor(gridHeight / hoursCount));
+  }, [isMobile, containerHeight]);
   const lastWidthRef = useRef(0);
   const [containerWidth, setContainerWidth] = useState(0);
   type DragItem = TimelineCardItem & { hour?: number; minutes?: number };
@@ -74,6 +82,20 @@ export function Timeline() {
       resizeObserver.observe(scrollContainerRef.current);
     }
     return () => resizeObserver.disconnect();
+  }, []);
+
+  // Measure container height pour mobile (vh dynamique : journée complète visible)
+  useEffect(() => {
+    const el = timelineContainerRef.current;
+    if (!el) return;
+    const updateHeight = () => {
+      const h = el.clientHeight;
+      if (h > 0) setContainerHeight(h);
+    };
+    updateHeight();
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   // Calculate day widths — mobile: colonnes plus étroites, min 72px pour lisibilité
@@ -142,7 +164,7 @@ export function Timeline() {
       }
       return null;
     },
-    [datesWithWidth]
+    [datesWithWidth, HOUR_HEIGHT]
   );
 
   const handleCardMove = useCallback(
@@ -166,7 +188,7 @@ export function Timeline() {
         TOTAL_HEADER_HEIGHT + ((target.hour - START_HOUR) * 60 + target.minutes) / 60 * HOUR_HEIGHT;
       return rect.top + (slotTop - el.scrollTop);
     },
-    [getDropTarget]
+    [getDropTarget, HOUR_HEIGHT]
   );
 
   const onDragStart = useCallback((item: DragItem, type: 'deliverable' | 'call', x: number, y: number) => {
@@ -313,10 +335,19 @@ export function Timeline() {
     return days[date.getDay()];
   };
 
+  /** Heures à afficher dans la bande index (marqueurs réguliers) */
+  const hourIndexMarkers = useMemo(() => {
+    const markers: number[] = [];
+    for (let h = START_HOUR; h <= END_HOUR; h += 2) {
+      markers.push(h);
+    }
+    return markers;
+  }, []);
+
   return (
-    <div className="flex-1 flex flex-col relative overflow-hidden">
+    <div ref={timelineContainerRef} className="flex-1 flex flex-col relative overflow-hidden min-h-0">
       {/* Timeline Content */}
-      <div className="flex-1 flex overflow-hidden relative z-10">
+      <div className="flex-1 flex overflow-hidden relative z-10 min-h-0">
         {/* Scrollable timeline : horaires + colonnes jours scrollent ensemble en Y ; en X la colonne horaires reste fixe (sticky) */}
         <div
           ref={scrollContainerRef}
@@ -329,6 +360,9 @@ export function Timeline() {
               className="flex-shrink-0 w-12 sm:w-16 border-r border-[var(--border-subtle)] bg-[var(--bg-primary)]/95 backdrop-blur-sm sticky left-0 z-20"
               style={{ height: TOTAL_HEADER_HEIGHT + totalHeight }}
             >
+              <div style={{ height: HOUR_INDEX_HEIGHT }} className="border-b border-[var(--border-subtle)] flex items-center justify-center">
+                <span className="text-[9px] sm:text-[10px] font-mono text-[var(--text-muted)]">h</span>
+              </div>
               <div style={{ height: MONTH_ROW_HEIGHT }} className="border-b border-[var(--border-subtle)]" />
               <div style={{ height: HEADER_HEIGHT }} className="border-b border-[var(--border-subtle)]" />
               <div className="relative" style={{ height: totalHeight }}>
@@ -357,12 +391,25 @@ export function Timeline() {
               </div>
             </div>
 
-            {/* Colonnes jours : bande mois + lignes des jours */}
+            {/* Colonnes jours : index heures + bande mois + lignes des jours */}
             <div className="flex flex-shrink-0 flex-col" style={{ width: totalWidth }}>
+              {/* Bande index heures — au-dessus des jours (référence temporelle) */}
+              <div
+                className="flex flex-shrink-0 sticky top-0 z-30 border-b border-[var(--border-subtle)]/60 bg-[var(--bg-secondary)]/60 backdrop-blur-sm"
+                style={{ height: HOUR_INDEX_HEIGHT }}
+              >
+                <div className="flex items-center justify-between w-full h-full px-2 text-[10px] sm:text-xs font-mono text-[var(--text-muted)]">
+                  {hourIndexMarkers.map((h) => (
+                    <span key={h} className="flex-shrink-0">
+                      {h.toString().padStart(2, '0')}h
+                    </span>
+                  ))}
+                </div>
+              </div>
               {/* Bande mois — sticky au scroll Y, repère clair au scroll X */}
               <div
-                className="flex flex-shrink-0 sticky top-0 z-30 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/90 backdrop-blur-sm"
-                style={{ height: MONTH_ROW_HEIGHT }}
+                className="flex flex-shrink-0 sticky z-30 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/90 backdrop-blur-sm"
+                style={{ height: MONTH_ROW_HEIGHT, top: HOUR_INDEX_HEIGHT }}
               >
                 {monthRanges.map((m, i) => (
                   <div
@@ -421,7 +468,7 @@ export function Timeline() {
                             ? 'bg-[var(--bg-tertiary)]/80' 
                             : 'bg-[var(--bg-secondary)]/80'
                     } ${d.date.getDate() === 1 ? 'border-l-2 border-l-[var(--accent-cyan)]/50' : ''}`}
-                    style={{ height: HEADER_HEIGHT, top: MONTH_ROW_HEIGHT }}
+                    style={{ height: HEADER_HEIGHT, top: HOUR_INDEX_HEIGHT + MONTH_ROW_HEIGHT }}
                   >
                     {!d.isWeekend && (
                       <>

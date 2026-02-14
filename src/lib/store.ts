@@ -626,10 +626,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (d.dueDate < timelineRange.start || d.dueDate > timelineRange.end) return false;
       const client = d.clientId ? getClientById(d.clientId) : null;
       if (d.clientId && !client) return false;
-      if (client) {
-        if (filters.clientStatus !== 'all' && client.status !== filters.clientStatus) return false;
-        if (filters.teamMemberId && d.assigneeId !== filters.teamMemberId) return false;
+      // Statut client
+      if (filters.clientStatus !== 'all') {
+        if (!client) return false; // Sans client = exclu si filtre actif
+        if (client.status !== filters.clientStatus) return false;
       }
+      // Membre équipe
+      if (filters.teamMemberId && d.assigneeId !== filters.teamMemberId) return false;
       return true;
     });
   },
@@ -642,10 +645,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (c.scheduledAt < timelineRange.start || c.scheduledAt > timelineRange.end) return false;
       const client = c.clientId ? getClientById(c.clientId) : null;
       if (c.clientId && !client) return false;
-      if (client) {
-        if (filters.clientStatus !== 'all' && client.status !== filters.clientStatus) return false;
-        if (filters.teamMemberId && c.assigneeId !== filters.teamMemberId) return false;
+      // Statut client
+      if (filters.clientStatus !== 'all') {
+        if (!client) return false;
+        if (client.status !== filters.clientStatus) return false;
       }
+      // Membre équipe
+      if (filters.teamMemberId && c.assigneeId !== filters.teamMemberId) return false;
       return true;
     });
   },

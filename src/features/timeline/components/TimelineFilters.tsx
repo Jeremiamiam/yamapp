@@ -48,9 +48,9 @@ export function TimelineFilters() {
     }`;
 
   return (
-    <div className="flex items-center gap-3 flex-wrap">
+    <div className="flex items-center gap-2 sm:gap-3 flex-wrap overflow-x-auto overflow-y-hidden py-1 -my-1 min-w-0">
       {/* Filtre Statut Client */}
-      <div className="flex items-center gap-1 bg-[var(--bg-secondary)] rounded-xl p-1">
+      <div className="flex items-center gap-1 bg-[var(--bg-secondary)] rounded-xl p-1 flex-shrink-0">
         <button
           onClick={() => setClientStatusFilter('all')}
           className={filterBtnClass(filters.clientStatus === 'all')}
@@ -80,10 +80,10 @@ export function TimelineFilters() {
       </div>
 
       {/* Séparateur */}
-      <div className="h-6 w-px bg-[var(--border-subtle)]" />
+      <div className="h-6 w-px bg-[var(--border-subtle)] flex-shrink-0" />
 
       {/* Filtre Équipe */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <span className="text-[var(--text-muted)]">
           <Users />
         </span>

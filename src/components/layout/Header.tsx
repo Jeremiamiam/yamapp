@@ -57,6 +57,9 @@ export function Header() {
   const canAccessCompta = role === 'admin';
   const isMobile = useIsMobile();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const hasActiveFilters = useAppStore((s) => 
+    s.filters.clientStatus !== 'all' || s.filters.teamMemberId !== null
+  );
 
   async function handleLogout() {
     const supabase = createClient();
@@ -120,11 +123,18 @@ export function Header() {
                 <button
                   type="button"
                   onClick={() => setFiltersOpen((o) => !o)}
-                  className="flex-shrink-0 p-2.5 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-                  title="Filtres"
+                  className={`flex-shrink-0 relative p-2.5 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors ${
+                    filtersOpen
+                      ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                  }`}
+                  title={hasActiveFilters ? 'Filtres actifs' : 'Filtres'}
                   aria-expanded={filtersOpen}
                 >
                   <FilterIcon />
+                  {hasActiveFilters && (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--accent-lime)]" />
+                  )}
                 </button>
                 {filtersOpen && (
                   <>
@@ -150,8 +160,8 @@ export function Header() {
                 )}
               </>
             ) : (
-              <div className="flex-1 min-w-0">
-                <div className="animate-slide-in" style={{ animationDelay: '0.05s' }}>
+              <div className="flex-1 min-w-0 flex items-center justify-end sm:justify-center overflow-hidden">
+                <div className="animate-slide-in max-w-full" style={{ animationDelay: '0.05s' }}>
                   <TimelineFilters />
                 </div>
               </div>
