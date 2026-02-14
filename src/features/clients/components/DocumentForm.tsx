@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal, FormField, Input, Textarea, Select, Button } from '@/components/ui';
 import { useAppStore } from '@/lib/store';
+import { getDocumentTypeStyle } from '@/lib/styles';
+import { DocumentSchema, type DocumentFormData } from '@/lib/validation';
 import { DocumentType, ClientDocument } from '@/types';
 import { parseStructuredDocument } from '@/types/document-templates';
 
-// Icons
 const Upload = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -24,78 +27,65 @@ const FileText = () => (
   </svg>
 );
 
-interface FormData {
-  type: DocumentType;
-  title: string;
-  content: string;
-}
+const typeOptions = [
+  { value: 'brief', label: '📋 Brief' },
+  { value: 'report', label: '🎙️ Report PLAUD' },
+  { value: 'note', label: '📝 Note' },
+] as const;
 
 export function DocumentForm() {
   const { activeModal, closeModal, addDocument, updateDocument, deleteDocument } = useAppStore();
-  
   const isOpen = activeModal?.type === 'document';
   const mode = isOpen ? activeModal.mode : 'create';
   const clientId = isOpen ? activeModal.clientId : '';
   const existingDoc = isOpen && activeModal.mode === 'edit' ? activeModal.document : undefined;
-  
-  const [formData, setFormData] = useState<FormData>({
-    type: 'note',
-    title: '',
-    content: ''
-  });
-  
-  const [errors, setErrors] = useState<Partial<FormData>>({});
+
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset form when modal opens
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+    setValue,
+  } = useForm<DocumentFormData>({
+    resolver: zodResolver(DocumentSchema),
+    defaultValues: { type: 'note', title: '', content: '' },
+  });
+
+  const type = watch('type');
+
   useEffect(() => {
     if (isOpen) {
       if (existingDoc) {
-        setFormData({
+        reset({
           type: existingDoc.type,
           title: existingDoc.title,
-          content: existingDoc.content
+          content: existingDoc.content,
         });
       } else {
-        setFormData({ type: 'note', title: '', content: '' });
+        reset({ type: 'note', title: '', content: '' });
       }
-      setErrors({});
+      setUploadError(null);
     }
-  }, [isOpen, existingDoc]);
-  
-  const validate = (): boolean => {
-    const newErrors: Partial<FormData> = {};
-    
-    if (!formData.title.trim()) {
-      newErrors.title = 'Le titre est requis';
-    }
-    if (!formData.content.trim()) {
-      newErrors.content = 'Le contenu est requis';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-  
-  const handleSubmit = () => {
-    if (!validate()) return;
-    
+  }, [isOpen, existingDoc, reset]);
+
+  const onSubmit = (data: DocumentFormData) => {
     const docData: Omit<ClientDocument, 'id' | 'createdAt' | 'updatedAt'> = {
-      type: formData.type,
-      title: formData.title.trim(),
-      content: formData.content.trim()
+      type: data.type,
+      title: data.title.trim(),
+      content: data.content.trim(),
     };
-    
     if (mode === 'edit' && existingDoc) {
       updateDocument(clientId, existingDoc.id, docData);
     } else {
       addDocument(clientId, docData);
     }
-    
     closeModal();
   };
-  
+
   const handleDelete = () => {
     if (mode === 'edit' && existingDoc) {
       deleteDocument(clientId, existingDoc.id);
@@ -107,24 +97,18 @@ export function DocumentForm() {
     const file = e.target.files?.[0];
     e.target.value = '';
     setUploadError(null);
-    if (!file) return;
-    if (formData.type !== 'brief' && formData.type !== 'report') return;
-
+    if (!file || (type !== 'brief' && type !== 'report')) return;
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const text = reader.result as string;
-        const parsed = parseStructuredDocument(text, formData.type);
+        const parsed = parseStructuredDocument(text, type);
         if (!parsed) {
           setUploadError('Le JSON ne respecte pas le template attendu. Voir docs/json-templates-ia.md');
           return;
         }
-        setFormData(prev => ({
-          ...prev,
-          title: parsed.title,
-          content: text
-        }));
-        setErrors(prev => ({ ...prev, title: undefined, content: undefined }));
+        setValue('title', parsed.title);
+        setValue('content', text);
       } catch {
         setUploadError('Fichier JSON invalide.');
       }
@@ -132,25 +116,8 @@ export function DocumentForm() {
     reader.readAsText(file, 'UTF-8');
   };
 
-  const getTypeStyle = (type: DocumentType) => {
-    switch (type) {
-      case 'brief':
-        return { bg: 'bg-[var(--accent-cyan)]/10', color: 'text-[var(--accent-cyan)]' };
-      case 'report':
-        return { bg: 'bg-[var(--accent-amber)]/10', color: 'text-[var(--accent-amber)]' };
-      default:
-        return { bg: 'bg-[var(--accent-violet)]/10', color: 'text-[var(--accent-violet)]' };
-    }
-  };
-  
-  const typeStyle = getTypeStyle(formData.type);
-  
-  const typeOptions = [
-    { value: 'brief', label: '📋 Brief' },
-    { value: 'report', label: '🎙️ Report PLAUD' },
-    { value: 'note', label: '📝 Note' }
-  ];
-  
+  const typeStyle = getDocumentTypeStyle(type);
+
   return (
     <Modal
       isOpen={isOpen}
@@ -159,7 +126,7 @@ export function DocumentForm() {
       subtitle="Document"
       icon={<FileText />}
       iconBg={typeStyle.bg}
-      iconColor={typeStyle.color}
+      iconColor={typeStyle.text}
       size="lg"
       footer={
         <>
@@ -172,25 +139,25 @@ export function DocumentForm() {
           <Button variant="secondary" onClick={closeModal}>
             Annuler
           </Button>
-          <Button onClick={handleSubmit}>
+          <Button onClick={handleSubmit(onSubmit)}>
             {mode === 'edit' ? 'Enregistrer' : 'Créer'}
           </Button>
         </>
       }
     >
-      <div className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <FormField label="Type de document" required>
           <Select
-            value={formData.type}
-            onChange={e => {
-              setFormData(prev => ({ ...prev, type: e.target.value as DocumentType }));
+            value={type}
+            onChange={(e) => {
+              setValue('type', e.target.value as DocumentType);
               setUploadError(null);
             }}
-            options={typeOptions}
+            options={[...typeOptions]}
           />
         </FormField>
 
-        {(formData.type === 'brief' || formData.type === 'report') && (
+        {(type === 'brief' || type === 'report') && (
           <div className="space-y-2">
             <label className="block text-sm font-medium text-[var(--text-secondary)]">
               Importer un JSON (output IA)
@@ -212,46 +179,37 @@ export function DocumentForm() {
               Choisir un fichier .json
             </Button>
             <p className="text-[10px] text-[var(--text-muted)]">
-              Le JSON doit respecter le template {formData.type === 'brief' ? 'Brief' : 'Report PLAUD'} (voir docs/json-templates-ia.md).
+              Le JSON doit respecter le template {type === 'brief' ? 'Brief' : 'Report PLAUD'} (voir docs/json-templates-ia.md).
             </p>
             {uploadError && (
               <p className="text-xs text-[var(--accent-magenta)]">{uploadError}</p>
             )}
           </div>
         )}
-        
-        <FormField label="Titre" required error={errors.title}>
+
+        <FormField label="Titre" required error={errors.title?.message}>
           <Input
-            value={formData.title}
-            onChange={e => {
-              setFormData(prev => ({ ...prev, title: e.target.value }));
-              if (errors.title) setErrors(prev => ({ ...prev, title: undefined }));
-            }}
+            {...register('title')}
             placeholder={
-              formData.type === 'brief' ? "Ex: Brief identité visuelle 2026" :
-              formData.type === 'report' ? "Ex: Call kick-off 13/02" :
-              "Ex: Notes réunion stratégie"
+              type === 'brief' ? 'Ex: Brief identité visuelle 2026' :
+              type === 'report' ? 'Ex: Call kick-off 13/02' :
+              'Ex: Notes réunion stratégie'
             }
             autoFocus
           />
         </FormField>
-        
-        <FormField label="Contenu" required error={errors.content}>
+        <FormField label="Contenu" required error={errors.content?.message}>
           <Textarea
-            value={formData.content}
-            onChange={e => {
-              setFormData(prev => ({ ...prev, content: e.target.value }));
-              if (errors.content) setErrors(prev => ({ ...prev, content: undefined }));
-            }}
+            {...register('content')}
             placeholder={
-              formData.type === 'brief' ? "Objectifs, contexte, livrables attendus..." :
-              formData.type === 'report' ? "Transcription de l'appel, points clés discutés..." :
-              "Contenu de la note..."
+              type === 'brief' ? 'Objectifs, contexte, livrables attendus...' :
+              type === 'report' ? "Transcription de l'appel, points clés discutés..." :
+              'Contenu de la note...'
             }
             rows={8}
           />
         </FormField>
-      </div>
+      </form>
     </Modal>
   );
 }

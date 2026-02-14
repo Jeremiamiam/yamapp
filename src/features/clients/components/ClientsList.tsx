@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useModal } from '@/hooks';
+import { formatDate } from '@/lib/date-utils';
 import { Client, Deliverable, Call } from '@/types';
 
 // Icons
@@ -116,7 +117,7 @@ export function ClientsList() {
                         <p className="text-sm text-[var(--text-secondary)] truncate">
                           {nextDeliverable.name}
                           <span className="text-[var(--text-muted)] ml-1.5">
-                            • {new Date(nextDeliverable.dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                            • {nextDeliverable.dueDate ? formatDate(new Date(nextDeliverable.dueDate)) : ''}
                           </span>
                         </p>
                       ) : (
@@ -136,7 +137,7 @@ export function ClientsList() {
                         <p className="text-sm text-[var(--text-secondary)] truncate">
                           {lastCall.title}
                           <span className="text-[var(--text-muted)] ml-1.5">
-                            • {new Date(lastCall.scheduledAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                            • {lastCall.scheduledAt ? formatDate(new Date(lastCall.scheduledAt)) : ''}
                           </span>
                         </p>
                       ) : (

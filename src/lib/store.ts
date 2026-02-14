@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, TeamMember, Contact, ClientDocument, DeliverableStatus } from '@/types';
 import { mockClients, mockDeliverables, mockCalls, mockTeam } from './mock-data';
+import { handleError, AppError } from './error-handler';
 
 type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta';
 
@@ -57,7 +58,7 @@ interface AppState {
   deleteContact: (clientId: string, contactId: string) => void;
   
   // CRUD Actions - Clients
-  addClient: (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addClient: (data: Pick<Client, 'name' | 'status'>) => void;
   updateClient: (id: string, data: Partial<Pick<Client, 'name' | 'status'>>) => void;
   deleteClient: (id: string) => void;
 
@@ -96,6 +97,9 @@ interface AppState {
   getCallsByClientId: (clientId: string) => Call[];
   getBacklogDeliverables: () => Deliverable[];
   getBacklogCalls: () => Call[];
+  /** Sélecteurs optimisés : deliverables/calls filtrés par plage timeline + filtres (clientStatus, teamMemberId) */
+  getFilteredDeliverables: () => Deliverable[];
+  getFilteredCalls: () => Call[];
 }
 
 // Default timeline range: aujourd'hui à gauche, 90 jours en avant (3 mois)
@@ -156,41 +160,59 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeModal: () => set({ activeModal: null }),
   
   // CRUD Actions - Contacts
-  addContact: (clientId, contactData) => set(state => ({
-    clients: state.clients.map(client => 
-      client.id === clientId 
-        ? { 
-            ...client, 
-            contacts: [...client.contacts, { ...contactData, id: generateId() }],
-            updatedAt: new Date()
-          }
-        : client
-    )
-  })),
+  addContact: (clientId, contactData) => {
+    try {
+      set(state => ({
+        clients: state.clients.map(client =>
+          client.id === clientId 
+            ? { 
+                ...client, 
+                contacts: [...client.contacts, { ...contactData, id: generateId() }],
+                updatedAt: new Date()
+              }
+            : client
+        )
+      }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'CONTACT_ADD_FAILED', "Impossible d'ajouter le contact"));
+    }
+  },
   
-  updateContact: (clientId, contactId, data) => set(state => ({
-    clients: state.clients.map(client => 
-      client.id === clientId 
-        ? { 
-            ...client, 
-            contacts: client.contacts.map(c => c.id === contactId ? { ...c, ...data } : c),
-            updatedAt: new Date()
-          }
-        : client
-    )
-  })),
+  updateContact: (clientId, contactId, data) => {
+    try {
+      set(state => ({
+        clients: state.clients.map(client => 
+          client.id === clientId 
+            ? { 
+                ...client, 
+                contacts: client.contacts.map(c => c.id === contactId ? { ...c, ...data } : c),
+                updatedAt: new Date()
+              }
+            : client
+        )
+      }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'CONTACT_UPDATE_FAILED', "Impossible de modifier le contact"));
+    }
+  },
   
-  deleteContact: (clientId, contactId) => set(state => ({
-    clients: state.clients.map(client => 
-      client.id === clientId 
-        ? { 
-            ...client, 
-            contacts: client.contacts.filter(c => c.id !== contactId),
-            updatedAt: new Date()
-          }
-        : client
-    )
-  })),
+  deleteContact: (clientId, contactId) => {
+    try {
+      set(state => ({
+        clients: state.clients.map(client => 
+          client.id === clientId 
+            ? { 
+                ...client, 
+                contacts: client.contacts.filter(c => c.id !== contactId),
+                updatedAt: new Date()
+              }
+            : client
+        )
+      }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'CONTACT_DELETE_FAILED', "Impossible de supprimer le contact"));
+    }
+  },
 
   addClientLink: (clientId, linkData) => set(state => ({
     clients: state.clients.map(client =>
@@ -242,7 +264,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
 
   // CRUD Actions - Documents
-  addDocument: (clientId, docData) => set(state => ({
+  addDocument: (clientId, docData) => {
+    try {
+      set(state => ({
     clients: state.clients.map(client => 
       client.id === clientId 
         ? { 
@@ -257,9 +281,15 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         : client
     )
-  })),
+  }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'DOC_ADD_FAILED', "Impossible d'ajouter le document"));
+    }
+  },
   
-  updateDocument: (clientId, docId, data) => set(state => ({
+  updateDocument: (clientId, docId, data) => {
+    try {
+      set(state => ({
     clients: state.clients.map(client => 
       client.id === clientId 
         ? { 
@@ -275,9 +305,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     selectedDocument: state.selectedDocument?.id === docId 
       ? { ...state.selectedDocument, ...data, updatedAt: new Date() }
       : state.selectedDocument
-  })),
+  }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'DOC_UPDATE_FAILED', "Impossible de modifier le document"));
+    }
+  },
   
-  deleteDocument: (clientId, docId) => set(state => ({
+  deleteDocument: (clientId, docId) => {
+    try {
+      set(state => ({
     clients: state.clients.map(client => 
       client.id === clientId 
         ? { 
@@ -288,24 +324,46 @@ export const useAppStore = create<AppState>((set, get) => ({
         : client
     ),
     selectedDocument: state.selectedDocument?.id === docId ? null : state.selectedDocument
-  })),
+  }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'DOC_DELETE_FAILED', "Impossible de supprimer le document"));
+    }
+  },
   
   // CRUD Actions - Deliverables
-  addDeliverable: (deliverableData) => set(state => ({
+  addDeliverable: (deliverableData) => {
+    try {
+      set(state => ({
     deliverables: [...state.deliverables, { 
       ...deliverableData, 
       id: generateId(), 
       createdAt: new Date() 
     }]
-  })),
+  }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'DELIV_ADD_FAILED', "Impossible d'ajouter le livrable"));
+    }
+  },
   
-  updateDeliverable: (id, data) => set(state => ({
-    deliverables: state.deliverables.map(d => d.id === id ? { ...d, ...data } : d)
-  })),
+  updateDeliverable: (id, data) => {
+    try {
+      set(state => ({
+        deliverables: state.deliverables.map(d => d.id === id ? { ...d, ...data } : d)
+      }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'DELIV_UPDATE_FAILED', "Impossible de modifier le livrable"));
+    }
+  },
   
-  deleteDeliverable: (id) => set(state => ({
-    deliverables: state.deliverables.filter(d => d.id !== id)
-  })),
+  deleteDeliverable: (id) => {
+    try {
+      set(state => ({
+        deliverables: state.deliverables.filter(d => d.id !== id)
+      }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'DELIV_DELETE_FAILED', "Impossible de supprimer le livrable"));
+    }
+  },
   
   toggleDeliverableStatus: (id) => set(state => ({
     deliverables: state.deliverables.map(d => {
@@ -318,21 +376,39 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
   
   // CRUD Actions - Calls
-  addCall: (callData) => set(state => ({
+  addCall: (callData) => {
+    try {
+      set(state => ({
     calls: [...state.calls, { 
       ...callData, 
       id: generateId(), 
       createdAt: new Date() 
     }]
-  })),
+  }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'CALL_ADD_FAILED', "Impossible d'ajouter l'appel"));
+    }
+  },
   
-  updateCall: (id, data) => set(state => ({
-    calls: state.calls.map(c => c.id === id ? { ...c, ...data } : c)
-  })),
+  updateCall: (id, data) => {
+    try {
+      set(state => ({
+        calls: state.calls.map(c => c.id === id ? { ...c, ...data } : c)
+      }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'CALL_UPDATE_FAILED', "Impossible de modifier l'appel"));
+    }
+  },
   
-  deleteCall: (id) => set(state => ({
-    calls: state.calls.filter(c => c.id !== id)
-  })),
+  deleteCall: (id) => {
+    try {
+      set(state => ({
+        calls: state.calls.filter(c => c.id !== id)
+      }));
+    } catch (e) {
+      handleError(new AppError(String(e), 'CALL_DELETE_FAILED', "Impossible de supprimer l'appel"));
+    }
+  },
   
   // Filter Actions
   setClientStatusFilter: (status) => set(state => ({
@@ -355,4 +431,36 @@ export const useAppStore = create<AppState>((set, get) => ({
   getCallsByClientId: (clientId) => get().calls.filter(c => c.clientId === clientId),
   getBacklogDeliverables: () => get().deliverables.filter(d => d.dueDate == null),
   getBacklogCalls: () => get().calls.filter(c => c.scheduledAt == null),
+
+  getFilteredDeliverables: () => {
+    const state = get();
+    const { deliverables, filters, timelineRange, getClientById } = state;
+    return deliverables.filter((d) => {
+      if (!d.dueDate) return false;
+      if (d.dueDate < timelineRange.start || d.dueDate > timelineRange.end) return false;
+      const client = d.clientId ? getClientById(d.clientId) : null;
+      if (d.clientId && !client) return false;
+      if (client) {
+        if (filters.clientStatus !== 'all' && client.status !== filters.clientStatus) return false;
+        if (filters.teamMemberId && d.assigneeId !== filters.teamMemberId) return false;
+      }
+      return true;
+    });
+  },
+
+  getFilteredCalls: () => {
+    const state = get();
+    const { calls, filters, timelineRange, getClientById } = state;
+    return calls.filter((c) => {
+      if (!c.scheduledAt) return false;
+      if (c.scheduledAt < timelineRange.start || c.scheduledAt > timelineRange.end) return false;
+      const client = c.clientId ? getClientById(c.clientId) : null;
+      if (c.clientId && !client) return false;
+      if (client) {
+        if (filters.clientStatus !== 'all' && client.status !== filters.clientStatus) return false;
+        if (filters.teamMemberId && c.assigneeId !== filters.teamMemberId) return false;
+      }
+      return true;
+    });
+  },
 }));

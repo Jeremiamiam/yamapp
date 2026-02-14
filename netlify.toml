@@ -1,0 +1,7 @@
+# YAM Dashboard — Netlify (Next.js auto-détecté via OpenNext)
+
+[build]
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"

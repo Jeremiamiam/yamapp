@@ -42,7 +42,7 @@ export function Timeline() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastWidthRef = useRef(0);
   const [containerWidth, setContainerWidth] = useState(0);
-  type DragItem = TimelineCardItem & { hour: number; minutes: number };
+  type DragItem = TimelineCardItem & { hour?: number; minutes?: number };
   const [dragState, setDragState] = useState<{ item: DragItem; type: 'deliverable' | 'call'; x: number; y: number } | null>(null);
   const [backlogDragPos, setBacklogDragPos] = useState<{ x: number; y: number } | null>(null);
   const skipClickAfterDragRef = useRef<string | null>(null);

@@ -2,6 +2,8 @@
 
 import { useAppStore } from '@/lib/store';
 import { useClient, useModal } from '@/hooks';
+import { formatDateShort } from '@/lib/date-utils';
+import { getStatusStyle, getCategoryStyle } from '@/lib/styles';
 import type { DeliverableCategory } from '@/types';
 
 const Package = () => (
@@ -20,38 +22,8 @@ const Plus = () => (
   </svg>
 );
 
-function formatDate(date: Date) {
-  return date.toLocaleDateString('fr-FR', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
-}
-
 const formatEur = (n?: number) =>
   n != null ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n) : null;
-
-function getStatusStyle(status: string) {
-  switch (status) {
-    case 'completed':
-      return { bg: 'bg-[var(--accent-lime)]/10', text: 'text-[var(--accent-lime)]', label: 'Done' };
-    case 'in-progress':
-      return { bg: 'bg-[var(--accent-violet)]/10', text: 'text-[var(--accent-violet)]', label: 'En cours' };
-    default:
-      return { bg: 'bg-[var(--accent-cyan)]/10', text: 'text-[var(--accent-cyan)]', label: 'À faire' };
-  }
-}
-
-function getCategoryStyle(category?: DeliverableCategory) {
-  switch (category) {
-    case 'print':
-      return { bg: 'bg-[var(--accent-amber)]/10', text: 'text-[var(--accent-amber)]', label: 'Print' };
-    case 'digital':
-      return { bg: 'bg-[var(--accent-cyan)]/10', text: 'text-[var(--accent-cyan)]', label: 'Digital' };
-    default:
-      return { bg: 'bg-[var(--bg-tertiary)]', text: 'text-[var(--text-muted)]', label: 'Autre' };
-  }
-}
 
 interface DeliverablesSectionProps {
   clientId: string;
@@ -101,7 +73,7 @@ export function DeliverablesSection({ clientId }: DeliverablesSectionProps) {
         ) : (
           sortedDeliverables.map((d, index) => {
             const statusStyle = getStatusStyle(d.status);
-            const categoryStyle = getCategoryStyle(d.category);
+            const categoryStyle = getCategoryStyle(d.category ?? 'other');
             const assignee = d.assigneeId ? getTeamMemberById(d.assigneeId) : null;
             const hasPrix = (d.prixFacturé != null && d.prixFacturé > 0) || (d.coutSousTraitance != null && d.coutSousTraitance > 0);
             return (
@@ -123,7 +95,7 @@ export function DeliverablesSection({ clientId }: DeliverablesSectionProps) {
                   {d.name}
                 </p>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-[var(--text-muted)]">
-                  <span>{d.dueDate != null ? formatDate(d.dueDate) : 'Non planifié'}</span>
+                  <span>{d.dueDate != null ? formatDateShort(d.dueDate) : 'Non planifié'}</span>
                   {d.prixFacturé != null && d.prixFacturé > 0 && (
                     <span className="text-[#22c55e]" title="Prix facturé">{formatEur(d.prixFacturé)}</span>
                   )}
@@ -132,7 +104,7 @@ export function DeliverablesSection({ clientId }: DeliverablesSectionProps) {
                   )}
                   {!hasPrix && d.cost != null && <span className="text-[var(--accent-lime)]">{formatEur(d.cost)}</span>}
                   {d.deliveredAt != null && (
-                    <span className="text-[var(--accent-lime)]">Livré le {formatDate(d.deliveredAt)}</span>
+                    <span className="text-[var(--accent-lime)]">Livré le {formatDateShort(d.deliveredAt)}</span>
                   )}
                   {d.externalContractor != null && d.externalContractor !== '' && (
                     <span>Prestataire: {d.externalContractor}</span>

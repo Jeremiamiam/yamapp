@@ -2,6 +2,8 @@
 
 import { useAppStore } from '@/lib/store';
 import { useClient, useModal } from '@/hooks';
+import { formatDocDate } from '@/lib/date-utils';
+import { getDocumentTypeStyle } from '@/lib/styles';
 import { DocumentType } from '@/types';
 
 const FileText = () => (
@@ -44,23 +46,17 @@ const StickyNote = () => (
   </svg>
 );
 
-function formatDocDate(date: Date) {
-  return date.toLocaleDateString('fr-FR', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
+function getDocTypeIcon(type: DocumentType) {
+  switch (type) {
+    case 'brief': return <Briefcase />;
+    case 'report': return <Mic />;
+    default: return <StickyNote />;
+  }
 }
 
 function getDocTypeStyle(type: DocumentType) {
-  switch (type) {
-    case 'brief':
-      return { bg: 'bg-[var(--accent-cyan)]/10', text: 'text-[var(--accent-cyan)]', icon: <Briefcase />, label: 'Brief' };
-    case 'report':
-      return { bg: 'bg-[var(--accent-amber)]/10', text: 'text-[var(--accent-amber)]', icon: <Mic />, label: 'Report' };
-    default:
-      return { bg: 'bg-[var(--accent-violet)]/10', text: 'text-[var(--accent-violet)]', icon: <StickyNote />, label: 'Note' };
-  }
+  const base = getDocumentTypeStyle(type);
+  return { ...base, icon: getDocTypeIcon(type) };
 }
 
 interface DocumentsSectionProps {

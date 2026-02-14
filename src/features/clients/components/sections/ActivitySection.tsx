@@ -3,6 +3,8 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useClient, useModal } from '@/hooks';
+import { formatDateShort, formatTime, isPast, isToday } from '@/lib/date-utils';
+import { getStatusStyle } from '@/lib/styles';
 import type { Deliverable, Call } from '@/types';
 
 const Activity = () => (
@@ -37,45 +39,6 @@ const Clock = () => (
   </svg>
 );
 
-function formatDate(date: Date) {
-  return date.toLocaleDateString('fr-FR', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
-}
-
-function formatTime(date: Date) {
-  return date.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function getStatusStyle(status: string) {
-  switch (status) {
-    case 'completed':
-      return { bg: 'bg-[var(--accent-lime)]/10', text: 'text-[var(--accent-lime)]', label: 'Done' };
-    case 'in-progress':
-      return { bg: 'bg-[var(--accent-violet)]/10', text: 'text-[var(--accent-violet)]', label: 'En cours' };
-    default:
-      return { bg: 'bg-[var(--accent-cyan)]/10', text: 'text-[var(--accent-cyan)]', label: 'À faire' };
-  }
-}
-
-function isPast(date: Date) {
-  return date < new Date();
-}
-
-function isToday(date: Date) {
-  const today = new Date();
-  return (
-    date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear()
-  );
-}
-
 interface ActivitySectionProps {
   clientId: string;
 }
@@ -85,7 +48,7 @@ type ActivityItem = {
   type: 'deliverable' | 'call';
   title: string;
   date: Date;
-  status?: string;
+  status?: 'pending' | 'in-progress' | 'completed';
   assigneeId?: string;
   duration?: number;
   originalDeliverable?: Deliverable;
@@ -229,7 +192,7 @@ export function ActivitySection({ clientId }: ActivitySectionProps) {
               >
                 <div className="flex-shrink-0 w-20 text-right">
                   <p className={`text-xs font-medium ${today ? 'text-[var(--accent-lime)]' : 'text-[var(--text-muted)]'}`}>
-                    {today ? "Aujourd'hui" : formatDate(item.date)}
+                    {today ? "Aujourd'hui" : formatDateShort(item.date)}
                   </p>
                   <p className="text-[10px] text-[var(--text-muted)] font-mono">
                     {formatTime(item.date)}

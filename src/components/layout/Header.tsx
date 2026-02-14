@@ -1,6 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
+import { formatHeaderDate } from '@/lib/date-utils';
 import { TimelineFilters } from '@/features/timeline/components/TimelineFilters';
 
 // Icons
@@ -91,7 +92,7 @@ export function Header() {
         
         <div className="text-right animate-slide-in flex-shrink-0" style={{ animationDelay: '0.1s' }}>
           <div className="text-sm text-[var(--text-muted)] uppercase tracking-wider">
-            {new Date().toLocaleDateString('fr-FR', { weekday: 'long', month: 'long' })}
+            {formatHeaderDate(new Date())}
           </div>
         </div>
       </div>

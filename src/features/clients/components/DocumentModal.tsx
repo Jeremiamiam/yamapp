@@ -2,6 +2,8 @@
 
 import { useEffect, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
+import { formatDocDate } from '@/lib/date-utils';
+import { getDocumentTypeStyle } from '@/lib/styles';
 import { DocumentType } from '@/types';
 import type { ClientDocument } from '@/types';
 import { parseStructuredDocument } from '@/types/document-templates';
@@ -125,23 +127,9 @@ function ReportPlaudTemplatedView({ data }: { data: ReportPlaudTemplate }) {
 }
 
 function getDocTypeStyle(type: DocumentType) {
-  switch (type) {
-    case 'brief':
-      return { bg: 'bg-[var(--accent-cyan)]/10', text: 'text-[var(--accent-cyan)]', icon: <Briefcase />, label: 'Brief' };
-    case 'report':
-      return { bg: 'bg-[var(--accent-amber)]/10', text: 'text-[var(--accent-amber)]', icon: <Mic />, label: 'Report PLAUD' };
-    default:
-      return { bg: 'bg-[var(--accent-violet)]/10', text: 'text-[var(--accent-violet)]', icon: <StickyNote />, label: 'Note' };
-  }
-}
-
-function formatDocDate(date: Date) {
-  return date.toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  const base = getDocumentTypeStyle(type);
+  const icon = type === 'brief' ? <Briefcase /> : type === 'report' ? <Mic /> : <StickyNote />;
+  return { ...base, icon };
 }
 
 function DocumentModalContent({

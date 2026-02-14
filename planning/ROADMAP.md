@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Client Cards & Detail Views** - Navigation and contact management ✅
 - [x] **Phase 3: Deliverables & Calls Management** - CRUD operations for timeline items ✅
 - [x] **Phase 4: Text Notes & Files** - Documents (briefs, reports PLAUD, notes) ✅
-- [ ] **Phase 3.7: Code Quality & Refactoring** - Clean architecture before Mobile (CURRENT) 🔧
+- [x] **Phase 3.7: Code Quality & Refactoring** - Clean architecture before Mobile ✅
 - [ ] **Phase 5: Mobile & Polish** - Responsive design and performance optimization
 - [ ] **Phase 6: Vue Comptabilité / Facturation** - Vue dédiée trésorerie (CA, dépenses, marge) avec histogramme mensuel
 - [ ] **Phase 7: Supabase & Persistence** - BDD réelle, données viables (dernière étape du roadmap)
@@ -125,9 +125,9 @@ Plans:
   8. Performance audit shows < 100ms render time for Timeline with 50 items
 
 Plans:
-- [ ] 3.7-01: Day 1 - Decompose ClientDetail + Centralize Modals
-- [ ] 3.7-02: Day 2 - Optimize Timeline + Store Selectors
-- [ ] 3.7-03: Day 3 - Refactor Forms + Error Handling + Icons Library
+- [x] 3.7-01: Day 1 - Decompose ClientDetail + Centralize Modals ✅
+- [x] 3.7-02: Day 2 - Optimize Timeline + Store Selectors (sélecteurs store, date-utils, styles) ✅
+- [x] 3.7-03: Day 3 - Refactor Forms + Error Handling (react-hook-form + Zod, error-handler) ✅
 
 ### Phase 5: Mobile & Polish
 **Goal**: Application is fully responsive and optimized for mobile devices with excellent performance

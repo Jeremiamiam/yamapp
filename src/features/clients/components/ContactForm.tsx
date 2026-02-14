@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal, FormField, Input, Button } from '@/components/ui';
 import { useAppStore } from '@/lib/store';
-import { Contact } from '@/types';
+import { ContactSchema, type ContactFormData } from '@/lib/validation';
 
-// Icons
 const User = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -13,100 +14,66 @@ const User = () => (
   </svg>
 );
 
-interface FormData {
-  name: string;
-  role: string;
-  email: string;
-  phone: string;
-}
-
 export function ContactForm() {
   const { activeModal, closeModal, addContact, updateContact, deleteContact } = useAppStore();
-  
+
   const isOpen = activeModal?.type === 'contact';
   const mode = isOpen ? activeModal.mode : 'create';
   const clientId = isOpen ? activeModal.clientId : '';
   const existingContact = isOpen && activeModal.mode === 'edit' ? activeModal.contact : undefined;
-  
-  const [formData, setFormData] = useState<FormData>({
-    name: '',
-    role: '',
-    email: '',
-    phone: ''
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<ContactFormData>({
+    resolver: zodResolver(ContactSchema),
+    defaultValues: {
+      name: '',
+      role: '',
+      email: '',
+      phone: '',
+    },
   });
-  
-  const [errors, setErrors] = useState<Partial<FormData>>({});
-  
-  // Reset form when modal opens
+
   useEffect(() => {
     if (isOpen) {
       if (existingContact) {
-        setFormData({
+        reset({
           name: existingContact.name,
           role: existingContact.role,
           email: existingContact.email,
-          phone: existingContact.phone || ''
+          phone: existingContact.phone ?? '',
         });
       } else {
-        setFormData({ name: '', role: '', email: '', phone: '' });
+        reset({ name: '', role: '', email: '', phone: '' });
       }
-      setErrors({});
     }
-  }, [isOpen, existingContact]);
-  
-  const validate = (): boolean => {
-    const newErrors: Partial<FormData> = {};
-    
-    if (!formData.name.trim()) {
-      newErrors.name = 'Le nom est requis';
-    }
-    if (!formData.role.trim()) {
-      newErrors.role = 'Le rôle est requis';
-    }
-    if (!formData.email.trim()) {
-      newErrors.email = "L'email est requis";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "L'email n'est pas valide";
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-  
-  const handleSubmit = () => {
-    if (!validate()) return;
-    
-    const contactData: Omit<Contact, 'id'> = {
-      name: formData.name.trim(),
-      role: formData.role.trim(),
-      email: formData.email.trim(),
-      phone: formData.phone.trim() || undefined
+  }, [isOpen, existingContact, reset]);
+
+  const onSubmit = (data: ContactFormData) => {
+    const contactData = {
+      name: data.name.trim(),
+      role: data.role.trim(),
+      email: data.email.trim(),
+      phone: data.phone?.trim() || undefined,
     };
-    
     if (mode === 'edit' && existingContact) {
       updateContact(clientId, existingContact.id, contactData);
     } else {
       addContact(clientId, contactData);
     }
-    
     closeModal();
   };
-  
+
   const handleDelete = () => {
     if (mode === 'edit' && existingContact) {
       deleteContact(clientId, existingContact.id);
       closeModal();
     }
   };
-  
-  const handleChange = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, [field]: e.target.value }));
-    // Clear error when user types
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
-    }
-  };
-  
+
   return (
     <Modal
       isOpen={isOpen}
@@ -128,48 +95,41 @@ export function ContactForm() {
           <Button variant="secondary" onClick={closeModal}>
             Annuler
           </Button>
-          <Button onClick={handleSubmit}>
+          <Button onClick={handleSubmit(onSubmit)}>
             {mode === 'edit' ? 'Enregistrer' : 'Ajouter'}
           </Button>
         </>
       }
     >
-      <div className="space-y-5">
-        <FormField label="Nom complet" required error={errors.name}>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <FormField label="Nom complet" required error={errors.name?.message}>
           <Input
-            value={formData.name}
-            onChange={handleChange('name')}
+            {...register('name')}
             placeholder="Ex: Marie Dupont"
             autoFocus
           />
         </FormField>
-        
-        <FormField label="Rôle / Fonction" required error={errors.role}>
+        <FormField label="Rôle / Fonction" required error={errors.role?.message}>
           <Input
-            value={formData.role}
-            onChange={handleChange('role')}
+            {...register('role')}
             placeholder="Ex: Directrice Marketing"
           />
         </FormField>
-        
-        <FormField label="Email" required error={errors.email}>
+        <FormField label="Email" required error={errors.email?.message}>
           <Input
             type="email"
-            value={formData.email}
-            onChange={handleChange('email')}
+            {...register('email')}
             placeholder="marie@entreprise.com"
           />
         </FormField>
-        
-        <FormField label="Téléphone" error={errors.phone}>
+        <FormField label="Téléphone" error={errors.phone?.message}>
           <Input
             type="tel"
-            value={formData.phone}
-            onChange={handleChange('phone')}
+            {...register('phone')}
             placeholder="+33 6 12 34 56 78"
           />
         </FormField>
-      </div>
+      </form>
     </Modal>
   );
 }
