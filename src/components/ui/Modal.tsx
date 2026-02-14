@@ -60,21 +60,21 @@ export function Modal({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
       onClick={onClose}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in-up" />
       
-      {/* Modal */}
+      {/* Modal — full height sur mobile pour formulaires longs */}
       <div 
-        className={`relative w-full ${sizeClasses[size]} max-h-[85vh] bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl overflow-hidden animate-fade-in-up flex flex-col`}
+        className={`relative w-full ${sizeClasses[size]} max-h-[90vh] sm:max-h-[85vh] bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl overflow-hidden animate-fade-in-up flex flex-col`}
         onClick={e => e.stopPropagation()}
         style={{ animationDuration: '0.2s' }}
       >
         {/* Header */}
-        <div className="flex-shrink-0 px-6 py-5 border-b border-[var(--border-subtle)] flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4 min-w-0">
+        <div className="flex-shrink-0 px-4 sm:px-6 py-4 sm:py-5 border-b border-[var(--border-subtle)] flex items-start justify-between gap-4">
+          <div className="flex items-start gap-4 min-w-0 flex-1">
             {icon && (
               <span className={`p-2.5 rounded-xl ${iconBg} ${iconColor} flex-shrink-0`}>
                 {icon}
@@ -86,7 +86,7 @@ export function Modal({
                   {subtitle}
                 </span>
               )}
-              <h2 className="text-xl font-bold text-[var(--text-primary)]">
+              <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
                 {title}
               </h2>
             </div>
@@ -94,20 +94,21 @@ export function Modal({
           
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors flex-shrink-0"
+            className="p-2.5 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors flex-shrink-0"
+            title="Fermer"
           >
             <X />
           </button>
         </div>
         
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 overscroll-contain">
           {children}
         </div>
         
-        {/* Footer */}
+        {/* Footer — touch-friendly sur mobile */}
         {footer && (
-          <div className="flex-shrink-0 px-6 py-4 border-t border-[var(--border-subtle)] flex items-center justify-end gap-3">
+          <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-t border-[var(--border-subtle)] flex items-center justify-end gap-3">
             {footer}
           </div>
         )}
@@ -144,7 +145,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 export function Input({ className = '', ...props }: InputProps) {
   return (
     <input
-      className={`w-full px-4 py-3 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-cyan)] focus:ring-1 focus:ring-[var(--accent-cyan)]/20 transition-colors ${className}`}
+      className={`w-full px-4 py-3 min-h-[44px] rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-cyan)] focus:ring-1 focus:ring-[var(--accent-cyan)]/20 transition-colors text-base ${className}`}
       {...props}
     />
   );
@@ -168,7 +169,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 export function Select({ options, className = '', ...props }: SelectProps) {
   return (
     <select
-      className={`w-full px-4 py-3 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-cyan)] focus:ring-1 focus:ring-[var(--accent-cyan)]/20 transition-colors ${className}`}
+      className={`w-full px-4 py-3 min-h-[44px] rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-cyan)] focus:ring-1 focus:ring-[var(--accent-cyan)]/20 transition-colors text-base ${className}`}
       {...props}
     >
       {options.map(opt => (
@@ -191,7 +192,7 @@ export function Button({ variant = 'primary', className = '', children, ...props
   
   return (
     <button
-      className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${className}`}
+      className={`px-5 py-3 sm:py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] sm:min-h-0 ${variants[variant]} ${className}`}
       {...props}
     >
       {children}

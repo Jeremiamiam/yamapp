@@ -4,18 +4,20 @@ import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@/lib/store';
 import { useFilteredTimeline, useModal } from '@/hooks';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { TimelineCard, TimelineCardItem } from './TimelineCard';
 import { BACKLOG_DRAG_TYPE } from './BacklogSidebar';
 
-// Timeline dimensions
+// Timeline dimensions — plus compact sur mobile
 const HEADER_HEIGHT = 56;
 const MONTH_ROW_HEIGHT = 38; // Bande mois au-dessus des jours (scroll X)
 const TOTAL_HEADER_HEIGHT = MONTH_ROW_HEIGHT + HEADER_HEIGHT;
-const HOUR_HEIGHT = 96; // Augmenté de 64 à 96 pour aérer
+const HOUR_HEIGHT_DESKTOP = 96;
+const HOUR_HEIGHT_MOBILE = 72;
+const WEEKEND_RATIO = 0.12;
 const START_HOUR = 8;
 const END_HOUR = 20; // Grille jusqu’à 20h (créneau 19h–20h visible)
 const LUNCH_START_HOUR = 12; // Bande visuelle 12h (séparation matin / PM)
-const WEEKEND_RATIO = 0.12;
 
 /** Snap minutes to 0 or 30 */
 function snapTo30Min(date: Date): Date {
@@ -39,6 +41,8 @@ export function Timeline() {
     }))
   );
   const { openDeliverableModal, openCallModal } = useModal();
+  const isMobile = useIsMobile();
+  const HOUR_HEIGHT = isMobile ? HOUR_HEIGHT_MOBILE : HOUR_HEIGHT_DESKTOP;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastWidthRef = useRef(0);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -72,16 +76,17 @@ export function Timeline() {
     return () => resizeObserver.disconnect();
   }, []);
 
-  // Calculate day widths
+  // Calculate day widths — mobile: colonnes plus étroites, min 72px pour lisibilité
   const dayWidths = useMemo(() => {
     if (containerWidth === 0) return { weekday: 160, weekend: 30 };
     const totalUnits = 5 + 2 * WEEKEND_RATIO;
     const unitWidth = containerWidth / totalUnits;
+    const minWeekday = isMobile ? 72 : 100;
     return {
-      weekday: unitWidth,
+      weekday: Math.max(minWeekday, unitWidth),
       weekend: unitWidth * WEEKEND_RATIO,
     };
-  }, [containerWidth]);
+  }, [containerWidth, isMobile]);
 
   // Generate dates with widths
   const datesWithWidth = useMemo(() => {
@@ -315,13 +320,13 @@ export function Timeline() {
         {/* Scrollable timeline : horaires + colonnes jours scrollent ensemble en Y ; en X la colonne horaires reste fixe (sticky) */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 overflow-x-auto overflow-y-auto timeline-scroll"
-          style={{ transform: 'translateZ(0)' }}
+          className="flex-1 overflow-x-auto overflow-y-auto timeline-scroll touch-pan-x touch-pan-y"
+          style={{ transform: 'translateZ(0)', WebkitOverflowScrolling: 'touch' }}
         >
           <div className="flex flex-row min-h-0" style={{ width: totalWidth + 64, transform: 'translateZ(0)' }}>
             {/* Colonne horaires : sticky left pour rester visible au scroll X, scroll en Y avec le contenu */}
             <div
-              className="flex-shrink-0 w-16 border-r border-[var(--border-subtle)] bg-[var(--bg-primary)]/95 backdrop-blur-sm sticky left-0 z-20"
+              className="flex-shrink-0 w-12 sm:w-16 border-r border-[var(--border-subtle)] bg-[var(--bg-primary)]/95 backdrop-blur-sm sticky left-0 z-20"
               style={{ height: TOTAL_HEADER_HEIGHT + totalHeight }}
             >
               <div style={{ height: MONTH_ROW_HEIGHT }} className="border-b border-[var(--border-subtle)]" />

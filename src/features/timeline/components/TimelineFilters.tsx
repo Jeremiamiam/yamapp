@@ -40,29 +40,28 @@ export function TimelineFilters() {
     ? team.find(m => m.id === filters.teamMemberId) 
     : null;
 
+  const filterBtnClass = (active: boolean) =>
+    `px-3 py-2 rounded-lg text-xs font-semibold transition-all min-h-[44px] flex items-center justify-center ${
+      active
+        ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
+        : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+    }`;
+
   return (
     <div className="flex items-center gap-3 flex-wrap">
       {/* Filtre Statut Client */}
       <div className="flex items-center gap-1 bg-[var(--bg-secondary)] rounded-xl p-1">
         <button
           onClick={() => setClientStatusFilter('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-            filters.clientStatus === 'all'
-              ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-              : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-          }`}
+          className={filterBtnClass(filters.clientStatus === 'all')}
         >
           Tous
         </button>
         <button
           onClick={() => setClientStatusFilter('client')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-            filters.clientStatus === 'client'
-              ? 'bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)] shadow-sm'
-              : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-          }`}
+          className={`${filterBtnClass(filters.clientStatus === 'client')} flex items-center gap-1.5`}
         >
-          <span className={`w-1.5 h-1.5 rounded-full ${
+          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
             filters.clientStatus === 'client' ? 'bg-[var(--accent-cyan)]' : 'bg-current opacity-50'
           }`} />
           Clients
@@ -70,13 +69,9 @@ export function TimelineFilters() {
         </button>
         <button
           onClick={() => setClientStatusFilter('prospect')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-            filters.clientStatus === 'prospect'
-              ? 'bg-[var(--accent-amber)]/20 text-[var(--accent-amber)] shadow-sm'
-              : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-          }`}
+          className={`${filterBtnClass(filters.clientStatus === 'prospect')} flex items-center gap-1.5`}
         >
-          <span className={`w-1.5 h-1.5 rounded-full ${
+          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
             filters.clientStatus === 'prospect' ? 'bg-[var(--accent-amber)]' : 'bg-current opacity-50'
           }`} />
           Prospects
@@ -97,7 +92,7 @@ export function TimelineFilters() {
           // Membre sélectionné - afficher comme chip
           <button
             onClick={() => setTeamMemberFilter(null)}
-            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg bg-[var(--accent-violet)]/20 text-[var(--accent-violet)] text-xs font-semibold group"
+            className="flex items-center gap-2 pl-2 pr-3 py-2 rounded-lg min-h-[44px] bg-[var(--accent-violet)]/20 text-[var(--accent-violet)] text-xs font-semibold group"
           >
             <div 
               className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
@@ -117,7 +112,7 @@ export function TimelineFilters() {
               <button
                 key={member.id}
                 onClick={() => setTeamMemberFilter(member.id)}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-transparent hover:ring-[var(--accent-violet)]/50 transition-[box-shadow]"
+                className="w-11 h-11 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-transparent hover:ring-[var(--accent-violet)]/50 transition-[box-shadow] min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0"
                 style={{ backgroundColor: member.color, color: '#000' }}
                 title={member.name}
               >
@@ -132,9 +127,9 @@ export function TimelineFilters() {
       <div className="h-6 w-px bg-[var(--border-subtle)] flex-shrink-0" />
       <button
         onClick={resetFilters}
-        className={`text-xs flex items-center gap-1 min-w-[4.5rem] justify-end transition-opacity duration-150 ${
+        className={`text-xs flex items-center gap-1 min-w-[4.5rem] min-h-[44px] sm:min-h-0 justify-end transition-opacity duration-150 py-2 sm:py-0 ${
           hasActiveFilters
-            ? 'text-[var(--text-muted)] hover:text-[var(--accent-magenta)] opacity-100'
+            ? 'text-[var(--text-muted)] hover:text-[var(--accent-coral)] opacity-100'
             : 'opacity-0 pointer-events-none'
         }`}
         aria-hidden={!hasActiveFilters}

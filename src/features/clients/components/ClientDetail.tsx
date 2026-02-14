@@ -44,10 +44,10 @@ export function ClientDetail() {
       <div className="noise-overlay" />
 
       <header className="sticky top-0 z-50 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border-subtle)]">
-        <div className="px-8 py-5 flex items-center gap-6">
+        <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-5 flex items-center gap-4 sm:gap-6 flex-wrap">
           <button
             onClick={navigateToTimeline}
-            className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors group"
+            className="flex items-center gap-2 py-2 min-h-[44px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors group"
           >
             <span className="group-hover:-translate-x-1 transition-transform">
               <ArrowLeft />
@@ -75,7 +75,7 @@ export function ClientDetail() {
             <button
               type="button"
               onClick={() => openModal({ type: 'client', mode: 'edit', client })}
-              className="p-2 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              className="p-2.5 min-h-[44px] min-w-[44px] rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors"
               title="Modifier ou supprimer le client"
             >
               <Pencil />
@@ -84,7 +84,7 @@ export function ClientDetail() {
         </div>
       </header>
 
-      <main className="p-8 max-w-6xl mx-auto">
+      <main className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <section className="lg:col-span-1 space-y-6">
             <ContactsSection clientId={client.id} />

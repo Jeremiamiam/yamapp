@@ -5,6 +5,15 @@ import { useAppStore } from '@/lib/store';
 import { useModal } from '@/hooks';
 import { Deliverable, Call } from '@/types';
 
+interface BacklogSidebarProps {
+  /** Sur mobile: afficher en overlay/drawer au lieu de sidebar fixe */
+  isMobileOverlay?: boolean;
+  /** Sur mobile: contrôle ouverture (ignoré si !isMobileOverlay) */
+  isOpen?: boolean;
+  /** Sur mobile: callback fermeture (ignoré si !isMobileOverlay) */
+  onClose?: () => void;
+}
+
 const CHEVRON_RIGHT = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 18l6-6-6-6" />
@@ -28,7 +37,11 @@ const PHONE = (
 
 const DRAG_TYPE = 'application/x-yam-backlog-item';
 
-export function BacklogSidebar() {
+export function BacklogSidebar({
+  isMobileOverlay = false,
+  isOpen = true,
+  onClose,
+}: BacklogSidebarProps = {}) {
   const { getBacklogDeliverables, getBacklogCalls, getClientById, navigateToClient } = useAppStore();
   const { openDeliverableModal, openCallModal, openClientModal } = useModal();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -36,6 +49,9 @@ export function BacklogSidebar() {
   const backlogDeliverables = getBacklogDeliverables();
   const backlogCalls = getBacklogCalls();
   const total = backlogDeliverables.length + backlogCalls.length;
+
+  // Sur mobile overlay: ne pas afficher si fermé
+  if (isMobileOverlay && !isOpen) return null;
 
   const handleDragStart = (e: React.DragEvent, type: 'deliverable' | 'call', id: string) => {
     e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type, id }));
@@ -47,13 +63,23 @@ export function BacklogSidebar() {
     window.dispatchEvent(new CustomEvent('backlog-drag-end'));
   };
 
+  const baseClasses = `flex flex-col bg-[var(--bg-card)] transition-all duration-200 ${
+    isMobileOverlay
+      ? 'fixed top-0 right-0 bottom-0 z-40 w-[85vw] max-w-[320px] shadow-2xl border-l border-[var(--border-subtle)] animate-slide-in'
+      : `border-l border-[var(--border-subtle)] ${isCollapsed ? 'w-14' : 'w-64 min-w-[200px]'}`
+  }`;
+
   return (
-    <div
-      className={`flex flex-col border-l border-[var(--border-subtle)] bg-[var(--bg-card)] transition-[width] duration-200 ${
-        isCollapsed ? 'w-14' : 'w-64 min-w-[200px]'
-      }`}
-    >
-      {/* Header: count + collapse + actions */}
+    <>
+      {isMobileOverlay && isOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 animate-fade-in-up"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+    <div className={baseClasses}>
+      {/* Header: count + collapse/close + actions */}
       <div className="flex-shrink-0 flex flex-col gap-2 px-3 py-3 border-b border-[var(--border-subtle)]">
         <div className="flex items-center gap-2">
           {!isCollapsed && (
@@ -62,20 +88,24 @@ export function BacklogSidebar() {
             </span>
           )}
           <button
-          type="button"
-          onClick={() => setIsCollapsed(prev => !prev)}
-          className="ml-auto p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors"
-          title={isCollapsed ? 'Ouvrir le backlog' : 'Réduire le backlog'}
-        >
-          {isCollapsed ? CHEVRON_RIGHT : CHEVRON_LEFT}
-        </button>
+            type="button"
+            onClick={isMobileOverlay && onClose ? onClose : () => setIsCollapsed((prev) => !prev)}
+            className="ml-auto p-2.5 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            title={isMobileOverlay ? 'Fermer' : isCollapsed ? 'Ouvrir le backlog' : 'Réduire le backlog'}
+          >
+            {isMobileOverlay ? (
+              <span className="text-xl">×</span>
+            ) : (
+              isCollapsed ? CHEVRON_RIGHT : CHEVRON_LEFT
+            )}
+          </button>
         </div>
         {!isCollapsed && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => openDeliverableModal(undefined)}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-[var(--accent-violet)] bg-[var(--accent-violet)]/10 hover:bg-[var(--accent-violet)]/20 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium text-[var(--accent-violet)] bg-[var(--accent-violet)]/10 hover:bg-[var(--accent-violet)]/20 transition-colors min-h-[44px]"
             >
               {PACKAGE}
               <span>+ Livrable</span>
@@ -83,7 +113,7 @@ export function BacklogSidebar() {
             <button
               type="button"
               onClick={() => openCallModal(undefined)}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-[var(--accent-coral)] bg-[var(--accent-coral)]/10 hover:bg-[var(--accent-coral)]/20 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium text-[var(--accent-coral)] bg-[var(--accent-coral)]/10 hover:bg-[var(--accent-coral)]/20 transition-colors min-h-[44px]"
             >
               {PHONE}
               <span>+ Appel</span>
@@ -91,7 +121,7 @@ export function BacklogSidebar() {
             <button
               type="button"
               onClick={() => openClientModal()}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-[var(--accent-cyan)] bg-[var(--accent-cyan)]/10 hover:bg-[var(--accent-cyan)]/20 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium text-[var(--accent-cyan)] bg-[var(--accent-cyan)]/10 hover:bg-[var(--accent-cyan)]/20 transition-colors min-h-[44px]"
             >
               <span>+ Client</span>
             </button>
@@ -116,7 +146,7 @@ export function BacklogSidebar() {
                     onDragStart={e => handleDragStart(e, 'deliverable', d.id)}
                     onDragEnd={handleDragEnd}
                     onClick={() => d.clientId ? navigateToClient(d.clientId) : openDeliverableModal(d.clientId, d)}
-                    className="group flex items-start gap-2 px-3 py-2 rounded-lg border border-transparent hover:border-[var(--border-subtle)] hover:bg-[var(--bg-secondary)] cursor-grab active:cursor-grabbing transition-colors"
+                    className="group flex items-start gap-2 px-3 py-3 min-h-[52px] rounded-lg border border-transparent hover:border-[var(--border-subtle)] hover:bg-[var(--bg-secondary)] cursor-grab active:cursor-grabbing transition-colors"
                   >
                     <span className="text-[var(--accent-violet)] flex-shrink-0 mt-0.5" title="Livrable">
                       {PACKAGE}
@@ -141,7 +171,7 @@ export function BacklogSidebar() {
                     onDragStart={e => handleDragStart(e, 'call', c.id)}
                     onDragEnd={handleDragEnd}
                     onClick={() => c.clientId ? navigateToClient(c.clientId) : openCallModal(c.clientId, c)}
-                    className="group flex items-start gap-2 px-3 py-2 rounded-lg border border-transparent hover:border-[var(--border-subtle)] hover:bg-[var(--bg-secondary)] cursor-grab active:cursor-grabbing transition-colors"
+                    className="group flex items-start gap-2 px-3 py-3 min-h-[52px] rounded-lg border border-transparent hover:border-[var(--border-subtle)] hover:bg-[var(--bg-secondary)] cursor-grab active:cursor-grabbing transition-colors"
                   >
                     <span className="text-[var(--accent-coral)] flex-shrink-0 mt-0.5" title="Appel">
                       {PHONE}
@@ -162,14 +192,15 @@ export function BacklogSidebar() {
         </div>
       )}
 
-      {/* Collapsed: show only count */}
-      {isCollapsed && total > 0 && (
+      {/* Collapsed: show only count (desktop only) */}
+      {!isMobileOverlay && isCollapsed && total > 0 && (
         <div className="flex-1 flex flex-col items-center justify-start pt-4">
           <span className="text-lg font-bold text-[var(--accent-amber)]">{total}</span>
           <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider mt-0.5">À planifier</span>
         </div>
       )}
     </div>
+    </>
   );
 }
 

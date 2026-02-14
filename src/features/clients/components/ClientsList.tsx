@@ -75,8 +75,8 @@ export function ClientsList() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 max-w-7xl mx-auto">
         {filteredClients.map(client => {
           const { nextDeliverable, lastCall } = getClientData(client.id);
           const isProspect = client.status === 'prospect';
@@ -172,7 +172,7 @@ export function ClientsList() {
           tabIndex={0}
           onClick={() => openClientModal()}
           onKeyDown={e => e.key === 'Enter' && openClientModal()}
-          className="border border-dashed border-[var(--border-subtle)] rounded-2xl flex flex-col items-center justify-center p-6 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] transition-colors cursor-pointer h-[220px]"
+          className="border border-dashed border-[var(--border-subtle)] rounded-2xl flex flex-col items-center justify-center p-6 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] transition-colors cursor-pointer min-h-[200px] h-[220px]"
         >
           <span className="text-2xl mb-2">+</span>
           <span className="text-sm font-medium">Ajouter un client</span>

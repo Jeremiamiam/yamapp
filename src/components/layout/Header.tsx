@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { formatHeaderDate } from '@/lib/date-utils';
 import { TimelineFilters } from '@/features/timeline/components/TimelineFilters';
 import { createClient } from '@/lib/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 // Icons
 const ChartIcon = () => (
@@ -42,11 +44,19 @@ const LogoutIcon = () => (
   </svg>
 );
 
+const FilterIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+  </svg>
+);
+
 export function Header() {
   const router = useRouter();
   const { role } = useUserRole();
   const { currentView, navigateToTimeline, navigateToClients, navigateToCompta } = useAppStore();
   const canAccessCompta = role === 'admin';
+  const isMobile = useIsMobile();
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -55,76 +65,112 @@ export function Header() {
     router.refresh();
   }
 
+  const navButtonClass = (active: boolean) =>
+    `flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-md text-xs font-medium transition-all min-h-[44px] sm:min-h-0 min-w-[44px] sm:min-w-0 ${
+      active
+        ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] shadow-sm'
+        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+    }`;
+
   return (
-    <header className="flex-shrink-0 px-8 py-4 border-b border-[var(--border-subtle)] relative z-10 bg-[var(--bg-primary)]/80 backdrop-blur-sm">
-      <div className="flex items-center justify-between gap-6">
-        <div className="animate-slide-in flex-shrink-0 flex items-center gap-8">
-          <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
+    <header className="flex-shrink-0 px-4 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-[var(--border-subtle)] relative z-10 bg-[var(--bg-primary)]/80 backdrop-blur-sm">
+      <div className="flex items-center justify-between gap-2 sm:gap-6">
+        <div className="animate-slide-in flex-shrink-0 flex items-center gap-4 sm:gap-8 min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex-shrink-0" style={{ fontFamily: 'var(--font-display)' }}>
             <span className="text-[var(--text-primary)]">YAM</span>
             <span className="text-[var(--accent-lime)]">.</span>
           </h1>
 
-          {/* View Switcher */}
+          {/* View Switcher — compact on mobile */}
           <div className="flex p-1 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-subtle)]">
             <button
               onClick={navigateToTimeline}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                currentView === 'timeline'
-                  ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] shadow-sm'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
+              className={navButtonClass(currentView === 'timeline')}
+              title="Calendrier"
             >
               <CalendarIcon />
-              Calendrier
+              <span className="hidden sm:inline">Calendrier</span>
             </button>
             <button
               onClick={navigateToClients}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                currentView === 'clients'
-                  ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] shadow-sm'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
+              className={navButtonClass(currentView === 'clients')}
+              title="Clients"
             >
               <GridIcon />
-              Clients
+              <span className="hidden sm:inline">Clients</span>
             </button>
             {canAccessCompta && (
               <button
                 onClick={navigateToCompta}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  currentView === 'compta'
-                    ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] shadow-sm'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
+                className={navButtonClass(currentView === 'compta')}
+                title="Comptabilité"
               >
                 <ChartIcon />
-                Comptabilité
+                <span className="hidden sm:inline">Compta</span>
               </button>
             )}
           </div>
         </div>
-        
-        {/* Filters — hidden on compta */}
-        <div className="flex-1">
-          {currentView !== 'compta' && (
-            <div className="animate-slide-in" style={{ animationDelay: '0.05s' }}>
-              <TimelineFilters />
-            </div>
-          )}
-        </div>
-        
-        <div className="text-right animate-slide-in flex-shrink-0 flex items-center gap-4" style={{ animationDelay: '0.1s' }}>
-          <div className="text-sm text-[var(--text-muted)] uppercase tracking-wider">
+
+        {/* Filters — drawer on mobile, inline on desktop */}
+        {currentView !== 'compta' && (
+          <>
+            {isMobile ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setFiltersOpen((o) => !o)}
+                  className="flex-shrink-0 p-2.5 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                  title="Filtres"
+                  aria-expanded={filtersOpen}
+                >
+                  <FilterIcon />
+                </button>
+                {filtersOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40 bg-black/50"
+                      onClick={() => setFiltersOpen(false)}
+                      aria-hidden="true"
+                    />
+                    <div className="fixed top-[60px] left-0 right-0 z-50 p-4 bg-[var(--bg-card)] border-b border-[var(--border-subtle)] shadow-xl animate-fade-in-up">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">Filtres</span>
+                        <button
+                          type="button"
+                          onClick={() => setFiltersOpen(false)}
+                          className="p-2 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <TimelineFilters />
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="flex-1 min-w-0">
+                <div className="animate-slide-in" style={{ animationDelay: '0.05s' }}>
+                  <TimelineFilters />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="text-right animate-slide-in flex-shrink-0 flex items-center gap-2 sm:gap-4" style={{ animationDelay: '0.1s' }}>
+          <div className="hidden sm:block text-sm text-[var(--text-muted)] uppercase tracking-wider">
             {formatHeaderDate(new Date())}
           </div>
           <button
             type="button"
             onClick={handleLogout}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            className="flex items-center gap-1.5 sm:gap-2 p-2.5 sm:px-2.5 sm:py-1.5 rounded-md text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 justify-center"
             title="Se déconnecter"
           >
             <LogoutIcon />
-            Déconnexion
+            <span className="hidden sm:inline">Déconnexion</span>
           </button>
         </div>
       </div>

@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Deliverables & Calls Management** - CRUD operations for timeline items ✅
 - [x] **Phase 4: Text Notes & Files** - Documents (briefs, reports PLAUD, notes) ✅
 - [x] **Phase 3.7: Code Quality & Refactoring** - Clean architecture before Mobile ✅
-- [ ] **Phase 5: Mobile & Polish** - Responsive design and performance optimization
+- [x] **Phase 5: Mobile & Polish** - Responsive design and performance optimization ✅
 - [ ] **Phase 6: Vue Comptabilité / Facturation** - Vue dédiée trésorerie (CA, dépenses, marge) avec histogramme mensuel
 - [ ] **Phase 7: Supabase & Persistence** - BDD réelle, données viables (dernière étape du roadmap)
 
@@ -129,19 +129,19 @@ Plans:
 - [x] 3.7-02: Day 2 - Optimize Timeline + Store Selectors (sélecteurs store, date-utils, styles) ✅
 - [x] 3.7-03: Day 3 - Refactor Forms + Error Handling (react-hook-form + Zod, error-handler) ✅
 
-### Phase 5: Mobile & Polish
+### Phase 5: Mobile & Polish ✅
 **Goal**: Application is fully responsive and optimized for mobile devices with excellent performance
 **Depends on**: Phase 3.7
 **Requirements**: MOBILE-01, MOBILE-02, MOBILE-03, MOBILE-04
 **Success Criteria** (what must be TRUE):
-  1. Timeline view adapts to mobile screens with horizontal scrolling and readable text
-  2. All forms and client cards are usable on mobile devices
-  3. Touch targets meet accessibility standards (44x44px minimum)
-  4. Interface performs smoothly on mobile browsers
-**Plans**: TBD
+  1. ✅ Timeline view adapts to mobile screens with horizontal scrolling and readable text
+  2. ✅ All forms and client cards are usable on mobile devices
+  3. ✅ Touch targets meet accessibility standards (44x44px minimum)
+  4. ✅ Interface performs smoothly on mobile browsers
+**Completed**: 2026-02-14
 
 Plans:
-- [ ] 05-01: [To be planned]
+- [x] 05-01: Responsive layout (Header, Timeline, Backlog drawer, ClientDetail, Modals)
 
 ## Progress
 
@@ -154,7 +154,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Client Cards & Detail Views | 1/1 | ✅ Complete | 2026-02-13 |
 | 3. Deliverables & Calls Management | 1/1 | ✅ Complete | 2026-02-13 |
 | 4. Text Notes & Files (Documents) | 2/2 | ✅ Complete | 2026-02-13 |
-| 5. Mobile & Polish | 0/1 | 📋 Planned | - |
+| 5. Mobile & Polish | 1/1 | ✅ Complete | 2026-02-14 |
 | 6. Vue Comptabilité | 0/4 | 📋 Planned | - |
 | 7. Supabase & Persistence | 0/4 | 📋 Planned | - |
 | 7.1. Security (Auth + RLS) | 0/1 | 📋 Planned | - |
