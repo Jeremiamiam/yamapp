@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal, FormField, Input, Textarea, Select, Button } from '@/components/ui';
 import { useAppStore } from '@/lib/store';
+import { DeliverableSchema, type DeliverableFormData } from '@/lib/validation';
 import { DeliverableType, DeliverableStatus, Deliverable, DeliverableCategory } from '@/types';
+import { formatDateForInput, formatTimeForInput } from '@/lib/date-utils';
 
-// Icons
 const Package = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/>
@@ -15,76 +18,80 @@ const Package = () => (
   </svg>
 );
 
-interface FormData {
-  name: string;
-  selectedClientId: string;
-  toBacklog: boolean;
-  dueDate: string;
-  dueTime: string;
-  type: DeliverableType;
-  status: DeliverableStatus;
-  assigneeId: string;
-  category: DeliverableCategory;
-  prixFacturé: string;
-  coutSousTraitance: string;
-  deliveredAt: string;
-  externalContractor: string;
-  notes: string;
-}
+const getDefaultDate = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 7);
+  return formatDateForInput(date);
+};
+
+const parseEur = (s: string) => {
+  const n = parseFloat(s.trim().replace(',', '.').replace(/\s/g, ''));
+  return s.trim() !== '' && !Number.isNaN(n) ? n : undefined;
+};
+
+const typeOptions = [
+  { value: 'creative', label: '🎨 Créatif' },
+  { value: 'document', label: '📄 Document' },
+  { value: 'other', label: '📦 Autre' },
+];
+
+const statusOptions = [
+  { value: 'pending', label: '⏳ À faire' },
+  { value: 'in-progress', label: '🔄 En cours' },
+  { value: 'completed', label: '✅ Terminé' },
+];
 
 export function DeliverableForm() {
   const { activeModal, closeModal, addDeliverable, updateDeliverable, deleteDeliverable, team, clients, openModal } = useAppStore();
-  
   const isOpen = activeModal?.type === 'deliverable';
   const mode = isOpen ? activeModal.mode : 'create';
-  const modalClientId = isOpen ? activeModal.clientId : undefined; // undefined = ouvert depuis backlog
+  const modalClientId = isOpen ? activeModal.clientId : undefined;
   const existingDeliverable = isOpen && activeModal.mode === 'edit' ? activeModal.deliverable : undefined;
   const showClientSelector = isOpen && mode === 'create' && modalClientId === undefined;
-  
-  // Helper to format date for input
-  const formatDateForInput = (date: Date) => {
-    return date.toISOString().split('T')[0];
-  };
-  
-  const formatTimeForInput = (date: Date) => {
-    return date.toTimeString().slice(0, 5);
-  };
-  
-  const getDefaultDate = () => {
-    const date = new Date();
-    date.setDate(date.getDate() + 7); // Default to 1 week from now
-    return formatDateForInput(date);
-  };
-  
-  const [formData, setFormData] = useState<FormData>({
-    name: '',
-    selectedClientId: '',
-    toBacklog: false,
-    dueDate: getDefaultDate(),
-    dueTime: '18:00',
-    type: 'creative',
-    status: 'pending',
-    assigneeId: '',
-    category: 'other',
-    cost: '',
-    deliveredAt: '',
-    externalContractor: '',
-    notes: ''
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+    setValue,
+  } = useForm<DeliverableFormData>({
+    resolver: zodResolver(DeliverableSchema),
+    defaultValues: {
+      name: '',
+      selectedClientId: '',
+      toBacklog: false,
+      dueDate: getDefaultDate(),
+      dueTime: '18:00',
+      type: 'creative',
+      status: 'pending',
+      assigneeId: '',
+      category: 'other',
+      prixFacturé: '',
+      coutSousTraitance: '',
+      deliveredAt: '',
+      externalContractor: '',
+      notes: '',
+    },
   });
-  
-  const [errors, setErrors] = useState<Partial<FormData>>({});
-  
-  // Reset form when modal opens
+
+  const toBacklog = watch('toBacklog');
+  const teamOptions = [
+    { value: '', label: 'Non assigné' },
+    ...team.map((m) => ({ value: m.id, label: `${m.name} (${m.role})` })),
+  ];
+
   useEffect(() => {
     if (isOpen) {
       if (existingDeliverable) {
         const noDate = existingDeliverable.dueDate == null;
-        setFormData({
+        reset({
           name: existingDeliverable.name,
           selectedClientId: existingDeliverable.clientId ?? '',
           toBacklog: noDate,
-          dueDate: noDate ? getDefaultDate() : formatDateForInput(existingDeliverable.dueDate),
-          dueTime: noDate ? '18:00' : formatTimeForInput(existingDeliverable.dueDate),
+          dueDate: noDate ? getDefaultDate() : formatDateForInput(existingDeliverable.dueDate!),
+          dueTime: noDate ? '18:00' : formatTimeForInput(existingDeliverable.dueDate!),
           type: existingDeliverable.type,
           status: existingDeliverable.status,
           assigneeId: existingDeliverable.assigneeId || '',
@@ -93,10 +100,10 @@ export function DeliverableForm() {
           coutSousTraitance: existingDeliverable.coutSousTraitance != null ? String(existingDeliverable.coutSousTraitance) : '',
           deliveredAt: existingDeliverable.deliveredAt ? formatDateForInput(existingDeliverable.deliveredAt) : '',
           externalContractor: existingDeliverable.externalContractor ?? '',
-          notes: existingDeliverable.notes ?? ''
+          notes: existingDeliverable.notes ?? '',
         });
       } else {
-        setFormData({
+        reset({
           name: '',
           selectedClientId: modalClientId ?? '',
           toBacklog: false,
@@ -110,91 +117,45 @@ export function DeliverableForm() {
           coutSousTraitance: '',
           deliveredAt: '',
           externalContractor: '',
-          notes: ''
+          notes: '',
         });
       }
-      setErrors({});
     }
-  }, [isOpen, existingDeliverable, modalClientId]);
-  
-  const validate = (): boolean => {
-    const newErrors: Partial<FormData> = {};
-    
-    if (!formData.name.trim()) {
-      newErrors.name = 'Le nom est requis';
-    }
-    if (!formData.toBacklog && !formData.dueDate) {
-      newErrors.dueDate = 'La date est requise (ou cochez « À planifier plus tard »)';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-  
-  const handleSubmit = () => {
-    if (!validate()) return;
-    
-    const dueDate = formData.toBacklog
-      ? undefined
-      : new Date(`${formData.dueDate}T${formData.dueTime || '18:00'}`);
-    
-    const parseEur = (s: string) => {
-      const n = parseFloat(s.trim().replace(',', '.').replace(/\s/g, ''));
-      return s.trim() !== '' && !Number.isNaN(n) ? n : undefined;
-    };
-    const prixFacturé = parseEur(formData.prixFacturé);
-    const coutSousTraitance = parseEur(formData.coutSousTraitance);
-    const deliveredAtDate = formData.deliveredAt ? new Date(formData.deliveredAt + 'T12:00:00') : undefined;
+  }, [isOpen, existingDeliverable, modalClientId, reset]);
 
-    const effectiveClientId = modalClientId ?? (formData.selectedClientId || undefined);
+  const onSubmit = (data: DeliverableFormData) => {
+    const dueDate = data.toBacklog ? undefined : new Date(`${data.dueDate}T${data.dueTime || '18:00'}`);
+    const deliveredAtDate = data.deliveredAt ? new Date(data.deliveredAt + 'T12:00:00') : undefined;
+    const effectiveClientId = modalClientId ?? (data.selectedClientId || undefined);
     const deliverableData: Omit<Deliverable, 'id' | 'createdAt'> = {
       clientId: effectiveClientId,
-      name: formData.name.trim(),
+      name: data.name.trim(),
       dueDate,
-      type: formData.type,
-      status: formData.status,
-      assigneeId: formData.assigneeId || undefined,
-      category: formData.category,
-      prixFacturé,
-      coutSousTraitance,
+      type: data.type as DeliverableType,
+      status: data.status as DeliverableStatus,
+      assigneeId: data.assigneeId || undefined,
+      category: data.category as DeliverableCategory,
+      prixFacturé: parseEur(data.prixFacturé ?? ''),
+      coutSousTraitance: parseEur(data.coutSousTraitance ?? ''),
       deliveredAt: deliveredAtDate,
-      externalContractor: formData.externalContractor.trim() || undefined,
-      notes: formData.notes.trim() || undefined
+      externalContractor: data.externalContractor?.trim() || undefined,
+      notes: data.notes?.trim() || undefined,
     };
-    
     if (mode === 'edit' && existingDeliverable) {
       updateDeliverable(existingDeliverable.id, deliverableData);
     } else {
       addDeliverable(deliverableData);
     }
-    
     closeModal();
   };
-  
+
   const handleDelete = () => {
     if (mode === 'edit' && existingDeliverable) {
       deleteDeliverable(existingDeliverable.id);
       closeModal();
     }
   };
-  
-  const typeOptions = [
-    { value: 'creative', label: '🎨 Créatif' },
-    { value: 'document', label: '📄 Document' },
-    { value: 'other', label: '📦 Autre' }
-  ];
-  
-  const statusOptions = [
-    { value: 'pending', label: '⏳ À faire' },
-    { value: 'in-progress', label: '🔄 En cours' },
-    { value: 'completed', label: '✅ Terminé' }
-  ];
-  
-  const teamOptions = [
-    { value: '', label: 'Non assigné' },
-    ...team.map(m => ({ value: m.id, label: `${m.name} (${m.role})` }))
-  ];
-  
+
   return (
     <Modal
       isOpen={isOpen}
@@ -216,22 +177,22 @@ export function DeliverableForm() {
           <Button variant="secondary" onClick={closeModal}>
             Annuler
           </Button>
-          <Button onClick={handleSubmit}>
+          <Button onClick={handleSubmit(onSubmit)}>
             {mode === 'edit' ? 'Enregistrer' : 'Créer'}
           </Button>
         </>
       }
     >
-      <div className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {showClientSelector && (
           <FormField label="Client">
             <div className="flex items-center gap-2">
               <Select
-                value={formData.selectedClientId}
-                onChange={e => setFormData(prev => ({ ...prev, selectedClientId: e.target.value }))}
+                value={watch('selectedClientId')}
+                onChange={(e) => setValue('selectedClientId', e.target.value)}
                 options={[
                   { value: '', label: 'Sans client' },
-                  ...clients.map(c => ({ value: c.id, label: c.name }))
+                  ...clients.map((c) => ({ value: c.id, label: c.name })),
                 ]}
                 className="flex-1 min-w-0"
               />
@@ -245,142 +206,74 @@ export function DeliverableForm() {
             </div>
           </FormField>
         )}
-        <FormField label="Nom du livrable" required error={errors.name}>
-          <Input
-            value={formData.name}
-            onChange={e => {
-              setFormData(prev => ({ ...prev, name: e.target.value }));
-              if (errors.name) setErrors(prev => ({ ...prev, name: undefined }));
-            }}
-            placeholder="Ex: Logo final V2, Charte graphique, Site web..."
-            autoFocus
-          />
+        <FormField label="Nom du livrable" required error={errors.name?.message}>
+          <Input {...register('name')} placeholder="Ex: Logo final V2, Charte graphique, Site web..." autoFocus />
         </FormField>
-        
-        <FormField error={errors.dueDate}>
+
+        <FormField label="Planification" error={errors.dueDate?.message}>
           <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={formData.toBacklog}
-              onChange={e => {
-                setFormData(prev => ({ ...prev, toBacklog: e.target.checked }));
-                if (errors.dueDate) setErrors(prev => ({ ...prev, dueDate: undefined }));
-              }}
-              className="rounded border-[var(--border-subtle)] text-[var(--accent-violet)] focus:ring-[var(--accent-violet)]"
-            />
+            <input type="checkbox" {...register('toBacklog')} className="rounded border-[var(--border-subtle)] text-[var(--accent-violet)] focus:ring-[var(--accent-violet)]" />
             <span className="text-sm text-[var(--text-primary)]">À planifier plus tard (backlog)</span>
           </label>
         </FormField>
 
-        {!formData.toBacklog && (
+        {!toBacklog && (
           <div className="grid grid-cols-2 gap-4">
-            <FormField label="Date de rendu" required error={errors.dueDate}>
-              <Input
-                type="date"
-                value={formData.dueDate}
-                onChange={e => {
-                  setFormData(prev => ({ ...prev, dueDate: e.target.value }));
-                  if (errors.dueDate) setErrors(prev => ({ ...prev, dueDate: undefined }));
-                }}
-              />
+            <FormField label="Date de rendu" required error={errors.dueDate?.message}>
+              <Input type="date" {...register('dueDate')} />
             </FormField>
-            
             <FormField label="Heure">
-              <Input
-                type="time"
-                value={formData.dueTime}
-                onChange={e => setFormData(prev => ({ ...prev, dueTime: e.target.value }))}
-              />
+              <Input type="time" {...register('dueTime')} />
             </FormField>
           </div>
         )}
-        
+
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Type (icône colis sur la timeline)">
-            <Select
-              value={formData.type}
-              onChange={e => setFormData(prev => ({ ...prev, type: e.target.value as DeliverableType }))}
-              options={typeOptions}
-            />
+            <Select value={watch('type')} onChange={(e) => setValue('type', e.target.value as DeliverableFormData['type'])} options={typeOptions} />
           </FormField>
-          
           <FormField label="Statut">
-            <Select
-              value={formData.status}
-              onChange={e => setFormData(prev => ({ ...prev, status: e.target.value as DeliverableStatus }))}
-              options={statusOptions}
-            />
+            <Select value={watch('status')} onChange={(e) => setValue('status', e.target.value as DeliverableFormData['status'])} options={statusOptions} />
           </FormField>
         </div>
-        
+
         <FormField label="Assigné à">
-          <Select
-            value={formData.assigneeId}
-            onChange={e => setFormData(prev => ({ ...prev, assigneeId: e.target.value }))}
-            options={teamOptions}
-          />
+          <Select value={watch('assigneeId')} onChange={(e) => setValue('assigneeId', e.target.value)} options={teamOptions} />
         </FormField>
 
         <FormField label="Catégorie (Print / Digital)">
           <Select
-            value={formData.category}
-            onChange={e => setFormData(prev => ({ ...prev, category: e.target.value as DeliverableCategory }))}
+            value={watch('category')}
+            onChange={(e) => setValue('category', e.target.value as DeliverableFormData['category'])}
             options={[
               { value: 'print', label: '🖨️ Print (ex. cartes de visite, flyers)' },
               { value: 'digital', label: '🌐 Digital (ex. site, maquette)' },
-              { value: 'other', label: '📦 Autre' }
+              { value: 'other', label: '📦 Autre' },
             ]}
           />
         </FormField>
 
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Prix facturé (€)">
-            <Input
-              type="text"
-              inputMode="decimal"
-              value={formData.prixFacturé}
-              onChange={e => setFormData(prev => ({ ...prev, prixFacturé: e.target.value }))}
-              placeholder="Ex: 4500"
-            />
+            <Input type="text" inputMode="decimal" {...register('prixFacturé')} placeholder="Ex: 4500" />
           </FormField>
           <FormField label="Sous-traitance (€)">
-            <Input
-              type="text"
-              inputMode="decimal"
-              value={formData.coutSousTraitance}
-              onChange={e => setFormData(prev => ({ ...prev, coutSousTraitance: e.target.value }))}
-              placeholder="Impressions, freelance..."
-            />
+            <Input type="text" inputMode="decimal" {...register('coutSousTraitance')} placeholder="Impressions, freelance..." />
           </FormField>
         </div>
 
         <FormField label="Date de livraison effective">
-          <Input
-            type="date"
-            value={formData.deliveredAt}
-            onChange={e => setFormData(prev => ({ ...prev, deliveredAt: e.target.value }))}
-            placeholder="Optionnel"
-          />
+          <Input type="date" {...register('deliveredAt')} placeholder="Optionnel" />
         </FormField>
 
         <FormField label="Prestataire extérieur">
-          <Input
-            value={formData.externalContractor}
-            onChange={e => setFormData(prev => ({ ...prev, externalContractor: e.target.value }))}
-            placeholder="Ex: Agence Dev, freelance..."
-          />
+          <Input {...register('externalContractor')} placeholder="Ex: Agence Dev, freelance..." />
         </FormField>
 
         <FormField label="Notes">
-          <Textarea
-            value={formData.notes}
-            onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-            placeholder="Détails, suivi..."
-            rows={2}
-            className="resize-y"
-          />
+          <Textarea {...register('notes')} placeholder="Détails, suivi..." rows={2} className="resize-y" />
         </FormField>
-      </div>
+      </form>
     </Modal>
   );
 }
