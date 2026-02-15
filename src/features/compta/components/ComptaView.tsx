@@ -290,8 +290,19 @@ export function ComptaView() {
           <YearSelector />
         </div>
 
-        {/* 4 KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* 5 KPIs: Clients + 4 financial metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 shadow-lg">
+            <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">
+              Clients
+            </p>
+            <p className="text-2xl font-bold text-[var(--text-primary)]">{tableRows.length}</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">
+              {filterMode === 'all' ? `actifs ${comptaYear}` :
+               filterMode === 'with-validated' ? 'avec validés' :
+               'avec potentiels'}
+            </p>
+          </div>
           <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 shadow-lg">
             <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">
               Rentrées validées
@@ -375,11 +386,11 @@ export function ComptaView() {
             <table className="w-full text-sm table-fixed">
               <colgroup>
                 <col style={{ width: '40px' }} />
-                <col style={{ width: 'auto', minWidth: '180px' }} />
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '20%' }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '20.5%' }} />
+                <col style={{ width: '20.5%' }} />
+                <col style={{ width: '20.5%' }} />
+                <col style={{ width: '20.5%' }} />
               </colgroup>
               <thead>
                 <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30">
