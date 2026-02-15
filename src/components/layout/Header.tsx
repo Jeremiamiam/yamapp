@@ -143,18 +143,20 @@ export function Header() {
                       onClick={() => setFiltersOpen(false)}
                       aria-hidden="true"
                     />
-                    <div className="fixed top-[60px] left-0 right-0 z-50 p-4 bg-[var(--bg-card)] border-b border-[var(--border-subtle)] shadow-xl animate-fade-in-up">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-semibold text-[var(--text-primary)]">Filtres</span>
+                    <div className="fixed top-0 left-0 right-0 bottom-0 z-50 flex flex-col bg-[var(--bg-primary)] animate-fade-in-up">
+                      <div className="flex-shrink-0 flex items-center justify-between px-4 py-5 border-b border-[var(--border-subtle)]">
+                        <span className="text-lg font-bold text-[var(--text-primary)]">Filtres</span>
                         <button
                           type="button"
                           onClick={() => setFiltersOpen(false)}
-                          className="p-2 rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]"
+                          className="p-3 rounded-xl min-h-[48px] min-w-[48px] flex items-center justify-center text-2xl text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
                         >
                           ×
                         </button>
                       </div>
-                      <TimelineFilters />
+                      <div className="flex-1 overflow-y-auto px-4 py-6">
+                        <TimelineFilters mobileDrawer />
+                      </div>
                     </div>
                   </>
                 )}

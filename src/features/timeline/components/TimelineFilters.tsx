@@ -19,7 +19,12 @@ const X = () => (
   </svg>
 );
 
-export function TimelineFilters() {
+interface TimelineFiltersProps {
+  /** Sur mobile dans le drawer : typo + espacement augmentés pour lisibilité */
+  mobileDrawer?: boolean;
+}
+
+export function TimelineFilters({ mobileDrawer = false }: TimelineFiltersProps) {
   const { 
     filters, 
     team, 
@@ -41,16 +46,24 @@ export function TimelineFilters() {
     : null;
 
   const filterBtnClass = (active: boolean) =>
-    `px-3 py-2 rounded-lg text-xs font-semibold transition-all min-h-[44px] flex items-center justify-center ${
+    `px-4 py-3 rounded-xl font-semibold transition-all min-h-[48px] flex items-center justify-center ${
+      mobileDrawer ? 'text-base' : 'text-xs'
+    } ${
       active
         ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
         : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
     }`;
 
   return (
-    <div className="flex items-center gap-2 sm:gap-3 flex-wrap overflow-x-auto overflow-y-hidden py-1 -my-1 min-w-0">
+    <div className={`flex flex-col gap-6 overflow-y-auto min-w-0 ${mobileDrawer ? '' : 'flex-row items-center flex-wrap gap-3 -my-1'}`}>
+      {mobileDrawer && (
+        <p className="text-[var(--text-muted)] text-sm">Filtrez les clients et événements visibles.</p>
+      )}
+      <div className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-3 ${mobileDrawer ? 'gap-4' : 'gap-3'}`}>
       {/* Filtre Statut Client */}
-      <div className="flex items-center gap-1 bg-[var(--bg-secondary)] rounded-xl p-1 flex-shrink-0">
+      <div className={`flex flex-col gap-2 ${mobileDrawer ? '' : ''}`}>
+        {mobileDrawer && <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Statut client</span>}
+      <div className={`flex items-center gap-1 bg-[var(--bg-secondary)] rounded-xl flex-shrink-0 ${mobileDrawer ? 'p-2 gap-2' : 'p-1'}`}>
         <button
           onClick={() => setClientStatusFilter('all')}
           className={filterBtnClass(filters.clientStatus === 'all')}
@@ -78,24 +91,29 @@ export function TimelineFilters() {
           <span className="opacity-60">{prospectCount}</span>
         </button>
       </div>
+      </div>
 
-      {/* Séparateur */}
-      <div className="h-6 w-px bg-[var(--border-subtle)] flex-shrink-0" />
+      {/* Séparateur — desktop seulement */}
+      {!mobileDrawer && <div className="h-6 w-px bg-[var(--border-subtle)] flex-shrink-0" />}
 
       {/* Filtre Équipe */}
+      <div className={`flex flex-col gap-2 ${mobileDrawer ? '' : 'flex-row items-center'}`}>
+        {mobileDrawer && <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Par membre d'équipe</span>}
       <div className="flex items-center gap-2 flex-shrink-0">
+        {!mobileDrawer && (
         <span className="text-[var(--text-muted)]">
           <Users />
         </span>
+        )}
         
         {selectedMember ? (
           // Membre sélectionné - afficher comme chip
           <button
             onClick={() => setTeamMemberFilter(null)}
-            className="flex items-center gap-2 pl-2 pr-3 py-2 rounded-lg min-h-[44px] bg-[var(--accent-violet)]/20 text-[var(--accent-violet)] text-xs font-semibold group"
+            className={`flex items-center gap-2 pl-3 pr-4 py-2.5 rounded-xl min-h-[48px] bg-[var(--accent-violet)]/20 text-[var(--accent-violet)] font-semibold group ${mobileDrawer ? 'text-base' : 'text-xs'}`}
           >
             <div 
-              className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
+              className={`rounded-full flex items-center justify-center font-bold ${mobileDrawer ? 'w-7 h-7 text-xs' : 'w-5 h-5 text-[10px]'}`}
               style={{ backgroundColor: selectedMember.color, color: '#000' }}
             >
               {selectedMember.initials}
@@ -112,7 +130,9 @@ export function TimelineFilters() {
               <button
                 key={member.id}
                 onClick={() => setTeamMemberFilter(member.id)}
-                className="w-11 h-11 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-transparent hover:ring-[var(--accent-violet)]/50 transition-[box-shadow] min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0"
+                className={`rounded-full flex items-center justify-center font-bold ring-2 ring-transparent hover:ring-[var(--accent-violet)]/50 transition-[box-shadow] ${
+                  mobileDrawer ? 'w-12 h-12 text-sm min-w-[48px] min-h-[48px]' : 'w-11 h-11 sm:w-7 sm:h-7 text-[10px] min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0'
+                }`}
                 style={{ backgroundColor: member.color, color: '#000' }}
                 title={member.name}
               >
@@ -122,12 +142,14 @@ export function TimelineFilters() {
           </div>
         )}
       </div>
+      </div>
 
-      {/* Reset — toujours en layout pour éviter shift au clic */}
-      <div className="h-6 w-px bg-[var(--border-subtle)] flex-shrink-0" />
+      {/* Reset */}
+      {mobileDrawer && <div className="h-px bg-[var(--border-subtle)]" />}
+      {!mobileDrawer && <div className="h-6 w-px bg-[var(--border-subtle)] flex-shrink-0" />}
       <button
         onClick={resetFilters}
-        className={`text-xs flex items-center gap-1 min-w-[4.5rem] min-h-[44px] sm:min-h-0 justify-end transition-opacity duration-150 py-2 sm:py-0 ${
+        className={`flex items-center gap-1 min-w-[4.5rem] min-h-[48px] sm:min-h-[44px] justify-end transition-opacity duration-150 py-2 sm:py-0 ${mobileDrawer ? 'text-base' : 'text-xs'} ${
           hasActiveFilters
             ? 'text-[var(--text-muted)] hover:text-[var(--accent-coral)] opacity-100'
             : 'opacity-0 pointer-events-none'
@@ -138,6 +160,7 @@ export function TimelineFilters() {
         <X />
         Reset
       </button>
+      </div>
     </div>
   );
 }

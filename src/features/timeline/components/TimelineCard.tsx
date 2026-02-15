@@ -188,7 +188,7 @@ function TimelineCardInner({
   return (
     <div
       className={`rounded-xl overflow-hidden group transition-all duration-300 ease-out
-        ${isGhost ? 'opacity-90 scale-105 z-50 cursor-grabbing' : isDragging ? 'opacity-0 pointer-events-none' : 'absolute left-2 right-2 cursor-pointer opacity-0 animate-fade-in-up z-10 hover:z-20 hover:-translate-y-0.5'}`}
+        ${isGhost ? 'opacity-90 scale-105 z-50 cursor-grabbing' : isDragging ? 'opacity-0 pointer-events-none' : 'absolute left-2 right-2 cursor-pointer opacity-0 animate-fade-in-up z-[1] hover:z-[5] hover:-translate-y-0.5'}`}
       style={{
         background: style.bg,
         border: style.border,

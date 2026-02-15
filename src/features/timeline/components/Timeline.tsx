@@ -357,7 +357,7 @@ export function Timeline() {
           <div className="flex flex-row min-h-0" style={{ width: totalWidth + 64, transform: 'translateZ(0)' }}>
             {/* Colonne horaires : sticky left pour rester visible au scroll X, scroll en Y avec le contenu */}
             <div
-              className="flex-shrink-0 w-12 sm:w-16 border-r border-[var(--border-subtle)] bg-[var(--bg-primary)]/95 backdrop-blur-sm sticky left-0 z-20"
+              className="flex-shrink-0 w-12 sm:w-16 border-r border-[var(--border-subtle)] bg-[var(--bg-primary)] sticky left-0 z-[60] shadow-[4px_0_12px_rgba(0,0,0,0.3)]"
               style={{ height: TOTAL_HEADER_HEIGHT + totalHeight }}
             >
               <div style={{ height: HOUR_INDEX_HEIGHT }} className="border-b border-[var(--border-subtle)] flex items-center justify-center">
