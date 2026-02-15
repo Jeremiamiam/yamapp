@@ -284,61 +284,6 @@ export function ComptaView() {
           </div>
         </div>
 
-        {/* Potentiel par client (pending + in-progress) */}
-        {byClientPotentiel.length > 0 && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-6">
-            <p className="text-sm font-medium text-[var(--text-primary)] mb-2">Potentiel par client</p>
-            <p className="text-xs text-[var(--text-muted)] mb-4">Délivrables en cours ou à venir pour {comptaYear}</p>
-            <div className="space-y-2">
-              {byClientPotentiel.map((row) => {
-                const isExpanded = expandedPotentielId === row.clientId;
-                return (
-                  <div key={row.clientId} className="rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)]">
-                    <div
-                      className="flex items-center justify-between gap-4 py-3 px-4 cursor-pointer hover:bg-[var(--bg-tertiary)]/30"
-                      onClick={() => setExpandedPotentielId(isExpanded ? null : row.clientId)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <ChevronDown open={isExpanded} />
-                        <span className="text-[var(--text-primary)] font-medium">
-                          {row.clientName}
-                          {row.isProspect && (
-                            <span className="ml-2 text-xs px-2 py-0.5 rounded-full border border-amber-500/50 text-amber-600 dark:text-amber-400">
-                              P
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                      <span className="text-amber-600 dark:text-amber-400 font-medium shrink-0">{formatEur(row.total)}</span>
-                    </div>
-                    {isExpanded && (
-                      <div className="px-4 pb-4 pt-2 border-t border-[var(--border-subtle)]">
-                        <ul className="space-y-2">
-                          {row.deliverables.map((d) => (
-                            <li
-                              key={d.id}
-                              onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
-                              className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] cursor-pointer text-sm transition-colors"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-[var(--text-primary)]">{d.name}</span>
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
-                                  {d.status === 'pending' ? 'à venir' : 'en cours'}
-                                </span>
-                              </div>
-                              <span className="text-amber-600 dark:text-amber-400 shrink-0">{formatEur(d.prixFacturé ?? 0)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Rentrées par client (completed deliverables) */}
         <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6">
           <p className="text-sm font-medium text-[var(--text-primary)] mb-4">Rentrées par client</p>
@@ -418,6 +363,61 @@ export function ComptaView() {
             </table>
           </div>
         </div>
+
+        {/* Potentiel par client (pending + in-progress) */}
+        {byClientPotentiel.length > 0 && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-6">
+            <p className="text-sm font-medium text-[var(--text-primary)] mb-2">Potentiel par client</p>
+            <p className="text-xs text-[var(--text-muted)] mb-4">Délivrables en cours ou à venir pour {comptaYear}</p>
+            <div className="space-y-2">
+              {byClientPotentiel.map((row) => {
+                const isExpanded = expandedPotentielId === row.clientId;
+                return (
+                  <div key={row.clientId} className="rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)]">
+                    <div
+                      className="flex items-center justify-between gap-4 py-3 px-4 cursor-pointer hover:bg-[var(--bg-tertiary)]/30"
+                      onClick={() => setExpandedPotentielId(isExpanded ? null : row.clientId)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <ChevronDown open={isExpanded} />
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {row.clientName}
+                          {row.isProspect && (
+                            <span className="ml-2 text-xs px-2 py-0.5 rounded-full border border-amber-500/50 text-amber-600 dark:text-amber-400">
+                              P
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <span className="text-amber-600 dark:text-amber-400 font-medium shrink-0">{formatEur(row.total)}</span>
+                    </div>
+                    {isExpanded && (
+                      <div className="px-4 pb-4 pt-2 border-t border-[var(--border-subtle)]">
+                        <ul className="space-y-2">
+                          {row.deliverables.map((d) => (
+                            <li
+                              key={d.id}
+                              onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
+                              className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] cursor-pointer text-sm transition-colors"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-[var(--text-primary)]">{d.name}</span>
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
+                                  {d.status === 'pending' ? 'à venir' : 'en cours'}
+                                </span>
+                              </div>
+                              <span className="text-amber-600 dark:text-amber-400 shrink-0">{formatEur(d.prixFacturé ?? 0)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <MonthlyHistogram completedDeliverables={completedDeliverables} year={comptaYear} />
       </div>
