@@ -55,7 +55,7 @@ export function TimelineFilters({ mobileDrawer = false }: TimelineFiltersProps) 
     }`;
 
   return (
-    <div className={`flex flex-col gap-6 overflow-y-auto min-w-0 ${mobileDrawer ? '' : 'flex-row items-center flex-wrap gap-3 -my-1'}`}>
+    <div className={`flex overflow-y-auto min-w-0 ${mobileDrawer ? 'flex-col gap-6' : 'flex-row items-center flex-wrap gap-3 -my-1'}`}>
       {mobileDrawer && (
         <p className="text-[var(--text-muted)] text-sm">Filtrez les clients et événements visibles.</p>
       )}
