@@ -90,6 +90,8 @@ export interface Deliverable {
   prixFacturé?: number;
   /** Coût sous-traitance : impression, freelance, etc. (sortie) — € */
   coutSousTraitance?: number;
+  /** Si true : livrable potentiel (pipeline), affiché en Compta Potentiel. Sinon : livrable réel (facturé). Modifiable à tout moment. */
+  isPotentiel?: boolean;
 }
 
 /** Type d'événement : appel classique ou présentation client (affichage icône sur la timeline) */

@@ -21,9 +21,9 @@ export default function Home() {
     loadData();
   }, [loadData]);
 
-  // Éditeur qui tente d'accéder à la compta → redirection Calendrier
+  // Member qui tente d'accéder à la compta → redirection Calendrier
   useEffect(() => {
-    if (!loading && role === 'editor' && currentView === 'compta') {
+    if (!loading && role !== 'admin' && currentView === 'compta') {
       navigateToTimeline();
     }
   }, [loading, role, currentView, navigateToTimeline]);
@@ -80,7 +80,7 @@ export default function Home() {
           </div>
         )}
         {currentView === 'clients' && <ClientsList />}
-        {currentView === 'compta' && role === 'admin' && <ComptaView />}
+        {currentView === 'compta' && <ComptaView />}
       </div>
       <DocumentModal />
       <ModalManager />

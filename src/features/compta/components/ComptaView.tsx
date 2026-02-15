@@ -6,7 +6,6 @@ import { useModal } from '@/hooks';
 import { useUserRole } from '@/hooks/useUserRole';
 import type { Deliverable } from '@/types';
 import { YearSelector } from './YearSelector';
-import { MonthlyHistogram } from './MonthlyHistogram';
 
 const formatEur = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
@@ -418,8 +417,6 @@ export function ComptaView() {
             </div>
           </div>
         )}
-
-        <MonthlyHistogram completedDeliverables={completedDeliverables} year={comptaYear} />
       </div>
     </div>
   );

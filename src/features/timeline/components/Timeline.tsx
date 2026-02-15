@@ -356,18 +356,24 @@ export function Timeline() {
             <div className="flex flex-shrink-0 flex-col" style={{ width: totalWidth }}>
               {/* Bande mois — sticky au scroll Y, repère clair au scroll X */}
               <div
-                className="flex flex-shrink-0 sticky top-0 z-30 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/90 backdrop-blur-sm"
+                className="flex flex-shrink-0 sticky top-0 z-10 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/90 backdrop-blur-sm"
                 style={{ height: MONTH_ROW_HEIGHT }}
               >
                 {monthRanges.map((m, i) => (
                   <div
                     key={i}
-                    className="flex-shrink-0 flex items-center justify-center border-r border-[var(--border-subtle)] last:border-r-0 bg-[var(--bg-secondary)]/40"
+                    className="flex-shrink-0 border-r border-[var(--border-subtle)] last:border-r-0 bg-[var(--bg-secondary)]/40 relative"
                     style={{ width: m.width, minWidth: m.width }}
                   >
-                    <span className="text-xs font-semibold text-[var(--text-primary)] tracking-wider truncate px-2 capitalize">
-                      {m.label.charAt(0).toUpperCase() + m.label.slice(1)}
-                    </span>
+                    {/* Label sticky qui reste visible pendant le scroll dans le mois */}
+                    <div
+                      className="sticky left-16 flex items-center h-full pointer-events-none z-10"
+                      style={{ width: 'fit-content', maxWidth: m.width - 64 }}
+                    >
+                      <span className="text-xs font-semibold text-white tracking-wider px-3 py-1 bg-[var(--bg-primary)]/95 backdrop-blur-sm rounded-full border border-[var(--border-subtle)] shadow-lg uppercase">
+                        {m.label.toUpperCase()}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -405,9 +411,9 @@ export function Timeline() {
                     }
                   }}
                 >
-                  {/* Day header — sticky sous la bande mois au scroll Y */}
+                  {/* Day header — sticky sous la bande mois au scroll Y (z-10 pour rester sous la colonne horaires z-20) */}
                   <div 
-                    className={`sticky z-30 flex flex-col items-center justify-center border-b border-[var(--border-subtle)] backdrop-blur-sm transition-colors duration-150 ${
+                    className={`sticky z-10 flex flex-col items-center justify-center border-b border-[var(--border-subtle)] backdrop-blur-sm transition-colors duration-150 ${
                       isDropColumn || isBacklogDropColumn
                         ? 'bg-[var(--accent-lime)]/20'
                         : today 

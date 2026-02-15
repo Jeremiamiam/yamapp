@@ -15,7 +15,13 @@
       "Bash(git init:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(cd /Users/jeremyhervo/Agence Yam Dropbox/Yambox/_IA/YAM DASH && find:*)"
+      "Bash(cd /Users/jeremyhervo/Agence Yam Dropbox/Yambox/_IA/YAM DASH && find:*)",
+      "Bash(bc:*)",
+      "Bash(npx eslint src/)",
+      "Bash(grep \"React.memo\\\\|memo\\(\" src/**/*.tsx)",
+      "Skill(gsd:discuss-phase)",
+      "Skill(gsd:execute-phase)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

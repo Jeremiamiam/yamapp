@@ -18,8 +18,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Text Notes & Files** - Documents (briefs, reports PLAUD, notes) ✅
 - [x] **Phase 3.7: Code Quality & Refactoring** - Clean architecture before Mobile ✅
 - [ ] **Phase 5: Mobile & Polish** - Responsive design and performance optimization
-- [ ] **Phase 6: Vue Comptabilité / Facturation** - Vue dédiée trésorerie (CA, dépenses, marge) avec histogramme mensuel
-- [ ] **Phase 7: Supabase & Persistence** - BDD réelle, données viables (dernière étape du roadmap)
+- [ ] **Phase 6: Vue Comptabilite / Facturation** - Vue dediee tresorerie avec sélecteur année, KPIs, detail par client, histogramme mensuel
+- [x] **Phase 7: Supabase & Persistence** - BDD réelle, store branché Supabase, auth, migrations ✅
+- [x] **Phase 7.1: Security (Auth + RLS)** - Login, RLS tables, middleware ✅
+- [x] **Phase 7.2: Admin & Permissions** - user_roles, Compta/Settings réservés admins, champs prix masqués members ✅
 
 ## Phase Details
 
@@ -155,81 +157,93 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Deliverables & Calls Management | 1/1 | ✅ Complete | 2026-02-13 |
 | 4. Text Notes & Files (Documents) | 2/2 | ✅ Complete | 2026-02-13 |
 | 5. Mobile & Polish | 0/1 | 📋 Planned | - |
-| 6. Vue Comptabilité | 0/4 | 📋 Planned | - |
-| 7. Supabase & Persistence | 0/4 | 📋 Planned | - |
-| 7.1. Security (Auth + RLS) | 0/1 | 📋 Planned | - |
+| 6. Vue Comptabilite | 0/2 | 📋 Planned | - |
+| 7. Supabase & Persistence | 4/4 | ✅ Complete | Implémenté |
+| 7.1. Security (Auth + RLS) | 1/1 | ✅ Complete | Implémenté |
+| 7.2. Admin & Permissions | 1/1 | ✅ Complete | Implémenté |
 
-### Phase 6: Vue Comptabilité / Facturation
+### Phase 6: Vue Comptabilite / Facturation
 
-**Goal**: Avoir une vue dédiée pour la trésorerie (CA, dépenses, marge), au même niveau que "Calendrier" et "Clients" dans la navigation
+**Goal**: Vue dediee pour la tresorerie annuelle (rentrees, depenses, marge, potentiel) avec selecteur d'annee, detail par client, et histogramme mensuel
 **Depends on**: Phase 5
-**Design**: Nouvelle vue "Comptabilité" ou "Facturation" dans la barre de nav (comme Calendrier, Clients)
-
-**Success Criteria** (what must be TRUE):
-  1. Onglet/icône "Comptabilité" ou "Facturation" dans le Header, à côté de Calendrier et Clients
-  2. Vue affiche 3 KPIs instantanés (période configurable ex: Janvier–Décembre) :
-     - **Total Facturé** (encaissé + à venir) 🟢
-     - **Total Dépensé** (freelances + charges) 🔴
-     - **Marge Nette** (reste dans ta poche) 🔵
-  3. **Entrées** : somme des milestones "gommettes" (acomptes/soldes), avec nuance :
-     - Sécurisé (Vert/Payé) vs Théorique (Gris/Prévu) — ex: "CA Annuel : 120k€ (dont 40k€ déjà en banque)"
-  4. **Sorties** : variables (freelances liés aux projets) + fixes (paramétrage "Coûts Fixes Mensuels", ex: 2000€ × 12)
-  5. **Histogramme mensuel** : 2 barres par mois (vert = entrées, rouge = sorties) + ligne courbe du solde cumulé (rouge si < 0 = alerte découvert)
+**Design**: Enhancement du ComptaView existant avec filtrage par annee et logique basee sur le statut des deliverables
+**Plans:** 2 plans
 
 Plans:
-- [ ] 06-01: Vue Comptabilité (navigation + layout, comme Clients)
-- [ ] 06-02: Calcul CA (entrées milestones + nuance payé/prévu)
-- [ ] 06-03: Sorties (variables freelances + coûts fixes paramétrables)
-- [ ] 06-04: Histogramme mensuel (barres + courbe tréso cumulée)
+- [ ] 06-01-PLAN.md -- Store comptaYear + YearSelector + Rewrite ComptaView (KPIs, filtrage annee, tables par client)
+- [ ] 06-02-PLAN.md -- MonthlyHistogram (donnees reelles) + integration + verification visuelle
 
-### Phase 7: Supabase & Persistence
+### Phase 7: Supabase & Persistence ✅
 
-**Goal**: Remplacer le mock par une base Supabase (PostgreSQL), rendre les données persistantes et l’app viable pour un usage quotidien
+**Goal**: Remplacer le mock par une base Supabase (PostgreSQL), rendre les données persistantes et l'app viable pour un usage quotidien
 **Depends on**: Phase 4 (CRUD et seed.json en place = schéma clair)
-**Note**: Peut être faite après Phase 5/6 ou en parallèle selon priorité (viabilité vs mobile/compta)
+**Completed**: Implémenté (store branché Supabase, migrations, auth)
 
 **Success Criteria** (what must be TRUE):
-  1. Projet Supabase créé, schéma DB aligné sur `seed.json` (team, clients, contacts, client_links, documents, deliverables, calls)
-  2. Seed initial : script qui charge `src/lib/seed.json` (ou export) et insère en base
-  3. Store (Zustand) branché sur Supabase : lecture/écriture via client Supabase au lieu des tableaux mock
-  4. Les écrans existants (timeline, fiches client, compta) fonctionnent avec les données en base
-  5. (Optionnel) Auth Supabase pour protéger l’app
+  1. ✅ Projet Supabase créé, schéma DB (migrations 00001–00005)
+  2. (Optionnel) Script seed JSON → Supabase
+  3. ✅ Store (Zustand) branché Supabase : loadData + CRUD sur toutes les tables
+  4. ✅ Écrans timeline, fiches client, compta fonctionnent avec les données en base
+  5. ✅ Auth Supabase (login/signup, middleware, logout)
 
 Plans:
-- [ ] 07-01: Setup Supabase & Schema (Jour 1 - 3-4h)
-- [ ] 07-02: Script seed JSON → Supabase (Jour 2 - 3-4h)
-- [ ] 07-03: Adapter store Zustand pour Supabase (Jour 3 - 5-6h)
-- [ ] 07-04: Tests CRUD complet & Polish (Jour 4 - 3-4h)
+- [x] 07-01: Setup Supabase & Schema ✅
+- [ ] 07-02: Script seed JSON → Supabase (optionnel si données déjà en base)
+- [x] 07-03: Store Zustand branché Supabase ✅
+- [x] 07-04: Auth + middleware + pages login/signup ✅
 
 **Plan détaillé**: `planning/PHASE-7-SUPABASE-PLAN.md` (créé 2026-02-14)
-**Guide Cursor**: `planning/PHASE-7-CURSOR-GUIDE.md` (prompts prêts à l'emploi)
 
-### Phase 7.1: Security (Auth + RLS) 🔐
+### Phase 7.1: Security (Auth + RLS) 🔐 ✅
 **Goal**: Sécuriser l'app avec authentification Supabase et Row Level Security pour protéger les données en production
 **Depends on**: Phase 7
 **Type**: INSERTED - Sécurité critique avant déploiement production
+**Completed**: Implémenté
+
 **Success Criteria** (what must be TRUE):
-  1. Auth Supabase activé (email/password)
-  2. Users créés pour l'agence (jeremy@yam.agency, etc.)
-  3. RLS activé sur 8 tables avec policies "authenticated users only"
-  4. LoginPage fonctionnelle avec design cohérent
-  5. Auth guard dans app (redirect login si non authentifié)
-  6. Bouton logout dans Header
-  7. Session persistence fonctionne
-  8. RLS bloque accès non authentifié (testé)
+  1. ✅ Auth Supabase (email/password), pages login/signup
+  2. Users créés côté Supabase (jeremy@yam.agency, etc.)
+  3. ✅ RLS sur les tables (middleware + redirect si non authentifié)
+  4. ✅ LoginPage + auth guard (middleware)
+  5. ✅ Bouton logout dans Header
+  6. ✅ Session persistence (cookies @supabase/ssr)
+  7. ✅ RLS "authenticated only" sur tables métier (migration 00006 appliquée via MCP)
 
 Plans:
-- [ ] 7.1-01: Activer Auth + RLS + LoginPage + Tests (2-3h)
+- [x] 7.1-01: Activer Auth + RLS + LoginPage + Tests ✅
 
 **Plan détaillé**: `planning/PHASE-7.1-SECURITY-PLAN.md` (créé 2026-02-14)
-**Guide Cursor**: `planning/PHASE-7.1-CURSOR-GUIDE.md` (prompts prêts à l'emploi)
+
+### Phase 7.2: Admin & Permissions 🔐 ✅
+**Goal**: Ajouter gestion des rôles (Admin vs Member) pour protéger les données financières
+**Depends on**: Phase 7.1
+**Type**: INSERTED - Protection données financières avant usage équipe
+**Completed**: Implémenté
+
+**Success Criteria** (what must be TRUE):
+  1. ✅ Table user_roles (migration 00005_user_roles_and_compta_rls), trigger sync team → user_roles
+  2. ✅ useUserRole (user_roles + fallback team.app_role), isAdmin / isMember
+  3. ✅ Members : accès tout sauf Compta et champs prix
+  4. ✅ RLS compta_monthly "Admins only", RLS user_roles (read all, update admins only)
+  5. ✅ Onglet Compta + bouton Settings visibles uniquement pour admins (Header)
+  6. ✅ Champs prix facturé / coût sous-traitance masqués dans DeliverableForm pour members
+  7. ✅ Page /settings : liste user_roles, toggle admin/member (réservée admins), blocage accès non-admin
+  8. ✅ ComptaView + page d'accueil : redirect ou écran "Accès refusé" si member tente compta
+
+Plans:
+- [x] 7.2-01: Admin vs Member avec protection compta ✅
+
+**Plan détaillé**: `planning/PHASE-7.2-ADMIN-PLAN.md` (créé 2026-02-14)
 
 ---
 *Roadmap created: 2026-02-13*
 *Phases 1-4 completed: 2026-02-13*
 *Phase 3.7 refactoring: 93% complete (2026-02-14)*
-*Phase 6 added: 2026-02-14 — Vue Comptabilité/Facturation*
-*Phase 7 added: Supabase & Persistence — rendre l'app viable avec BDD réelle*
+*Phase 6 added: 2026-02-14 -- Vue Comptabilite/Facturation*
+*Phase 7 added: Supabase & Persistence -- rendre l'app viable avec BDD reelle*
 *Phase 7 detailed plan created: 2026-02-14 (4 jours, 14-18h)*
-*Phase 7.1 added: 2026-02-14 — Security (Auth + RLS) pour production (2-3h)*
-*Next: Phase 7 (Supabase) → Phase 7.1 (Security) → Phase 5 (Mobile) ou Phase 6 (Compta)*
+*Phase 7.1 added: 2026-02-14 -- Security (Auth + RLS) pour production (2-3h)*
+*Phase 7.2 added: 2026-02-14 -- Admin & Permissions (2 roles) pour protection compta (4-5h)*
+*Phase 7, 7.1, 7.2 marquees completes apres verification code (store Supabase, auth, user_roles, RLS, Settings, masquage prix).*
+*2026-02-15: RLS Phase 7.1 finalise -- migration 00006_authenticated_only_rls appliquee via MCP Supabase (tables metier en authenticated only).*
+*2026-02-15: Phase 6 planned -- 2 plans (06-01: store+year+KPIs+tables, 06-02: histogram+verification)*

@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal, FormField, Input, Textarea, Select, Button } from '@/components/ui';
 import { useAppStore } from '@/lib/store';
+import { useUserRole } from '@/hooks/useUserRole';
 import { DeliverableSchema, type DeliverableFormData } from '@/lib/validation';
 import { DeliverableType, DeliverableStatus, Deliverable, DeliverableCategory } from '@/types';
 import { formatDateForInput, formatTimeForInput } from '@/lib/date-utils';
@@ -42,6 +43,7 @@ const statusOptions = [
 ];
 
 export function DeliverableForm() {
+  const { isAdmin } = useUserRole();
   const { activeModal, closeModal, addDeliverable, updateDeliverable, deleteDeliverable, team, clients, openModal } = useAppStore();
   const isOpen = activeModal?.type === 'deliverable';
   const mode = isOpen ? activeModal.mode : 'create';
@@ -68,6 +70,7 @@ export function DeliverableForm() {
       status: 'pending',
       assigneeId: '',
       category: 'other',
+      isPotentiel: false,
       prixFacturé: '',
       coutSousTraitance: '',
       deliveredAt: '',
@@ -96,6 +99,7 @@ export function DeliverableForm() {
           status: existingDeliverable.status,
           assigneeId: existingDeliverable.assigneeId || '',
           category: existingDeliverable.category ?? 'other',
+          isPotentiel: existingDeliverable.isPotentiel === true,
           prixFacturé: existingDeliverable.prixFacturé != null ? String(existingDeliverable.prixFacturé) : '',
           coutSousTraitance: existingDeliverable.coutSousTraitance != null ? String(existingDeliverable.coutSousTraitance) : '',
           deliveredAt: existingDeliverable.deliveredAt ? formatDateForInput(existingDeliverable.deliveredAt) : '',
@@ -113,6 +117,7 @@ export function DeliverableForm() {
           status: 'pending',
           assigneeId: '',
           category: 'other',
+          isPotentiel: false,
           prixFacturé: '',
           coutSousTraitance: '',
           deliveredAt: '',
@@ -135,6 +140,7 @@ export function DeliverableForm() {
       status: data.status as DeliverableStatus,
       assigneeId: data.assigneeId || undefined,
       category: data.category as DeliverableCategory,
+      isPotentiel: data.isPotentiel === true,
       prixFacturé: parseEur(data.prixFacturé ?? ''),
       coutSousTraitance: parseEur(data.coutSousTraitance ?? ''),
       deliveredAt: deliveredAtDate,
@@ -253,14 +259,28 @@ export function DeliverableForm() {
           />
         </FormField>
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Prix facturé (€)">
-            <Input type="text" inputMode="decimal" {...register('prixFacturé')} placeholder="Ex: 4500" />
-          </FormField>
-          <FormField label="Sous-traitance (€)">
-            <Input type="text" inputMode="decimal" {...register('coutSousTraitance')} placeholder="Impressions, freelance..." />
-          </FormField>
-        </div>
+        <FormField label="Statut compta">
+          <Select
+            value={watch('isPotentiel') ? 'potentiel' : 'reel'}
+            onChange={(e) => setValue('isPotentiel', e.target.value === 'potentiel')}
+            options={[
+              { value: 'reel', label: 'Livrable réel (facturé) — compte dans Total facturé / Marge' },
+              { value: 'potentiel', label: 'Livrable potentiel (pipeline) — compte dans Potentiel Compta' },
+            ]}
+          />
+          <p className="text-xs text-[var(--text-muted)] mt-1">Tu peux changer ce statut plus tard (réel ↔ potentiel).</p>
+        </FormField>
+
+        {isAdmin && (
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Prix facturé (€)">
+              <Input type="text" inputMode="decimal" {...register('prixFacturé')} placeholder="Ex: 4500" />
+            </FormField>
+            <FormField label="Sous-traitance (€)">
+              <Input type="text" inputMode="decimal" {...register('coutSousTraitance')} placeholder="Impressions, freelance..." />
+            </FormField>
+          </div>
+        )}
 
         <FormField label="Date de livraison effective">
           <Input type="date" {...register('deliveredAt')} placeholder="Optionnel" />

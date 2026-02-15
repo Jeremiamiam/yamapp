@@ -71,6 +71,7 @@ interface DeliverableRow {
   notes?: string | null;
   prix_facture?: number | null;
   cout_sous_traitance?: number | null;
+  is_potentiel?: boolean | null;
   created_at: string;
 }
 
@@ -153,6 +154,7 @@ export function mapDeliverableRow(row: DeliverableRow): Deliverable {
     notes: row.notes ?? undefined,
     prixFacturé: row.prix_facture != null ? Number(row.prix_facture) : undefined,
     coutSousTraitance: row.cout_sous_traitance != null ? Number(row.cout_sous_traitance) : undefined,
+    isPotentiel: row.is_potentiel === true,
     createdAt: new Date(row.created_at),
   };
 }
@@ -218,6 +220,7 @@ export function toSupabaseDeliverable(data: Partial<Deliverable>) {
     notes: data.notes ?? null,
     prix_facture: data.prixFacturé ?? null,
     cout_sous_traitance: data.coutSousTraitance ?? null,
+    is_potentiel: data.isPotentiel === true,
   };
 }
 

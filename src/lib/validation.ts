@@ -43,6 +43,7 @@ export const DeliverableSchema = z.object({
   status: z.enum(['pending', 'in-progress', 'completed']),
   assigneeId: z.string().optional(),
   category: z.enum(['print', 'digital', 'other']),
+  isPotentiel: z.boolean(),
   prixFacturé: z.string().optional(),
   coutSousTraitance: z.string().optional(),
   deliveredAt: z.string().optional(),

@@ -33,6 +33,8 @@ Les tables (`team`, `clients`, `contacts`, etc.) et les politiques RLS sont cré
 
 Ensuite, exécute **`supabase/migrations/00003_merge_profiles_into_team.sql`** pour ajouter sur `team` les colonnes `auth_user_id` et `app_role` (connexion + rôle admin/editor) et le trigger d’inscription. Il n’y a plus de table `profiles` : une seule source de vérité = **team**.
 
+Après 00003, exécute **`supabase/migrations/00004_add_budget_potentiel.sql`** pour la colonne `budget_potentiel` sur `clients` (optionnel — Compta « Potentiel »).
+
 ## 5. Lancer le seed (données initiales)
 
 À la racine du projet :
@@ -51,3 +53,15 @@ Pour l’instant l’app utilise encore le mock (`src/lib/mock-data.ts`). La pro
 - Remplacer dans le store les appels aux tableaux mock par des appels Supabase (ou un hook/service qui charge depuis Supabase).
 
 Une fois que tu as créé le projet, appliqué la migration et lancé le seed, on peut enchaîner sur le branchement du store.
+
+## 7. Vider les données de démo en prod
+
+Si tu as lancé le seed sur le **même** projet Supabase que la prod, tu auras des "faux" clients (Forge, Brutus, Les 4 Nectarines, etc.) et un backlog de démo. L’app ne charge plus de mock : tout vient de la BDD.
+
+Pour repartir de zéro (0 client, 0 livrable, 0 appel) tout en gardant les comptes utilisateurs :
+
+1. Supabase → **SQL Editor** → **New query**
+2. Ouvre **`supabase/scripts/clear-demo-data.sql`**, copie tout le contenu, colle dans l’éditeur
+3. **Run**
+
+Résultat : toutes les données métier sont supprimées ; les lignes **team** liées à un vrai compte (auth) sont conservées. Recharge l’app : grille clients vide, backlog vide, calendrier vide.

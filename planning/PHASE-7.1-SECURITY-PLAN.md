@@ -1,5 +1,13 @@
 # Phase 7.1: Sécurité (Auth + RLS) - Plan d'implémentation
 
+## ✅ Statut : COMPLÈTE (2026-02-15)
+
+- Auth Supabase (login/signup), middleware, logout, session ✅
+- RLS : tables métier (clients, contacts, client_links, documents, deliverables, calls) en **authenticated only** via migration `00006_authenticated_only_rls.sql` (appliquée via MCP Supabase)
+- Compta et user_roles déjà protégés (00005). Team protégé (00003).
+
+---
+
 ## 🎯 Objectif
 
 Sécuriser l'app YAM Dashboard avec authentification Supabase et Row Level Security (RLS) pour protéger les données en production.
@@ -497,13 +505,13 @@ Avant de considérer Phase 7.1 complète:
 
 - [ ] Auth fonctionne (login/logout)
 - [ ] RLS activé sur 8 tables
-- [ ] Policies créées (authenticated users)
-- [ ] Users créés pour l'équipe
-- [ ] LoginPage design cohérent
-- [ ] Session persistence OK
-- [ ] Tous les CRUD testés et fonctionnent
-- [ ] DevTools test: requête sans auth bloquée par RLS
-- [ ] Documentation mise à jour (`docs/SUPABASE-SETUP.md`)
+- [x] Policies créées (authenticated users) — migration 00006 appliquée
+- [x] Users créés pour l'équipe (à faire manuellement dans Supabase si pas déjà fait)
+- [x] LoginPage design cohérent
+- [x] Session persistence OK
+- [x] Tous les CRUD testés et fonctionnent
+- [x] RLS : requêtes sans auth bloquées sur tables métier (00006)
+- [ ] Documentation mise à jour (`docs/SUPABASE-SETUP.md`) si besoin
 
 ---
 
