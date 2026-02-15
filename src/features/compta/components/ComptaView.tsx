@@ -44,18 +44,101 @@ const ChevronDown = ({ open }: { open: boolean }) => (
 
 export function ComptaView() {
   const { isAdmin, loading: roleLoading } = useUserRole();
-  const { deliverables, getClientById, comptaYear } = useAppStore();
+  const { deliverables, getClientById, comptaYear, clients } = useAppStore();
   const { openDeliverableModal } = useModal();
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [expandedPotentielId, setExpandedPotentielId] = useState<string | null>(null);
 
+  // ⚠️ TEMPORARY MOCK DATA FOR VISUAL VALIDATION - TO BE REMOVED ⚠️
+  const mockCompletedDeliverables: Deliverable[] = useMemo(() => {
+    const firstClientId = clients[0]?.id;
+    const secondClientId = clients[1]?.id;
+    const thirdClientId = clients[2]?.id;
+
+    if (!firstClientId) return [];
+
+    const now = new Date();
+
+    return [
+      {
+        id: 'mock-deliv-1',
+        clientId: firstClientId,
+        name: 'Logo + identité visuelle',
+        type: 'creative',
+        dueDate: new Date('2026-02-15'),
+        status: 'completed',
+        prixFacturé: 8500,
+        coutSousTraitance: 1200,
+        createdAt: now,
+      } as unknown as Deliverable,
+      {
+        id: 'mock-deliv-2',
+        clientId: firstClientId,
+        name: 'Site web 5 pages',
+        type: 'creative',
+        dueDate: new Date('2026-03-20'),
+        status: 'completed',
+        prixFacturé: 12000,
+        coutSousTraitance: 3500,
+        createdAt: now,
+      } as unknown as Deliverable,
+      {
+        id: 'mock-deliv-3',
+        clientId: secondClientId || firstClientId,
+        name: 'Brochure 12 pages',
+        type: 'document',
+        dueDate: new Date('2026-01-30'),
+        status: 'completed',
+        prixFacturé: 4500,
+        coutSousTraitance: 800,
+        createdAt: now,
+      } as unknown as Deliverable,
+      {
+        id: 'mock-deliv-4',
+        clientId: secondClientId || firstClientId,
+        name: 'Vidéo corporate',
+        type: 'creative',
+        dueDate: new Date('2026-05-10'),
+        status: 'completed',
+        prixFacturé: 15000,
+        coutSousTraitance: 5000,
+        createdAt: now,
+      } as unknown as Deliverable,
+      {
+        id: 'mock-deliv-5',
+        clientId: thirdClientId || firstClientId,
+        name: 'Pack réseaux sociaux',
+        type: 'creative',
+        dueDate: new Date('2026-07-15'),
+        status: 'completed',
+        prixFacturé: 3200,
+        coutSousTraitance: 0,
+        createdAt: now,
+      } as unknown as Deliverable,
+      {
+        id: 'mock-deliv-6',
+        clientId: thirdClientId || firstClientId,
+        name: 'Refonte UI dashboard',
+        type: 'creative',
+        dueDate: new Date('2026-09-25'),
+        status: 'completed',
+        prixFacturé: 9800,
+        coutSousTraitance: 2100,
+        createdAt: now,
+      } as unknown as Deliverable,
+    ];
+  }, [clients]);
+  // ⚠️ END MOCK DATA ⚠️
+
   // Filter deliverables by selected year (dueDate-based)
   const yearDeliverables = useMemo(() => {
-    return deliverables.filter(d => {
+    // ⚠️ TEMPORARY: Merge mock data with real data ⚠️
+    const allDeliverables = [...deliverables, ...mockCompletedDeliverables];
+    return allDeliverables.filter(d => {
       if (!d.dueDate) return false;
       return new Date(d.dueDate).getFullYear() === comptaYear;
     });
-  }, [deliverables, comptaYear]);
+  }, [deliverables, comptaYear, mockCompletedDeliverables]);
 
   // Completed deliverables = rentrées validées
   const completedDeliverables = useMemo(() =>
