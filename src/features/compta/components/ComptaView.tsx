@@ -355,7 +355,7 @@ export function ComptaView() {
                     : 'bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border-subtle)] hover:bg-[var(--bg-tertiary)]'
                 }`}
               >
-                Avec potentiels
+                Potentiels
               </button>
             </div>
           </div>
@@ -372,10 +372,18 @@ export function ComptaView() {
         {/* Table: 4 columns aligned with KPIs */}
         <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
+              <colgroup>
+                <col style={{ width: '40px' }} />
+                <col style={{ width: 'auto', minWidth: '180px' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
+              </colgroup>
               <thead>
                 <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30">
-                  <th className="text-left py-4 px-4 font-medium text-[var(--text-muted)] w-8" />
+                  <th className="text-left py-4 px-4 font-medium text-[var(--text-muted)]" />
                   <th className="text-left py-4 px-4 font-medium text-[var(--text-muted)]">Client</th>
                   <th className="text-right py-4 px-4 font-medium text-[#22c55e]">Rentrées validées</th>
                   <th className="text-right py-4 px-4 font-medium text-[#ef4444]">Sous-traitance</th>
