@@ -251,12 +251,14 @@ export function DeliverableForm() {
         </FormField>
 
         {/* Toggle switch backlog */}
-        <div className="flex items-center justify-between px-4 py-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30">
+        <button
+          type="button"
+          onClick={() => setValue('toBacklog', !toBacklog)}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30 hover:bg-[var(--bg-tertiary)]/50 transition-colors cursor-pointer"
+        >
           <span className="text-sm font-medium text-[var(--text-primary)]">À planifier plus tard (backlog)</span>
-          <button
-            type="button"
-            onClick={() => setValue('toBacklog', !toBacklog)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent-violet)] focus:ring-offset-2 ${
+          <div
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
               toBacklog ? 'bg-[var(--accent-violet)]' : 'bg-[var(--bg-tertiary)]'
             }`}
           >
@@ -265,8 +267,8 @@ export function DeliverableForm() {
                 toBacklog ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
-          </button>
-        </div>
+          </div>
+        </button>
 
         {!toBacklog && (
           <div className="grid grid-cols-2 gap-4">
@@ -318,7 +320,7 @@ export function DeliverableForm() {
                   : 'bg-transparent text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/50'
               }`}
             >
-              ✓ Réel
+              ✓ Validé
             </button>
             <button
               type="button"
