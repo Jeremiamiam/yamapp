@@ -176,6 +176,15 @@ export function ComptaView() {
     return potentielDeliverables.reduce((sum, d) => sum + (d.prixFacturé ?? 0), 0);
   }, [potentielDeliverables]);
 
+  // Total unique clients (independent of filter)
+  const totalClients = useMemo(() => {
+    const clientIds = new Set<string>();
+    for (const d of yearDeliverables) {
+      if (d.clientId) clientIds.add(d.clientId);
+    }
+    return clientIds.size;
+  }, [yearDeliverables]);
+
   // Build table rows: one row per client with 4 KPI columns
   const tableRows = useMemo(() => {
     const map = new Map<string, ClientTableRow>();
@@ -296,12 +305,8 @@ export function ComptaView() {
             <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">
               Clients
             </p>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">{tableRows.length}</p>
-            <p className="text-sm text-[var(--text-muted)] mt-1">
-              {filterMode === 'all' ? `actifs ${comptaYear}` :
-               filterMode === 'with-validated' ? 'avec validés' :
-               'avec potentiels'}
-            </p>
+            <p className="text-2xl font-bold text-[var(--text-primary)]">{totalClients}</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">actifs {comptaYear}</p>
           </div>
           <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 shadow-lg">
             <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">
