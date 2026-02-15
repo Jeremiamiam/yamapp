@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal, FormField, Input, Textarea, Select, Button } from '@/components/ui';
 import { useAppStore } from '@/lib/store';
 import { useUserRole } from '@/hooks/useUserRole';
 import { DeliverableSchema, type DeliverableFormData } from '@/lib/validation';
-import { DeliverableType, DeliverableStatus, Deliverable, DeliverableCategory } from '@/types';
+import { DeliverableType, DeliverableStatus, Deliverable } from '@/types';
 import { formatDateForInput, formatTimeForInput } from '@/lib/date-utils';
 
 const Package = () => (
@@ -30,17 +30,11 @@ const parseEur = (s: string) => {
   return s.trim() !== '' && !Number.isNaN(n) ? n : undefined;
 };
 
-const typeOptions = [
-  { value: 'creative', label: '🎨 Créatif' },
-  { value: 'document', label: '📄 Document' },
-  { value: 'other', label: '📦 Autre' },
-];
-
-const statusOptions = [
-  { value: 'pending', label: '⏳ À faire' },
-  { value: 'in-progress', label: '🔄 En cours' },
-  { value: 'completed', label: '✅ Terminé' },
-];
+type FreelanceEntry = {
+  id: string;
+  name: string;
+  budget: string;
+};
 
 export function DeliverableForm() {
   const { isAdmin } = useUserRole();
@@ -50,6 +44,9 @@ export function DeliverableForm() {
   const modalClientId = isOpen ? activeModal.clientId : undefined;
   const existingDeliverable = isOpen && activeModal.mode === 'edit' ? activeModal.deliverable : undefined;
   const showClientSelector = isOpen && mode === 'create' && modalClientId === undefined;
+
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
+  const [freelances, setFreelances] = useState<FreelanceEntry[]>([]);
 
   const {
     register,
@@ -80,10 +77,7 @@ export function DeliverableForm() {
   });
 
   const toBacklog = watch('toBacklog');
-  const teamOptions = [
-    { value: '', label: 'Non assigné' },
-    ...team.map((m) => ({ value: m.id, label: `${m.name} (${m.role})` })),
-  ];
+  const isPotentiel = watch('isPotentiel');
 
   useEffect(() => {
     if (isOpen) {
@@ -102,10 +96,17 @@ export function DeliverableForm() {
           isPotentiel: existingDeliverable.isPotentiel === true,
           prixFacturé: existingDeliverable.prixFacturé != null ? String(existingDeliverable.prixFacturé) : '',
           coutSousTraitance: existingDeliverable.coutSousTraitance != null ? String(existingDeliverable.coutSousTraitance) : '',
-          deliveredAt: existingDeliverable.deliveredAt ? formatDateForInput(existingDeliverable.deliveredAt) : '',
-          externalContractor: existingDeliverable.externalContractor ?? '',
+          deliveredAt: '',
+          externalContractor: '',
           notes: existingDeliverable.notes ?? '',
         });
+        setSelectedTeamIds(existingDeliverable.assigneeId ? [existingDeliverable.assigneeId] : []);
+        // Parse existing coutSousTraitance into freelances if it's a simple number
+        if (existingDeliverable.coutSousTraitance) {
+          setFreelances([{ id: '1', name: 'Freelance', budget: String(existingDeliverable.coutSousTraitance) }]);
+        } else {
+          setFreelances([]);
+        }
       } else {
         reset({
           name: '',
@@ -124,29 +125,38 @@ export function DeliverableForm() {
           externalContractor: '',
           notes: '',
         });
+        setSelectedTeamIds([]);
+        setFreelances([]);
       }
     }
   }, [isOpen, existingDeliverable, modalClientId, reset]);
 
   const onSubmit = (data: DeliverableFormData) => {
     const dueDate = data.toBacklog ? undefined : new Date(`${data.dueDate}T${data.dueTime || '18:00'}`);
-    const deliveredAtDate = data.deliveredAt ? new Date(data.deliveredAt + 'T12:00:00') : undefined;
     const effectiveClientId = modalClientId ?? (data.selectedClientId || undefined);
+
+    // Calculate total freelance cost
+    const totalFreelanceCost = freelances.reduce((sum, f) => {
+      const cost = parseEur(f.budget);
+      return sum + (cost ?? 0);
+    }, 0);
+
     const deliverableData: Omit<Deliverable, 'id' | 'createdAt'> = {
       clientId: effectiveClientId,
       name: data.name.trim(),
       dueDate,
-      type: data.type as DeliverableType,
-      status: data.status as DeliverableStatus,
-      assigneeId: data.assigneeId || undefined,
-      category: data.category as DeliverableCategory,
+      type: 'creative' as DeliverableType, // Fixed type
+      status: 'pending' as DeliverableStatus, // Always pending on create, can be changed inline later
+      assigneeId: selectedTeamIds[0] || undefined, // First selected team member
+      category: 'other',
       isPotentiel: data.isPotentiel === true,
       prixFacturé: parseEur(data.prixFacturé ?? ''),
-      coutSousTraitance: parseEur(data.coutSousTraitance ?? ''),
-      deliveredAt: deliveredAtDate,
-      externalContractor: data.externalContractor?.trim() || undefined,
+      coutSousTraitance: totalFreelanceCost > 0 ? totalFreelanceCost : undefined,
+      deliveredAt: undefined,
+      externalContractor: undefined,
       notes: data.notes?.trim() || undefined,
     };
+
     if (mode === 'edit' && existingDeliverable) {
       updateDeliverable(existingDeliverable.id, deliverableData);
     } else {
@@ -161,6 +171,29 @@ export function DeliverableForm() {
       closeModal();
     }
   };
+
+  const toggleTeamMember = (id: string) => {
+    setSelectedTeamIds(prev =>
+      prev.includes(id) ? prev.filter(tid => tid !== id) : [...prev, id]
+    );
+  };
+
+  const addFreelance = () => {
+    setFreelances(prev => [...prev, { id: Date.now().toString(), name: '', budget: '' }]);
+  };
+
+  const updateFreelance = (id: string, field: 'name' | 'budget', value: string) => {
+    setFreelances(prev => prev.map(f => f.id === id ? { ...f, [field]: value } : f));
+  };
+
+  const removeFreelance = (id: string) => {
+    setFreelances(prev => prev.filter(f => f.id !== id));
+  };
+
+  const totalFreelanceCost = freelances.reduce((sum, f) => {
+    const cost = parseEur(f.budget);
+    return sum + (cost ?? 0);
+  }, 0);
 
   return (
     <Modal
@@ -212,16 +245,22 @@ export function DeliverableForm() {
             </div>
           </FormField>
         )}
+
         <FormField label="Nom du livrable" required error={errors.name?.message}>
           <Input {...register('name')} placeholder="Ex: Logo final V2, Charte graphique, Site web..." autoFocus />
         </FormField>
 
-        <FormField label="Planification" error={errors.dueDate?.message}>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" {...register('toBacklog')} className="rounded border-[var(--border-subtle)] text-[var(--accent-violet)] focus:ring-[var(--accent-violet)]" />
-            <span className="text-sm text-[var(--text-primary)]">À planifier plus tard (backlog)</span>
+        {/* Improved backlog checkbox */}
+        <div>
+          <label className="inline-flex items-center gap-3 px-4 py-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30 hover:bg-[var(--bg-tertiary)]/50 cursor-pointer transition-colors">
+            <input
+              type="checkbox"
+              {...register('toBacklog')}
+              className="w-4 h-4 rounded border-[var(--border-subtle)] text-[var(--accent-violet)] focus:ring-2 focus:ring-[var(--accent-violet)] focus:ring-offset-0 transition-colors"
+            />
+            <span className="text-sm font-medium text-[var(--text-primary)]">À planifier plus tard (backlog)</span>
           </label>
-        </FormField>
+        </div>
 
         {!toBacklog && (
           <div className="grid grid-cols-2 gap-4">
@@ -234,61 +273,118 @@ export function DeliverableForm() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Type (icône colis sur la timeline)">
-            <Select value={watch('type')} onChange={(e) => setValue('type', e.target.value as DeliverableFormData['type'])} options={typeOptions} />
-          </FormField>
-          <FormField label="Statut">
-            <Select value={watch('status')} onChange={(e) => setValue('status', e.target.value as DeliverableFormData['status'])} options={statusOptions} />
-          </FormField>
-        </div>
-
+        {/* Team member chips */}
         <FormField label="Assigné à">
-          <Select value={watch('assigneeId')} onChange={(e) => setValue('assigneeId', e.target.value)} options={teamOptions} />
+          <div className="flex flex-wrap gap-2">
+            {team.map((member) => {
+              const isSelected = selectedTeamIds.includes(member.id);
+              return (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => toggleTeamMember(member.id)}
+                  className={`inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold transition-all ${
+                    isSelected
+                      ? 'bg-[var(--accent-violet)] text-white ring-2 ring-[var(--accent-violet)] ring-offset-2 ring-offset-[var(--bg-primary)]'
+                      : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]/70 border border-[var(--border-subtle)]'
+                  }`}
+                  title={member.name}
+                >
+                  {member.initials}
+                </button>
+              );
+            })}
+            {team.length === 0 && (
+              <p className="text-sm text-[var(--text-muted)]">Aucun membre d'équipe disponible</p>
+            )}
+          </div>
         </FormField>
 
-        <FormField label="Catégorie (Print / Digital)">
-          <Select
-            value={watch('category')}
-            onChange={(e) => setValue('category', e.target.value as DeliverableFormData['category'])}
-            options={[
-              { value: 'print', label: '🖨️ Print (ex. cartes de visite, flyers)' },
-              { value: 'digital', label: '🌐 Digital (ex. site, maquette)' },
-              { value: 'other', label: '📦 Autre' },
-            ]}
-          />
-        </FormField>
-
+        {/* Status compta toggle */}
         <FormField label="Statut compta">
-          <Select
-            value={watch('isPotentiel') ? 'potentiel' : 'reel'}
-            onChange={(e) => setValue('isPotentiel', e.target.value === 'potentiel')}
-            options={[
-              { value: 'reel', label: 'Livrable réel (facturé) — compte dans Total facturé / Marge' },
-              { value: 'potentiel', label: 'Livrable potentiel (pipeline) — compte dans Potentiel Compta' },
-            ]}
-          />
-          <p className="text-xs text-[var(--text-muted)] mt-1">Tu peux changer ce statut plus tard (réel ↔ potentiel).</p>
+          <div className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/20">
+            <button
+              type="button"
+              onClick={() => setValue('isPotentiel', false)}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                !isPotentiel
+                  ? 'bg-[#22c55e] text-white shadow-md'
+                  : 'bg-transparent text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/50'
+              }`}
+            >
+              ✓ Réel
+            </button>
+            <button
+              type="button"
+              onClick={() => setValue('isPotentiel', true)}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                isPotentiel
+                  ? 'bg-amber-500 text-white shadow-md'
+                  : 'bg-transparent text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/50'
+              }`}
+            >
+              ⧗ Potentiel
+            </button>
+          </div>
+          <p className="text-xs text-[var(--text-muted)] mt-2">
+            {isPotentiel ? 'Pipeline — compte dans Potentiel Compta' : 'Facturé — compte dans Total facturé / Marge'}
+          </p>
         </FormField>
 
         {isAdmin && (
-          <div className="grid grid-cols-2 gap-4">
+          <>
             <FormField label="Prix facturé (€)">
               <Input type="text" inputMode="decimal" {...register('prixFacturé')} placeholder="Ex: 4500" />
             </FormField>
-            <FormField label="Sous-traitance (€)">
-              <Input type="text" inputMode="decimal" {...register('coutSousTraitance')} placeholder="Impressions, freelance..." />
+
+            {/* Freelances list */}
+            <FormField label="Freelances / Sous-traitance">
+              <div className="space-y-3">
+                {freelances.map((freelance, index) => (
+                  <div key={freelance.id} className="flex items-center gap-2 p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/20">
+                    <input
+                      type="text"
+                      value={freelance.name}
+                      onChange={(e) => updateFreelance(freelance.id, 'name', e.target.value)}
+                      placeholder="Prénom freelance"
+                      className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-violet)]"
+                    />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={freelance.budget}
+                      onChange={(e) => updateFreelance(freelance.id, 'budget', e.target.value)}
+                      placeholder="Budget €"
+                      className="w-28 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-violet)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeFreelance(freelance.id)}
+                      className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addFreelance}
+                  className="w-full py-2.5 rounded-lg border-2 border-dashed border-[var(--border-subtle)] text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/5 transition-colors"
+                >
+                  + Ajouter freelance
+                </button>
+
+                {freelances.length > 0 && (
+                  <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg-tertiary)]/30">
+                    <span className="text-sm font-medium text-[var(--text-primary)]">Total sous-traitance</span>
+                    <span className="text-sm font-bold text-[#ef4444]">{totalFreelanceCost.toFixed(0)} €</span>
+                  </div>
+                )}
+              </div>
             </FormField>
-          </div>
+          </>
         )}
-
-        <FormField label="Date de livraison effective">
-          <Input type="date" {...register('deliveredAt')} placeholder="Optionnel" />
-        </FormField>
-
-        <FormField label="Prestataire extérieur">
-          <Input {...register('externalContractor')} placeholder="Ex: Agence Dev, freelance..." />
-        </FormField>
 
         <FormField label="Notes">
           <Textarea {...register('notes')} placeholder="Détails, suivi..." rows={2} className="resize-y" />
