@@ -250,16 +250,22 @@ export function DeliverableForm() {
           <Input {...register('name')} placeholder="Ex: Logo final V2, Charte graphique, Site web..." autoFocus />
         </FormField>
 
-        {/* Improved backlog checkbox */}
-        <div>
-          <label className="inline-flex items-center gap-3 px-4 py-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30 hover:bg-[var(--bg-tertiary)]/50 cursor-pointer transition-colors">
-            <input
-              type="checkbox"
-              {...register('toBacklog')}
-              className="w-4 h-4 rounded border-[var(--border-subtle)] text-[var(--accent-violet)] focus:ring-2 focus:ring-[var(--accent-violet)] focus:ring-offset-0 transition-colors"
+        {/* Toggle switch backlog */}
+        <div className="flex items-center justify-between px-4 py-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30">
+          <span className="text-sm font-medium text-[var(--text-primary)]">À planifier plus tard (backlog)</span>
+          <button
+            type="button"
+            onClick={() => setValue('toBacklog', !toBacklog)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent-violet)] focus:ring-offset-2 ${
+              toBacklog ? 'bg-[var(--accent-violet)]' : 'bg-[var(--bg-tertiary)]'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${
+                toBacklog ? 'translate-x-6' : 'translate-x-1'
+              }`}
             />
-            <span className="text-sm font-medium text-[var(--text-primary)]">À planifier plus tard (backlog)</span>
-          </label>
+          </button>
         </div>
 
         {!toBacklog && (
@@ -283,10 +289,10 @@ export function DeliverableForm() {
                   key={member.id}
                   type="button"
                   onClick={() => toggleTeamMember(member.id)}
-                  className={`inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold transition-all ${
+                  className={`inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-[var(--accent-violet)] text-white ring-2 ring-[var(--accent-violet)] ring-offset-2 ring-offset-[var(--bg-primary)]'
-                      : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]/70 border border-[var(--border-subtle)]'
+                      ? 'bg-[var(--accent-violet)] text-white ring-2 ring-[var(--accent-violet)] ring-offset-2 ring-offset-[var(--bg-primary)] hover:bg-[var(--accent-violet)]/90'
+                      : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--accent-violet)]/20 hover:border-[var(--accent-violet)] border border-[var(--border-subtle)]'
                   }`}
                   title={member.name}
                 >
@@ -327,7 +333,7 @@ export function DeliverableForm() {
             </button>
           </div>
           <p className="text-xs text-[var(--text-muted)] mt-2">
-            {isPotentiel ? 'Pipeline — compte dans Potentiel Compta' : 'Facturé — compte dans Total facturé / Marge'}
+            {isPotentiel ? 'Pipeline — compte dans Potentiel Compta' : 'Validé — compte dans Total validé / Marge'}
           </p>
         </FormField>
 
