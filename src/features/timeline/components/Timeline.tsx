@@ -11,8 +11,7 @@ import { BACKLOG_DRAG_TYPE } from './BacklogSidebar';
 // Timeline dimensions — plus compact sur mobile
 const HEADER_HEIGHT = 56; // Hauteur ligne des jours (numéro + LUN/MAR...)
 const MONTH_ROW_HEIGHT = 38; // Bande mois
-const HOUR_INDEX_HEIGHT = 28; // Bande index horaires au-dessus des jours
-const TOTAL_HEADER_HEIGHT = HOUR_INDEX_HEIGHT + MONTH_ROW_HEIGHT + HEADER_HEIGHT;
+const TOTAL_HEADER_HEIGHT = MONTH_ROW_HEIGHT + HEADER_HEIGHT;
 const HOUR_HEIGHT_DESKTOP = 96;
 const WEEKEND_RATIO = 0.12;
 const START_HOUR = 8;
@@ -335,15 +334,6 @@ export function Timeline() {
     return days[date.getDay()];
   };
 
-  /** Heures à afficher dans la bande index (marqueurs réguliers) */
-  const hourIndexMarkers = useMemo(() => {
-    const markers: number[] = [];
-    for (let h = START_HOUR; h <= END_HOUR; h += 2) {
-      markers.push(h);
-    }
-    return markers;
-  }, []);
-
   return (
     <div ref={timelineContainerRef} className="flex-1 flex flex-col relative overflow-hidden min-h-0">
       {/* Timeline Content */}
@@ -360,9 +350,6 @@ export function Timeline() {
               className="flex-shrink-0 w-12 sm:w-16 border-r border-[var(--border-subtle)] bg-[var(--bg-primary)] sticky left-0 z-[60] shadow-[4px_0_12px_rgba(0,0,0,0.3)]"
               style={{ height: TOTAL_HEADER_HEIGHT + totalHeight }}
             >
-              <div style={{ height: HOUR_INDEX_HEIGHT }} className="border-b border-[var(--border-subtle)] flex items-center justify-center">
-                <span className="text-[9px] sm:text-[10px] font-mono text-[var(--text-muted)]">h</span>
-              </div>
               <div style={{ height: MONTH_ROW_HEIGHT }} className="border-b border-[var(--border-subtle)]" />
               <div style={{ height: HEADER_HEIGHT }} className="border-b border-[var(--border-subtle)]" />
               <div className="relative" style={{ height: totalHeight }}>
@@ -393,23 +380,10 @@ export function Timeline() {
 
             {/* Colonnes jours : index heures + bande mois + lignes des jours */}
             <div className="flex flex-shrink-0 flex-col" style={{ width: totalWidth }}>
-              {/* Bande index heures — au-dessus des jours (référence temporelle) */}
-              <div
-                className="flex flex-shrink-0 sticky top-0 z-30 border-b border-[var(--border-subtle)]/60 bg-[var(--bg-secondary)]/60 backdrop-blur-sm"
-                style={{ height: HOUR_INDEX_HEIGHT }}
-              >
-                <div className="flex items-center justify-between w-full h-full px-2 text-[10px] sm:text-xs font-mono text-[var(--text-muted)]">
-                  {hourIndexMarkers.map((h) => (
-                    <span key={h} className="flex-shrink-0">
-                      {h.toString().padStart(2, '0')}h
-                    </span>
-                  ))}
-                </div>
-              </div>
               {/* Bande mois — sticky au scroll Y, repère clair au scroll X */}
               <div
-                className="flex flex-shrink-0 sticky z-30 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/90 backdrop-blur-sm"
-                style={{ height: MONTH_ROW_HEIGHT, top: HOUR_INDEX_HEIGHT }}
+                className="flex flex-shrink-0 sticky top-0 z-30 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/90 backdrop-blur-sm"
+                style={{ height: MONTH_ROW_HEIGHT }}
               >
                 {monthRanges.map((m, i) => (
                   <div
@@ -468,7 +442,7 @@ export function Timeline() {
                             ? 'bg-[var(--bg-tertiary)]/80' 
                             : 'bg-[var(--bg-secondary)]/80'
                     } ${d.date.getDate() === 1 ? 'border-l-2 border-l-[var(--accent-cyan)]/50' : ''}`}
-                    style={{ height: HEADER_HEIGHT, top: HOUR_INDEX_HEIGHT + MONTH_ROW_HEIGHT }}
+                    style={{ height: HEADER_HEIGHT, top: MONTH_ROW_HEIGHT }}
                   >
                     {!d.isWeekend && (
                       <>
