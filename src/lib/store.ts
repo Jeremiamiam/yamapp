@@ -59,7 +59,9 @@ interface AppState {
     start: Date;
     end: Date;
   };
-  
+  comptaYear: number;
+  setComptaYear: (year: number) => void;
+
   // Navigation Actions
   navigateToClient: (clientId: string) => void;
   navigateToTimeline: () => void;
@@ -221,7 +223,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     teamMemberId: null,
   },
   timelineRange: getDefaultTimelineRange(),
-  
+  comptaYear: new Date().getFullYear(),
+  setComptaYear: (year) => set({ comptaYear: year }),
+
   // Navigation Actions
   navigateToClient: (clientId) => set({ 
     currentView: 'client-detail', 
