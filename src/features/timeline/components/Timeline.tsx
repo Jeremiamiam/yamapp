@@ -314,7 +314,7 @@ export function Timeline() {
   const totalHeight = (END_HOUR - START_HOUR + 1) * HOUR_HEIGHT;
   const totalWidth = datesWithWidth.reduce((sum, d) => sum + d.width, 0);
 
-  /** Bandes mois pour le header (scroll X) : un bloc par mois avec largeur cumulée */
+  /** Bandes mois pour le header (scroll X) : un bloc par mois avec largeur cumulée + position de début */
   const monthRanges = useMemo(() => {
     const map = new Map<string, { label: string; width: number }>();
     for (const d of datesWithWidth) {
@@ -324,10 +324,35 @@ export function Timeline() {
       const label = d.date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
       map.set(key, { label: existing?.label ?? label, width: w });
     }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([, v]) => v);
+    const sorted = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+    let pos = 0;
+    return sorted.map(([, v]) => {
+      const item = { ...v, position: pos };
+      pos += v.width;
+      return item;
+    });
   }, [datesWithWidth]);
+
+  // Mois actif (celui visible à gauche) — mis à jour au scroll horizontal
+  const [scrollLeft, setScrollLeft] = useState(0);
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const onScroll = () => setScrollLeft(el.scrollLeft);
+    onScroll(); // init
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const activeMonth = useMemo(() => {
+    if (monthRanges.length === 0) return null;
+    // Mois dont la zone contient le bord gauche visible (scrollLeft)
+    for (let i = monthRanges.length - 1; i >= 0; i--) {
+      const m = monthRanges[i];
+      if (scrollLeft >= m.position) return m;
+    }
+    return monthRanges[0];
+  }, [monthRanges, scrollLeft]);
 
   const formatDay = (date: Date) => {
     const days = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
@@ -350,7 +375,16 @@ export function Timeline() {
               className="flex-shrink-0 w-12 sm:w-16 border-r border-[var(--border-subtle)] bg-[var(--bg-primary)] sticky left-0 z-[60] shadow-[4px_0_12px_rgba(0,0,0,0.3)]"
               style={{ height: TOTAL_HEADER_HEIGHT + totalHeight }}
             >
-              <div style={{ height: MONTH_ROW_HEIGHT }} className="border-b border-[var(--border-subtle)]" />
+              <div
+                style={{ height: MONTH_ROW_HEIGHT }}
+                className="border-b border-[var(--border-subtle)] flex items-center justify-center"
+              >
+                {activeMonth && (
+                  <span className="text-xs font-semibold text-[var(--text-primary)] tracking-wider truncate px-1 text-center capitalize">
+                    {activeMonth.label.charAt(0).toUpperCase() + activeMonth.label.slice(1)}
+                  </span>
+                )}
+              </div>
               <div style={{ height: HEADER_HEIGHT }} className="border-b border-[var(--border-subtle)]" />
               <div className="relative" style={{ height: totalHeight }}>
                 {/* Bande 13h–14h : séparation matin / PM (discret) */}
