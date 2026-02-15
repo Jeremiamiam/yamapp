@@ -345,7 +345,7 @@ export function ComptaView() {
                     : 'bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border-subtle)] hover:bg-[var(--bg-tertiary)]'
                 }`}
               >
-                Avec validés
+                Validés
               </button>
               <button
                 onClick={() => setFilterMode('with-potential')}
@@ -420,23 +420,24 @@ export function ComptaView() {
                           )}
                         </td>
                         <td className="py-4 px-4 text-right text-[#22c55e] font-medium">
-                          {row.rentreesValidees > 0 ? formatEur(row.rentreesValidees) : '—'}
+                          {filterMode === 'with-potential' ? '—' : (row.rentreesValidees > 0 ? formatEur(row.rentreesValidees) : '—')}
                         </td>
                         <td className="py-4 px-4 text-right text-[#ef4444]">
-                          {row.sousTraitance > 0 ? formatEur(row.sousTraitance) : '—'}
+                          {filterMode === 'with-potential' ? '—' : (row.sousTraitance > 0 ? formatEur(row.sousTraitance) : '—')}
                         </td>
                         <td className="py-4 px-4 text-right text-[#3b82f6] font-medium">
-                          {row.margeNette !== 0 ? formatEur(row.margeNette) : '—'}
+                          {filterMode === 'with-potential' ? '—' : (row.margeNette !== 0 ? formatEur(row.margeNette) : '—')}
                         </td>
                         <td className="py-4 px-4 text-right text-amber-600 dark:text-amber-400 font-medium">
-                          {row.potentiel > 0 ? formatEur(row.potentiel) : '—'}
+                          {filterMode === 'with-validated' ? '—' : (row.potentiel > 0 ? formatEur(row.potentiel) : '—')}
                         </td>
                       </tr>
                       {isExpanded && (
                         <tr>
                           <td colSpan={6} className="py-0 px-0 bg-[var(--bg-tertiary)]/20">
                             <div className="px-8 py-6 space-y-4">
-                              {row.completedDeliverables.length > 0 && (
+                              {/* Show completed deliverables only if not filtering by potential */}
+                              {row.completedDeliverables.length > 0 && filterMode !== 'with-potential' && (
                                 <div>
                                   <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
                                     Rentrées ({row.completedDeliverables.length})
@@ -461,7 +462,8 @@ export function ComptaView() {
                                 </div>
                               )}
 
-                              {row.potentielDeliverables.length > 0 && (
+                              {/* Show potential deliverables only if not filtering by validated */}
+                              {row.potentielDeliverables.length > 0 && filterMode !== 'with-validated' && (
                                 <div>
                                   <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
                                     Potentiel ({row.potentielDeliverables.length})
