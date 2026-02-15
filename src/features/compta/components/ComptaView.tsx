@@ -10,21 +10,21 @@ import { YearSelector } from './YearSelector';
 const formatEur = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 
-type ClientCompta = {
-  clientId: string;
-  clientName: string;
-  totalFacturé: number;
-  totalSousTraitance: number;
-  marge: number;
-  deliverables: Deliverable[];
-};
-
-type ClientPotentiel = {
+type ClientRow = {
   clientId: string;
   clientName: string;
   isProspect: boolean;
-  total: number;
-  deliverables: Deliverable[];
+  rentrees: {
+    total: number;
+    sousTraitance: number;
+    marge: number;
+    deliverables: Deliverable[];
+  } | null;
+  potentiel: {
+    total: number;
+    deliverables: Deliverable[];
+  } | null;
+  totalGlobal: number; // For sorting
 };
 
 const ChevronDown = ({ open }: { open: boolean }) => (
@@ -41,12 +41,22 @@ const ChevronDown = ({ open }: { open: boolean }) => (
   </svg>
 );
 
+const ArrowUpDown = ({ direction }: { direction: 'asc' | 'desc' }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    {direction === 'desc' ? (
+      <path d="M12 5v14M19 12l-7 7-7-7" />
+    ) : (
+      <path d="M12 19V5M5 12l7-7 7 7" />
+    )}
+  </svg>
+);
+
 export function ComptaView() {
   const { isAdmin, loading: roleLoading } = useUserRole();
   const { deliverables, getClientById, comptaYear, clients } = useAppStore();
   const { openDeliverableModal } = useModal();
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
-  const [expandedPotentielId, setExpandedPotentielId] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // ⚠️ TEMPORARY MOCK DATA FOR VISUAL VALIDATION - TO BE REMOVED ⚠️
   const mockCompletedDeliverables: Deliverable[] = useMemo(() => {
@@ -167,57 +177,79 @@ export function ComptaView() {
     return potentielDeliverables.reduce((sum, d) => sum + (d.prixFacturé ?? 0), 0);
   }, [potentielDeliverables]);
 
-  // Rentrées par client (completed deliverables grouped by client)
-  const byClientCompleted = useMemo(() => {
-    const map = new Map<string, ClientCompta>();
+  // Merge rentrées + potentiel by client into unified rows
+  const clientRows = useMemo(() => {
+    const map = new Map<string, ClientRow>();
+
+    // Add completed deliverables (rentrées)
     for (const d of completedDeliverables) {
       if (!d.clientId) continue;
-      const existing = map.get(d.clientId);
       const client = getClientById(d.clientId);
       const prix = d.prixFacturé ?? 0;
       const sousTraitance = d.coutSousTraitance ?? 0;
-      if (existing) {
-        existing.totalFacturé += prix;
-        existing.totalSousTraitance += sousTraitance;
-        existing.marge = existing.totalFacturé - existing.totalSousTraitance;
-        existing.deliverables.push(d);
-      } else {
-        map.set(d.clientId, {
-          clientId: d.clientId,
-          clientName: client?.name ?? 'Sans nom',
-          totalFacturé: prix,
-          totalSousTraitance: sousTraitance,
-          marge: prix - sousTraitance,
-          deliverables: [d],
-        });
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => b.totalFacturé - a.totalFacturé);
-  }, [completedDeliverables, getClientById]);
 
-  // Potentiel par client (pending + in-progress grouped by client)
-  const byClientPotentiel = useMemo(() => {
-    const map = new Map<string, ClientPotentiel>();
-    for (const d of potentielDeliverables) {
-      if (!d.clientId) continue;
-      const client = getClientById(d.clientId);
       const existing = map.get(d.clientId);
-      const prix = d.prixFacturé ?? 0;
-      if (existing) {
-        existing.total += prix;
-        existing.deliverables.push(d);
+      if (existing?.rentrees) {
+        existing.rentrees.total += prix;
+        existing.rentrees.sousTraitance += sousTraitance;
+        existing.rentrees.marge = existing.rentrees.total - existing.rentrees.sousTraitance;
+        existing.rentrees.deliverables.push(d);
+        existing.totalGlobal += prix;
       } else {
         map.set(d.clientId, {
           clientId: d.clientId,
           clientName: client?.name ?? 'Sans nom',
           isProspect: client?.status === 'prospect',
-          total: prix,
-          deliverables: [d],
+          rentrees: {
+            total: prix,
+            sousTraitance,
+            marge: prix - sousTraitance,
+            deliverables: [d],
+          },
+          potentiel: existing?.potentiel ?? null,
+          totalGlobal: prix + (existing?.potentiel?.total ?? 0),
         });
       }
     }
-    return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [potentielDeliverables, getClientById]);
+
+    // Add potentiel deliverables
+    for (const d of potentielDeliverables) {
+      if (!d.clientId) continue;
+      const client = getClientById(d.clientId);
+      const prix = d.prixFacturé ?? 0;
+
+      const existing = map.get(d.clientId);
+      if (existing?.potentiel) {
+        existing.potentiel.total += prix;
+        existing.potentiel.deliverables.push(d);
+        existing.totalGlobal += prix;
+      } else {
+        map.set(d.clientId, {
+          clientId: d.clientId,
+          clientName: client?.name ?? 'Sans nom',
+          isProspect: client?.status === 'prospect',
+          rentrees: existing?.rentrees ?? null,
+          potentiel: {
+            total: prix,
+            deliverables: [d],
+          },
+          totalGlobal: (existing?.rentrees?.total ?? 0) + prix,
+        });
+      }
+    }
+
+    // Sort by totalGlobal
+    const rows = Array.from(map.values());
+    rows.sort((a, b) => {
+      if (sortDirection === 'desc') {
+        return b.totalGlobal - a.totalGlobal;
+      } else {
+        return a.totalGlobal - b.totalGlobal;
+      }
+    });
+
+    return rows;
+  }, [completedDeliverables, potentielDeliverables, getClientById, sortDirection]);
 
   if (roleLoading) {
     return (
@@ -243,7 +275,7 @@ export function ComptaView() {
 
   return (
     <div className="flex-1 overflow-y-auto p-8">
-      <div className="max-w-5xl mx-auto space-y-10">
+      <div className="max-w-7xl mx-auto space-y-10">
         <div className="flex items-center justify-between">
           <p className="text-sm text-[var(--text-muted)] uppercase tracking-wider">
             Bilan annuel
@@ -283,140 +315,142 @@ export function ComptaView() {
           </div>
         </div>
 
-        {/* Rentrées par client (completed deliverables) */}
-        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6">
-          <p className="text-sm font-medium text-[var(--text-primary)] mb-4">Rentrées par client</p>
-          <p className="text-xs text-[var(--text-muted)] mb-4">Délivrables terminés pour {comptaYear}</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border-subtle)]">
-                  <th className="text-left py-3 px-2 font-medium text-[var(--text-muted)] w-8" />
-                  <th className="text-left py-3 px-2 font-medium text-[var(--text-muted)]">Client</th>
-                  <th className="text-right py-3 px-2 font-medium text-[var(--text-muted)]">Facturé</th>
-                  <th className="text-right py-3 px-2 font-medium text-[var(--text-muted)]">Sous-traitance</th>
-                  <th className="text-right py-3 px-2 font-medium text-[var(--text-muted)]">Marge</th>
-                </tr>
-              </thead>
-              <tbody>
-                {byClientCompleted.map((row) => {
-                  const isExpanded = expandedClientId === row.clientId;
-                  return (
-                    <React.Fragment key={row.clientId}>
-                      <tr
-                        className="border-b border-[var(--border-subtle)]/50 hover:bg-[var(--bg-tertiary)]/30 cursor-pointer"
-                        onClick={() => setExpandedClientId(isExpanded ? null : row.clientId)}
-                      >
-                        <td className="py-3 px-2 text-[var(--text-muted)]">
-                          <ChevronDown open={isExpanded} />
-                        </td>
-                        <td className="py-3 px-2 text-[var(--text-primary)] font-medium">{row.clientName}</td>
-                        <td className="py-3 px-2 text-right text-[#22c55e]">{formatEur(row.totalFacturé)}</td>
-                        <td className="py-3 px-2 text-right text-[#ef4444]">{formatEur(row.totalSousTraitance)}</td>
-                        <td className="py-3 px-2 text-right text-[#3b82f6] font-medium">{formatEur(row.marge)}</td>
-                      </tr>
-                      {isExpanded && (
-                        <tr>
-                          <td colSpan={5} className="py-0 px-0 bg-[var(--bg-tertiary)]/20">
-                            <div className="px-6 py-4">
-                              <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
-                                Livrables ({row.deliverables.length})
-                              </p>
-                              <ul className="space-y-2">
-                                {row.deliverables.map((d) => (
-                                  <li
-                                    key={d.id}
-                                    onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
-                                    className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] text-sm cursor-pointer hover:border-[var(--accent-violet)]/50 hover:bg-[var(--bg-tertiary)]/30 transition-colors"
-                                  >
-                                    <span className="text-[var(--text-primary)]">{d.name}</span>
-                                    <div className="flex items-center gap-4 shrink-0">
-                                      {d.prixFacturé != null && d.prixFacturé > 0 && (
-                                        <span className="text-[#22c55e]">{formatEur(d.prixFacturé)}</span>
-                                      )}
-                                      {d.coutSousTraitance != null && d.coutSousTraitance > 0 && (
-                                        <span className="text-[#ef4444]">− {formatEur(d.coutSousTraitance)}</span>
-                                      )}
-                                      {((d.prixFacturé ?? 0) === 0 && (d.coutSousTraitance ?? 0) === 0) && (
-                                        <span className="text-[var(--text-muted)]">—</span>
-                                      )}
-                                    </div>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-                {byClientCompleted.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-[var(--text-muted)]">
-                      Aucun livrable terminé avec prix renseigné pour {comptaYear}.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        {/* Sort control */}
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-[var(--text-muted)]">
+            {clientRows.length} client{clientRows.length > 1 ? 's' : ''}
+          </p>
+          <button
+            onClick={() => setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm text-[var(--text-primary)]"
+          >
+            <span>Tri: Montant</span>
+            <ArrowUpDown direction={sortDirection} />
+          </button>
         </div>
 
-        {/* Potentiel par client (pending + in-progress) */}
-        {byClientPotentiel.length > 0 && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-6">
-            <p className="text-sm font-medium text-[var(--text-primary)] mb-2">Potentiel par client</p>
-            <p className="text-xs text-[var(--text-muted)] mb-4">Délivrables en cours ou à venir pour {comptaYear}</p>
-            <div className="space-y-2">
-              {byClientPotentiel.map((row) => {
-                const isExpanded = expandedPotentielId === row.clientId;
-                return (
-                  <div key={row.clientId} className="rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)]">
-                    <div
-                      className="flex items-center justify-between gap-4 py-3 px-4 cursor-pointer hover:bg-[var(--bg-tertiary)]/30"
-                      onClick={() => setExpandedPotentielId(isExpanded ? null : row.clientId)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <ChevronDown open={isExpanded} />
-                        <span className="text-[var(--text-primary)] font-medium">
-                          {row.clientName}
-                          {row.isProspect && (
-                            <span className="ml-2 text-xs px-2 py-0.5 rounded-full border border-amber-500/50 text-amber-600 dark:text-amber-400">
-                              P
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                      <span className="text-amber-600 dark:text-amber-400 font-medium shrink-0">{formatEur(row.total)}</span>
-                    </div>
-                    {isExpanded && (
-                      <div className="px-4 pb-4 pt-2 border-t border-[var(--border-subtle)]">
-                        <ul className="space-y-2">
-                          {row.deliverables.map((d) => (
-                            <li
-                              key={d.id}
-                              onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
-                              className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] cursor-pointer text-sm transition-colors"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="text-[var(--text-primary)]">{d.name}</span>
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
-                                  {d.status === 'pending' ? 'à venir' : 'en cours'}
-                                </span>
-                              </div>
-                              <span className="text-amber-600 dark:text-amber-400 shrink-0">{formatEur(d.prixFacturé ?? 0)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+        {/* 2-column layout: Rentrées | Potentiel */}
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] overflow-hidden">
+          {/* Header */}
+          <div className="grid grid-cols-2 border-b border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30">
+            <div className="p-4 border-r border-[var(--border-subtle)]">
+              <p className="text-sm font-medium text-[var(--text-primary)]">Rentrées validées</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">Déjà facturé</p>
+            </div>
+            <div className="p-4">
+              <p className="text-sm font-medium text-[var(--text-primary)]">Potentiel</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">En cours / à venir</p>
             </div>
           </div>
-        )}
+
+          {/* Rows */}
+          <div>
+            {clientRows.length === 0 && (
+              <div className="p-8 text-center text-[var(--text-muted)]">
+                Aucune donnée pour {comptaYear}
+              </div>
+            )}
+
+            {clientRows.map((row) => {
+              const isExpanded = expandedClientId === row.clientId;
+              return (
+                <div key={row.clientId} className="grid grid-cols-2 border-b border-[var(--border-subtle)] last:border-b-0">
+                  {/* Left column: Rentrées */}
+                  <div className="p-4 border-r border-[var(--border-subtle)]">
+                    {row.rentrees ? (
+                      <div>
+                        <div
+                          className="flex items-center justify-between gap-4 cursor-pointer hover:bg-[var(--bg-tertiary)]/30 -mx-2 px-2 py-2 rounded transition-colors"
+                          onClick={() => setExpandedClientId(isExpanded ? null : row.clientId)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <ChevronDown open={isExpanded} />
+                            <span className="text-[var(--text-primary)] font-medium">{row.clientName}</span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-[#22c55e] font-medium">{formatEur(row.rentrees.total)}</div>
+                            <div className="text-xs text-[var(--text-muted)]">Marge: {formatEur(row.rentrees.marge)}</div>
+                          </div>
+                        </div>
+                        {isExpanded && (
+                          <div className="mt-3 ml-7 space-y-2">
+                            {row.rentrees.deliverables.map((d) => (
+                              <div
+                                key={d.id}
+                                onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
+                                className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] cursor-pointer text-sm transition-colors"
+                              >
+                                <span className="text-[var(--text-primary)]">{d.name}</span>
+                                <div className="flex items-center gap-3 shrink-0 text-xs">
+                                  <span className="text-[#22c55e]">{formatEur(d.prixFacturé ?? 0)}</span>
+                                  {(d.coutSousTraitance ?? 0) > 0 && (
+                                    <span className="text-[#ef4444]">− {formatEur(d.coutSousTraitance ?? 0)}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-[var(--text-muted)] text-sm">—</div>
+                    )}
+                  </div>
+
+                  {/* Right column: Potentiel */}
+                  <div className="p-4">
+                    {row.potentiel ? (
+                      <div>
+                        <div
+                          className="flex items-center justify-between gap-4 cursor-pointer hover:bg-[var(--bg-tertiary)]/30 -mx-2 px-2 py-2 rounded transition-colors"
+                          onClick={() => setExpandedClientId(isExpanded ? null : row.clientId)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <ChevronDown open={isExpanded} />
+                            <span className="text-[var(--text-primary)] font-medium">
+                              {row.clientName}
+                              {row.isProspect && !row.rentrees && (
+                                <span className="ml-2 text-xs px-2 py-0.5 rounded-full border border-amber-500/50 text-amber-600 dark:text-amber-400">
+                                  P
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <span className="text-amber-600 dark:text-amber-400 font-medium shrink-0">
+                            {formatEur(row.potentiel.total)}
+                          </span>
+                        </div>
+                        {isExpanded && (
+                          <div className="mt-3 ml-7 space-y-2">
+                            {row.potentiel.deliverables.map((d) => (
+                              <div
+                                key={d.id}
+                                onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
+                                className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] cursor-pointer text-sm transition-colors"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[var(--text-primary)]">{d.name}</span>
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
+                                    {d.status === 'pending' ? 'à venir' : 'en cours'}
+                                  </span>
+                                </div>
+                                <span className="text-amber-600 dark:text-amber-400 shrink-0 text-xs">
+                                  {formatEur(d.prixFacturé ?? 0)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-[var(--text-muted)] text-sm">—</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
