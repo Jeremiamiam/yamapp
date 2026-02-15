@@ -10,21 +10,19 @@ import { YearSelector } from './YearSelector';
 const formatEur = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 
-type ClientRow = {
+type FilterMode = 'all' | 'with-validated' | 'with-potential';
+
+type ClientTableRow = {
   clientId: string;
   clientName: string;
   isProspect: boolean;
-  rentrees: {
-    total: number;
-    sousTraitance: number;
-    marge: number;
-    deliverables: Deliverable[];
-  } | null;
-  potentiel: {
-    total: number;
-    deliverables: Deliverable[];
-  } | null;
-  totalGlobal: number; // For sorting
+  rentreesValidees: number;
+  sousTraitance: number;
+  margeNette: number;
+  potentiel: number;
+  totalGlobal: number;
+  completedDeliverables: Deliverable[];
+  potentielDeliverables: Deliverable[];
 };
 
 const ChevronDown = ({ open }: { open: boolean }) => (
@@ -57,6 +55,7 @@ export function ComptaView() {
   const { openDeliverableModal } = useModal();
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
 
   // ⚠️ TEMPORARY MOCK DATA FOR VISUAL VALIDATION - TO BE REMOVED ⚠️
   const mockCompletedDeliverables: Deliverable[] = useMemo(() => {
@@ -177,11 +176,11 @@ export function ComptaView() {
     return potentielDeliverables.reduce((sum, d) => sum + (d.prixFacturé ?? 0), 0);
   }, [potentielDeliverables]);
 
-  // Merge rentrées + potentiel by client into unified rows
-  const clientRows = useMemo(() => {
-    const map = new Map<string, ClientRow>();
+  // Build table rows: one row per client with 4 KPI columns
+  const tableRows = useMemo(() => {
+    const map = new Map<string, ClientTableRow>();
 
-    // Add completed deliverables (rentrées)
+    // Add completed deliverables
     for (const d of completedDeliverables) {
       if (!d.clientId) continue;
       const client = getClientById(d.clientId);
@@ -189,25 +188,24 @@ export function ComptaView() {
       const sousTraitance = d.coutSousTraitance ?? 0;
 
       const existing = map.get(d.clientId);
-      if (existing?.rentrees) {
-        existing.rentrees.total += prix;
-        existing.rentrees.sousTraitance += sousTraitance;
-        existing.rentrees.marge = existing.rentrees.total - existing.rentrees.sousTraitance;
-        existing.rentrees.deliverables.push(d);
+      if (existing) {
+        existing.rentreesValidees += prix;
+        existing.sousTraitance += sousTraitance;
+        existing.margeNette = existing.rentreesValidees - existing.sousTraitance;
         existing.totalGlobal += prix;
+        existing.completedDeliverables.push(d);
       } else {
         map.set(d.clientId, {
           clientId: d.clientId,
           clientName: client?.name ?? 'Sans nom',
           isProspect: client?.status === 'prospect',
-          rentrees: {
-            total: prix,
-            sousTraitance,
-            marge: prix - sousTraitance,
-            deliverables: [d],
-          },
-          potentiel: existing?.potentiel ?? null,
-          totalGlobal: prix + (existing?.potentiel?.total ?? 0),
+          rentreesValidees: prix,
+          sousTraitance,
+          margeNette: prix - sousTraitance,
+          potentiel: 0,
+          totalGlobal: prix,
+          completedDeliverables: [d],
+          potentielDeliverables: [],
         });
       }
     }
@@ -219,27 +217,36 @@ export function ComptaView() {
       const prix = d.prixFacturé ?? 0;
 
       const existing = map.get(d.clientId);
-      if (existing?.potentiel) {
-        existing.potentiel.total += prix;
-        existing.potentiel.deliverables.push(d);
+      if (existing) {
+        existing.potentiel += prix;
         existing.totalGlobal += prix;
+        existing.potentielDeliverables.push(d);
       } else {
         map.set(d.clientId, {
           clientId: d.clientId,
           clientName: client?.name ?? 'Sans nom',
           isProspect: client?.status === 'prospect',
-          rentrees: existing?.rentrees ?? null,
-          potentiel: {
-            total: prix,
-            deliverables: [d],
-          },
-          totalGlobal: (existing?.rentrees?.total ?? 0) + prix,
+          rentreesValidees: 0,
+          sousTraitance: 0,
+          margeNette: 0,
+          potentiel: prix,
+          totalGlobal: prix,
+          completedDeliverables: [],
+          potentielDeliverables: [d],
         });
       }
     }
 
+    let rows = Array.from(map.values());
+
+    // Apply filters
+    if (filterMode === 'with-validated') {
+      rows = rows.filter(r => r.rentreesValidees > 0);
+    } else if (filterMode === 'with-potential') {
+      rows = rows.filter(r => r.potentiel > 0);
+    }
+
     // Sort by totalGlobal
-    const rows = Array.from(map.values());
     rows.sort((a, b) => {
       if (sortDirection === 'desc') {
         return b.totalGlobal - a.totalGlobal;
@@ -249,7 +256,7 @@ export function ComptaView() {
     });
 
     return rows;
-  }, [completedDeliverables, potentielDeliverables, getClientById, sortDirection]);
+  }, [completedDeliverables, potentielDeliverables, getClientById, sortDirection, filterMode]);
 
   if (roleLoading) {
     return (
@@ -283,7 +290,7 @@ export function ComptaView() {
           <YearSelector />
         </div>
 
-        {/* 4 KPIs : Rentrées validées, Sous-traitance, Marge nette, Potentiel */}
+        {/* 4 KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 shadow-lg">
             <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">
@@ -315,11 +322,44 @@ export function ComptaView() {
           </div>
         </div>
 
-        {/* Sort control */}
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-[var(--text-muted)]">
-            {clientRows.length} client{clientRows.length > 1 ? 's' : ''}
-          </p>
+        {/* Filters + Sort */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-[var(--text-muted)]">Afficher:</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setFilterMode('all')}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  filterMode === 'all'
+                    ? 'bg-[var(--accent-violet)] text-white'
+                    : 'bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border-subtle)] hover:bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                Tous
+              </button>
+              <button
+                onClick={() => setFilterMode('with-validated')}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  filterMode === 'with-validated'
+                    ? 'bg-[#22c55e] text-white'
+                    : 'bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border-subtle)] hover:bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                Avec validés
+              </button>
+              <button
+                onClick={() => setFilterMode('with-potential')}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  filterMode === 'with-potential'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border-subtle)] hover:bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                Avec potentiels
+              </button>
+            </div>
+          </div>
+
           <button
             onClick={() => setSortDirection(prev => prev === 'desc' ? 'asc' : 'desc')}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm text-[var(--text-primary)]"
@@ -329,126 +369,125 @@ export function ComptaView() {
           </button>
         </div>
 
-        {/* 2-column layout: Rentrées | Potentiel */}
+        {/* Table: 4 columns aligned with KPIs */}
         <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] overflow-hidden">
-          {/* Header */}
-          <div className="grid grid-cols-2 border-b border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30">
-            <div className="p-4 border-r border-[var(--border-subtle)]">
-              <p className="text-sm font-medium text-[var(--text-primary)]">Rentrées validées</p>
-              <p className="text-xs text-[var(--text-muted)] mt-1">Déjà facturé</p>
-            </div>
-            <div className="p-4">
-              <p className="text-sm font-medium text-[var(--text-primary)]">Potentiel</p>
-              <p className="text-xs text-[var(--text-muted)] mt-1">En cours / à venir</p>
-            </div>
-          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30">
+                  <th className="text-left py-4 px-4 font-medium text-[var(--text-muted)] w-8" />
+                  <th className="text-left py-4 px-4 font-medium text-[var(--text-muted)]">Client</th>
+                  <th className="text-right py-4 px-4 font-medium text-[#22c55e]">Rentrées validées</th>
+                  <th className="text-right py-4 px-4 font-medium text-[#ef4444]">Sous-traitance</th>
+                  <th className="text-right py-4 px-4 font-medium text-[#3b82f6]">Marge nette</th>
+                  <th className="text-right py-4 px-4 font-medium text-amber-600 dark:text-amber-400">Potentiel</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tableRows.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-[var(--text-muted)]">
+                      Aucune donnée pour {comptaYear}
+                    </td>
+                  </tr>
+                )}
 
-          {/* Rows */}
-          <div>
-            {clientRows.length === 0 && (
-              <div className="p-8 text-center text-[var(--text-muted)]">
-                Aucune donnée pour {comptaYear}
-              </div>
-            )}
-
-            {clientRows.map((row) => {
-              const isExpanded = expandedClientId === row.clientId;
-              return (
-                <div key={row.clientId} className="grid grid-cols-2 border-b border-[var(--border-subtle)] last:border-b-0">
-                  {/* Left column: Rentrées */}
-                  <div className="p-4 border-r border-[var(--border-subtle)]">
-                    {row.rentrees ? (
-                      <div>
-                        <div
-                          className="flex items-center justify-between gap-4 cursor-pointer hover:bg-[var(--bg-tertiary)]/30 -mx-2 px-2 py-2 rounded transition-colors"
-                          onClick={() => setExpandedClientId(isExpanded ? null : row.clientId)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <ChevronDown open={isExpanded} />
-                            <span className="text-[var(--text-primary)] font-medium">{row.clientName}</span>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className="text-[#22c55e] font-medium">{formatEur(row.rentrees.total)}</div>
-                            <div className="text-xs text-[var(--text-muted)]">Marge: {formatEur(row.rentrees.marge)}</div>
-                          </div>
-                        </div>
-                        {isExpanded && (
-                          <div className="mt-3 ml-7 space-y-2">
-                            {row.rentrees.deliverables.map((d) => (
-                              <div
-                                key={d.id}
-                                onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
-                                className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] cursor-pointer text-sm transition-colors"
-                              >
-                                <span className="text-[var(--text-primary)]">{d.name}</span>
-                                <div className="flex items-center gap-3 shrink-0 text-xs">
-                                  <span className="text-[#22c55e]">{formatEur(d.prixFacturé ?? 0)}</span>
-                                  {(d.coutSousTraitance ?? 0) > 0 && (
-                                    <span className="text-[#ef4444]">− {formatEur(d.coutSousTraitance ?? 0)}</span>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-[var(--text-muted)] text-sm">—</div>
-                    )}
-                  </div>
-
-                  {/* Right column: Potentiel */}
-                  <div className="p-4">
-                    {row.potentiel ? (
-                      <div>
-                        <div
-                          className="flex items-center justify-between gap-4 cursor-pointer hover:bg-[var(--bg-tertiary)]/30 -mx-2 px-2 py-2 rounded transition-colors"
-                          onClick={() => setExpandedClientId(isExpanded ? null : row.clientId)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <ChevronDown open={isExpanded} />
-                            <span className="text-[var(--text-primary)] font-medium">
-                              {row.clientName}
-                              {row.isProspect && !row.rentrees && (
-                                <span className="ml-2 text-xs px-2 py-0.5 rounded-full border border-amber-500/50 text-amber-600 dark:text-amber-400">
-                                  P
-                                </span>
-                              )}
+                {tableRows.map((row) => {
+                  const isExpanded = expandedClientId === row.clientId;
+                  return (
+                    <React.Fragment key={row.clientId}>
+                      <tr
+                        className="border-b border-[var(--border-subtle)]/50 hover:bg-[var(--bg-tertiary)]/30 cursor-pointer transition-colors"
+                        onClick={() => setExpandedClientId(isExpanded ? null : row.clientId)}
+                      >
+                        <td className="py-4 px-4 text-[var(--text-muted)]">
+                          <ChevronDown open={isExpanded} />
+                        </td>
+                        <td className="py-4 px-4 text-[var(--text-primary)] font-medium">
+                          {row.clientName}
+                          {row.isProspect && row.rentreesValidees === 0 && (
+                            <span className="ml-2 text-xs px-2 py-0.5 rounded-full border border-amber-500/50 text-amber-600 dark:text-amber-400">
+                              P
                             </span>
-                          </div>
-                          <span className="text-amber-600 dark:text-amber-400 font-medium shrink-0">
-                            {formatEur(row.potentiel.total)}
-                          </span>
-                        </div>
-                        {isExpanded && (
-                          <div className="mt-3 ml-7 space-y-2">
-                            {row.potentiel.deliverables.map((d) => (
-                              <div
-                                key={d.id}
-                                onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
-                                className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] cursor-pointer text-sm transition-colors"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[var(--text-primary)]">{d.name}</span>
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
-                                    {d.status === 'pending' ? 'à venir' : 'en cours'}
-                                  </span>
+                          )}
+                        </td>
+                        <td className="py-4 px-4 text-right text-[#22c55e] font-medium">
+                          {row.rentreesValidees > 0 ? formatEur(row.rentreesValidees) : '—'}
+                        </td>
+                        <td className="py-4 px-4 text-right text-[#ef4444]">
+                          {row.sousTraitance > 0 ? formatEur(row.sousTraitance) : '—'}
+                        </td>
+                        <td className="py-4 px-4 text-right text-[#3b82f6] font-medium">
+                          {row.margeNette !== 0 ? formatEur(row.margeNette) : '—'}
+                        </td>
+                        <td className="py-4 px-4 text-right text-amber-600 dark:text-amber-400 font-medium">
+                          {row.potentiel > 0 ? formatEur(row.potentiel) : '—'}
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={6} className="py-0 px-0 bg-[var(--bg-tertiary)]/20">
+                            <div className="px-8 py-6 space-y-4">
+                              {row.completedDeliverables.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
+                                    Rentrées ({row.completedDeliverables.length})
+                                  </p>
+                                  <ul className="space-y-2">
+                                    {row.completedDeliverables.map((d) => (
+                                      <li
+                                        key={d.id}
+                                        onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
+                                        className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] text-sm cursor-pointer hover:border-[var(--accent-violet)]/50 hover:bg-[var(--bg-tertiary)]/30 transition-colors"
+                                      >
+                                        <span className="text-[var(--text-primary)]">{d.name}</span>
+                                        <div className="flex items-center gap-4 shrink-0 text-xs">
+                                          <span className="text-[#22c55e]">{formatEur(d.prixFacturé ?? 0)}</span>
+                                          {(d.coutSousTraitance ?? 0) > 0 && (
+                                            <span className="text-[#ef4444]">− {formatEur(d.coutSousTraitance ?? 0)}</span>
+                                          )}
+                                        </div>
+                                      </li>
+                                    ))}
+                                  </ul>
                                 </div>
-                                <span className="text-amber-600 dark:text-amber-400 shrink-0 text-xs">
-                                  {formatEur(d.prixFacturé ?? 0)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-[var(--text-muted)] text-sm">—</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                              )}
+
+                              {row.potentielDeliverables.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
+                                    Potentiel ({row.potentielDeliverables.length})
+                                  </p>
+                                  <ul className="space-y-2">
+                                    {row.potentielDeliverables.map((d) => (
+                                      <li
+                                        key={d.id}
+                                        onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
+                                        className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] text-sm cursor-pointer hover:border-[var(--accent-violet)]/50 hover:bg-[var(--bg-tertiary)]/30 transition-colors"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[var(--text-primary)]">{d.name}</span>
+                                          <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
+                                            {d.status === 'pending' ? 'à venir' : 'en cours'}
+                                          </span>
+                                        </div>
+                                        <span className="text-amber-600 dark:text-amber-400 shrink-0 text-xs">
+                                          {formatEur(d.prixFacturé ?? 0)}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
