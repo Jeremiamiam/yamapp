@@ -375,16 +375,7 @@ export function Timeline() {
               className="flex-shrink-0 w-12 sm:w-16 border-r border-[var(--border-subtle)] bg-[var(--bg-primary)] sticky left-0 z-[60] shadow-[4px_0_12px_rgba(0,0,0,0.3)]"
               style={{ height: TOTAL_HEADER_HEIGHT + totalHeight }}
             >
-              <div
-                style={{ height: MONTH_ROW_HEIGHT }}
-                className="border-b border-[var(--border-subtle)] flex items-center justify-center"
-              >
-                {activeMonth && (
-                  <span className="text-xs font-semibold text-[var(--text-primary)] tracking-wider truncate px-1 text-center capitalize">
-                    {activeMonth.label.charAt(0).toUpperCase() + activeMonth.label.slice(1)}
-                  </span>
-                )}
-              </div>
+              <div style={{ height: MONTH_ROW_HEIGHT }} className="border-b border-[var(--border-subtle)]" />
               <div style={{ height: HEADER_HEIGHT }} className="border-b border-[var(--border-subtle)]" />
               <div className="relative" style={{ height: totalHeight }}>
                 {/* Bande 13h–14h : séparation matin / PM (discret) */}
@@ -414,22 +405,20 @@ export function Timeline() {
 
             {/* Colonnes jours : index heures + bande mois + lignes des jours */}
             <div className="flex flex-shrink-0 flex-col" style={{ width: totalWidth }}>
-              {/* Bande mois — sticky au scroll Y, repère clair au scroll X */}
+              {/* Mois actif — sticky à gauche (zone des jours), se met à jour au scroll */}
               <div
-                className="flex flex-shrink-0 sticky top-0 z-30 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/90 backdrop-blur-sm"
-                style={{ height: MONTH_ROW_HEIGHT }}
+                className="flex flex-row flex-shrink-0 sticky top-0 z-30 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/90 backdrop-blur-sm"
+                style={{ height: MONTH_ROW_HEIGHT, width: totalWidth }}
               >
-                {monthRanges.map((m, i) => (
+                {activeMonth && (
                   <div
-                    key={i}
-                    className="flex-shrink-0 flex items-center justify-center border-r border-[var(--border-subtle)] last:border-r-0 bg-[var(--bg-secondary)]/40"
-                    style={{ width: m.width, minWidth: m.width }}
+                    className="flex-shrink-0 flex items-center justify-center border-r border-[var(--border-subtle)] bg-[var(--bg-secondary)]/40 sticky left-12 sm:left-16 z-40 w-[120px] sm:w-[140px]"
                   >
                     <span className="text-xs font-semibold text-[var(--text-primary)] tracking-wider truncate px-2 capitalize">
-                      {m.label.charAt(0).toUpperCase() + m.label.slice(1)}
+                      {activeMonth.label.charAt(0).toUpperCase() + activeMonth.label.slice(1)}
                     </span>
                   </div>
-                ))}
+                )}
               </div>
               {/* Ligne des jours (numéro + jour) */}
             <div className="flex flex-shrink-0" style={{ width: totalWidth }}>
