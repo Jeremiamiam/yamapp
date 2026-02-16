@@ -80,7 +80,6 @@ export function DayTodoZone() {
     }
     if (e.key === 'Escape') {
       setInput('');
-      setAdding(false);
       inputRef.current?.blur();
     }
   };
