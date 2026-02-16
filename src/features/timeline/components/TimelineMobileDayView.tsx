@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@/lib/store';
 import { formatDateLong } from '@/lib/date-utils';
@@ -9,13 +9,12 @@ import { TimelineCard, TimelineCardItem } from './TimelineCard';
 
 const HEADER_HEIGHT = 56;
 const HOURS_COLUMN_WIDTH = 56;
-const MIN_HOUR_HEIGHT = 48;
-const DEFAULT_HOUR_HEIGHT = 72;
+const MIN_HOUR_HEIGHT = 28;
 const START_HOUR = 8;
 const END_HOUR = 19;
 const LUNCH_START_HOUR = 12;
 const GRID_PADDING_TOP = 12;
-const BOTTOM_SPACER = 60;
+const BOTTOM_SPACER = 24;
 const SWIPE_THRESHOLD = 60;
 
 const ChevronLeft = () => (
@@ -39,8 +38,22 @@ export function TimelineMobileDayView() {
   const isMobile = useIsMobile();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      if (el) setContainerHeight(el.clientHeight);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const { filteredDeliverables, filteredCalls } = useFilteredTimeline();
   const {
@@ -194,13 +207,17 @@ export function TimelineMobileDayView() {
 
   const items = itemsByDate.get(dateKey) || [];
   const hours = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
-  const hourHeight = DEFAULT_HOUR_HEIGHT;
+  const gridHeight = Math.max(0, containerHeight - HEADER_HEIGHT - GRID_PADDING_TOP - BOTTOM_SPACER);
+  const hourHeight = containerHeight > 0
+    ? Math.max(MIN_HOUR_HEIGHT, Math.floor(gridHeight / (END_HOUR - START_HOUR + 1)))
+    : MIN_HOUR_HEIGHT;
   const totalHeight = (END_HOUR - START_HOUR + 1) * hourHeight;
 
   if (!isMobile) return null;
 
   return (
     <div
+      ref={containerRef}
       className="flex flex-col h-full w-full overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -266,9 +283,9 @@ export function TimelineMobileDayView() {
           </div>
         </div>
 
-        {/* Colonne jour */}
+        {/* Colonne jour - overflow-hidden pour full height, pas de scroll vertical */}
         <div
-          className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden"
+          className="flex-1 min-w-0 overflow-hidden overflow-x-hidden"
           style={{
             transform: swipeOffset !== 0 ? `translateX(${swipeOffset}px)` : undefined,
             transition: swipeOffset === 0 ? 'transform 0.2s ease-out' : 'none',

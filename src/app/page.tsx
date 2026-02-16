@@ -6,7 +6,6 @@ import { useAppStore } from '@/lib/store';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks';
 import { Timeline, BacklogDrawer } from '@/features/timeline/components';
-import { HorizontalEventTimeline } from '@/features/timeline/components/HorizontalEventTimeline';
 import { Header } from '@/components/layout/Header';
 import { GlobalSidebar } from '@/components/layout/GlobalSidebar';
 import { ModalManager } from '@/components/ModalManager';
@@ -46,7 +45,6 @@ export default function Home() {
   const isMobile = useIsMobile();
   const [backlogDrawerOpen, setBacklogDrawerOpen] = useState(false);
   const [todoDrawerOpen, setTodoDrawerOpen] = useState(false);
-  const [useHorizontalTimeline, setUseHorizontalTimeline] = useState(false);
   const mainContentRef = useRef<HTMLDivElement>(null);
   const [sidebarHeight, setSidebarHeight] = useState(800);
 
@@ -164,28 +162,7 @@ export default function Home() {
       case 'timeline':
         return (
           <div className="flex-1 relative min-h-0 h-full">
-            {useHorizontalTimeline ? (
-              <HorizontalEventTimeline />
-            ) : (
-              <Timeline className="absolute inset-0" hideSidebar />
-            )}
-            {/* Toggle Timeline Mode - Floating button */}
-            <button
-              type="button"
-              onClick={() => setUseHorizontalTimeline(!useHorizontalTimeline)}
-              className="absolute top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-subtle)] hover:border-[var(--accent-lime)] transition-all shadow-lg backdrop-blur-sm group"
-              title={useHorizontalTimeline ? "Vue calendrier classique" : "Vue Event Horizon"}
-            >
-              <span className="text-xs font-medium text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors">
-                {useHorizontalTimeline ? "📅 Calendrier" : "🌊 Horizon"}
-              </span>
-              <div className="w-10 h-5 rounded-full bg-[var(--bg-tertiary)] relative transition-all">
-                <div
-                  className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[var(--accent-lime)] transition-transform duration-200"
-                  style={{ transform: useHorizontalTimeline ? 'translateX(20px)' : 'translateX(0)' }}
-                />
-              </div>
-            </button>
+            <Timeline className="absolute inset-0" hideSidebar />
           </div>
         );
       case 'clients':

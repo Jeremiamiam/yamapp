@@ -16,15 +16,15 @@ const MONTH_ROW_HEIGHT = 38; // Bande mois au-dessus des jours (scroll X)
 const TOTAL_HEADER_HEIGHT = MONTH_ROW_HEIGHT + HEADER_HEIGHT;
 const TODO_COLUMN_WIDTH = 240; // Colonne todo (sticky left)
 const HOURS_COLUMN_WIDTH = 64; // Colonne horaires (toggle 1 sem. / 2 sem. dans le footer)
-const MIN_HOUR_HEIGHT = 48;
+const MIN_HOUR_HEIGHT = 28; // Réduit pour que la grille tienne en full height sans scroll vertical
 const DEFAULT_HOUR_HEIGHT = 96;
 const START_HOUR = 8;
 const END_HOUR = 19; // Grille jusqu'à 20h (créneau 19h–20h visible)
 const LUNCH_START_HOUR = 12; // Bande visuelle 12h (séparation matin / PM)
 const WEEKEND_RATIO = 0.12;
 const GRID_PADDING_TOP = 12; // Espace au-dessus de la ligne 8h
-/** Espace en bas de la grille pour que les cartes 19h ne touchent pas le bord du navigateur (pas de scroll vertical) */
-const BOTTOM_SPACER = 80;
+/** Espace minimal en bas de la grille */
+const BOTTOM_SPACER = 24;
 /** Largeur réservée à droite (backlog maintenant à gauche, donc 0) */
 const BACKLOG_OVERLAY_WIDTH = 0;
 
