@@ -4,10 +4,11 @@ import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@/lib/store';
 import { formatHeaderDate } from '@/lib/date-utils';
-import { useFilteredTimeline, useModal } from '@/hooks';
+import { useFilteredTimeline, useModal, useIsMobile } from '@/hooks';
 import { TimelineCard, TimelineCardItem } from './TimelineCard';
 import { BACKLOG_DRAG_TYPE } from './BacklogSidebar';
 import { DayTodoZone, TODO_DRAG_TYPE } from './DayTodoZone';
+import { DayTodoDrawer } from './DayTodoDrawer';
 
 // Timeline dimensions
 const HEADER_HEIGHT = 56;
@@ -38,7 +39,18 @@ function snapTo30Min(date: Date): Date {
 
 type TimelineProps = { className?: string };
 
+const TODO_FAB_ICON = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+    <path d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v0z" />
+    <line x1="9" y1="12" x2="15" y2="12" />
+    <line x1="9" y1="16" x2="15" y2="16" />
+  </svg>
+);
+
 export function Timeline({ className }: TimelineProps) {
+  const isMobile = useIsMobile();
+  const [dayTodoDrawerOpen, setDayTodoDrawerOpen] = useState(false);
   const { filteredDeliverables, filteredCalls } = useFilteredTimeline();
   const { timelineRange, navigateToClient, getClientById, getTeamMemberById, updateDeliverable, updateCall, dayTodos, updateDayTodo, filters } = useAppStore(
     useShallow((s) => ({
@@ -124,10 +136,12 @@ export function Timeline({ className }: TimelineProps) {
     return Math.max(MIN_HOUR_HEIGHT, Math.floor(h));
   }, [containerHeight]);
 
+  const effectiveTodoColumnWidth = isMobile ? 0 : TODO_COLUMN_WIDTH;
+
   // Calculate day widths : 5 ou 10 jours ouvrés dans la zone visible selon compactWeeks (1 sem. vs 2 sem.)
   const dayWidths = useMemo(() => {
     if (containerWidth === 0) return { weekday: 160, weekend: 30 };
-    const visibleWidth = Math.max(200, containerWidth - BACKLOG_OVERLAY_WIDTH - TODO_COLUMN_WIDTH - HOURS_COLUMN_WIDTH);
+    const visibleWidth = Math.max(200, containerWidth - BACKLOG_OVERLAY_WIDTH - effectiveTodoColumnWidth - HOURS_COLUMN_WIDTH);
     const weekdayCount = compactWeeks ? 10 : 5;
     const totalUnits = weekdayCount + 2 * WEEKEND_RATIO;
     const unitWidth = visibleWidth / totalUnits;
@@ -135,7 +149,7 @@ export function Timeline({ className }: TimelineProps) {
       weekday: unitWidth,
       weekend: unitWidth * WEEKEND_RATIO,
     };
-  }, [containerWidth, compactWeeks]);
+  }, [containerWidth, compactWeeks, effectiveTodoColumnWidth]);
 
   // Generate dates with widths
   const datesWithWidth = useMemo(() => {
@@ -169,7 +183,7 @@ export function Timeline({ className }: TimelineProps) {
       const el = scrollContainerRef.current;
       if (!el || datesWithWidth.length === 0) return null;
       const rect = el.getBoundingClientRect();
-      const contentX = clientX - rect.left + el.scrollLeft - TODO_COLUMN_WIDTH - HOURS_COLUMN_WIDTH;
+      const contentX = clientX - rect.left + el.scrollLeft - effectiveTodoColumnWidth - HOURS_COLUMN_WIDTH;
       const contentY = clientY - rect.top + el.scrollTop;
       const timeY = contentY - TOTAL_HEADER_HEIGHT - GRID_PADDING_TOP;
       if (timeY < 0) return null;
@@ -191,7 +205,7 @@ export function Timeline({ className }: TimelineProps) {
       }
       return null;
     },
-    [datesWithWidth, hourHeight]
+    [datesWithWidth, hourHeight, effectiveTodoColumnWidth]
   );
 
   const handleCardMove = useCallback(
@@ -432,22 +446,24 @@ export function Timeline({ className }: TimelineProps) {
           className="flex-1 overflow-x-auto overflow-y-hidden timeline-scroll"
           style={{ transform: 'translateZ(0)' }}
         >
-          <div className="flex flex-row min-h-0" style={{ width: totalWidth + HOURS_COLUMN_WIDTH + TODO_COLUMN_WIDTH, transform: 'translateZ(0)' }}>
-            {/* Colonne todo : sticky left, toujours visible ; spacer en bas pour dégager 19h */}
-            <div
-              className="flex flex-col flex-shrink-0 border-r-2 border-[var(--border-subtle)] bg-[var(--bg-primary)] sticky left-0 z-30 overflow-y-auto"
-              style={{ width: TODO_COLUMN_WIDTH, height: TOTAL_HEADER_HEIGHT + totalHeight + GRID_PADDING_TOP + BOTTOM_SPACER }}
-            >
-              <div className="flex-1 min-h-0">
-                <DayTodoZone />
+          <div className="flex flex-row min-h-0" style={{ width: totalWidth + HOURS_COLUMN_WIDTH + effectiveTodoColumnWidth, transform: 'translateZ(0)' }}>
+            {/* Colonne todo : desktop only ; sur mobile → drawer */}
+            {!isMobile && (
+              <div
+                className="flex flex-col flex-shrink-0 border-r-2 border-[var(--border-subtle)] bg-[var(--bg-primary)] sticky left-0 z-30 overflow-y-auto"
+                style={{ width: TODO_COLUMN_WIDTH, height: TOTAL_HEADER_HEIGHT + totalHeight + GRID_PADDING_TOP + BOTTOM_SPACER }}
+              >
+                <div className="flex-1 min-h-0">
+                  <DayTodoZone />
+                </div>
+                <div aria-hidden className="flex-shrink-0 bg-[var(--bg-primary)]" style={{ height: BOTTOM_SPACER }} />
               </div>
-              <div aria-hidden className="flex-shrink-0 bg-[var(--bg-primary)]" style={{ height: BOTTOM_SPACER }} />
-            </div>
+            )}
 
-            {/* Colonne horaires : sticky après la colonne todo ; spacer en bas */}
+            {/* Colonne horaires : sticky après la colonne todo (ou à gauche sur mobile) ; spacer en bas */}
             <div
               className="flex-shrink-0 border-r border-[var(--border-subtle)] bg-[var(--bg-primary)]/95 backdrop-blur-sm sticky z-20 flex flex-col"
-              style={{ width: HOURS_COLUMN_WIDTH, left: TODO_COLUMN_WIDTH, height: TOTAL_HEADER_HEIGHT + totalHeight + GRID_PADDING_TOP + BOTTOM_SPACER }}
+              style={{ width: HOURS_COLUMN_WIDTH, left: effectiveTodoColumnWidth, height: TOTAL_HEADER_HEIGHT + totalHeight + GRID_PADDING_TOP + BOTTOM_SPACER }}
             >
               <div style={{ height: MONTH_ROW_HEIGHT }} className="border-b border-[var(--border-subtle)] flex-shrink-0" />
               <div style={{ height: HEADER_HEIGHT }} className="border-b border-[var(--border-subtle)] flex-shrink-0" />
@@ -484,7 +500,7 @@ export function Timeline({ className }: TimelineProps) {
               {/* Bande mois — sticky au scroll Y, left pour ne pas passer derrière la colonne todo + horaires */}
               <div
                 className="flex flex-shrink-0 sticky top-0 z-20 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]/95 backdrop-blur-sm shadow-sm"
-                style={{ height: MONTH_ROW_HEIGHT, left: TODO_COLUMN_WIDTH + HOURS_COLUMN_WIDTH, width: totalWidth, minWidth: totalWidth }}
+                style={{ height: MONTH_ROW_HEIGHT, left: effectiveTodoColumnWidth + HOURS_COLUMN_WIDTH, width: totalWidth, minWidth: totalWidth }}
               >
                 {monthRanges.map((m, i) => {
                   const isCurrentMonth = m.key === currentMonthKey;
@@ -496,7 +512,7 @@ export function Timeline({ className }: TimelineProps) {
                     >
                       <div
                         className="sticky flex items-center gap-3 h-full pointer-events-none z-10"
-                        style={{ left: TODO_COLUMN_WIDTH + HOURS_COLUMN_WIDTH, width: 'fit-content', maxWidth: m.width }}
+                        style={{ left: effectiveTodoColumnWidth + HOURS_COLUMN_WIDTH, width: 'fit-content', maxWidth: m.width }}
                       >
                         <span className="text-xs font-semibold text-white tracking-wider px-3 py-1 bg-[var(--bg-primary)]/95 backdrop-blur-sm rounded-full border border-[var(--border-subtle)] shadow-lg uppercase shrink-0">
                           {m.label.toUpperCase()}
@@ -561,7 +577,7 @@ export function Timeline({ className }: TimelineProps) {
                             ? 'bg-[var(--bg-tertiary)]/80' 
                             : 'bg-[var(--bg-secondary)]/80'
                     } ${d.date.getDate() === 1 ? 'border-l-2 border-l-[var(--accent-cyan)]/50' : ''}`}
-                    style={{ height: HEADER_HEIGHT, top: MONTH_ROW_HEIGHT, left: TODO_COLUMN_WIDTH + HOURS_COLUMN_WIDTH + d.position, width: d.width, minWidth: d.width }}
+                    style={{ height: HEADER_HEIGHT, top: MONTH_ROW_HEIGHT, left: effectiveTodoColumnWidth + HOURS_COLUMN_WIDTH + d.position, width: d.width, minWidth: d.width }}
                   >
                     {!d.isWeekend && (
                       <>
@@ -735,6 +751,24 @@ export function Timeline({ className }: TimelineProps) {
           </>
         );
       })()}
+
+      {/* Mobile: FAB pour ouvrir le drawer Todo du jour */}
+      {isMobile && (
+        <>
+          <button
+            type="button"
+            onClick={() => setDayTodoDrawerOpen(true)}
+            className="fixed bottom-4 left-4 z-[55] w-14 h-14 rounded-full bg-[var(--accent-lime)] text-[var(--bg-primary)] shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center touch-manipulation"
+            aria-label="Ouvrir Todo du jour"
+          >
+            {TODO_FAB_ICON}
+          </button>
+          <DayTodoDrawer
+            isOpen={dayTodoDrawerOpen}
+            onClose={() => setDayTodoDrawerOpen(false)}
+          />
+        </>
+      )}
     </div>
   );
 }
