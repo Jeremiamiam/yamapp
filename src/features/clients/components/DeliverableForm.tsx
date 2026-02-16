@@ -196,7 +196,7 @@ export function DeliverableForm() {
       balanceAmount: parseEur(balanceAmount),
       totalInvoiced: [depositAmount, progressAmount, balanceAmount]
         .map(parseEur)
-        .reduce((sum, v) => sum + (v ?? 0), 0) || undefined,
+        .reduce((sum: number, v) => sum + (v ?? 0), 0) || undefined,
     };
 
     if (mode === 'edit' && existingDeliverable) {
@@ -480,9 +480,9 @@ export function DeliverableForm() {
                 <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-[var(--bg-secondary)]">
                   <span className="text-sm font-medium text-[var(--text-primary)]">Total facturé</span>
                   <span className="text-lg font-bold text-[var(--accent-lime)]">
-                    {[depositAmount, progressAmount, balanceAmount]
+                    {([depositAmount, progressAmount, balanceAmount]
                       .map(parseEur)
-                      .reduce((sum, v) => sum + (v ?? 0), 0)
+                      .reduce((sum: number, v) => sum + (v ?? 0), 0) || 0)
                       .toFixed(0)} €
                   </span>
                 </div>
