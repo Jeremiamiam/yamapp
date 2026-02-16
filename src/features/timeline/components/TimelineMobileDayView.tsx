@@ -7,14 +7,14 @@ import { formatDateLong } from '@/lib/date-utils';
 import { useFilteredTimeline, useModal, useIsMobile } from '@/hooks';
 import { TimelineCard, TimelineCardItem } from './TimelineCard';
 
-const HEADER_HEIGHT = 56;
+const HEADER_HEIGHT = 44;
 const HOURS_COLUMN_WIDTH = 56;
 const MIN_HOUR_HEIGHT = 28;
 const START_HOUR = 8;
 const END_HOUR = 19;
 const LUNCH_START_HOUR = 12;
-const GRID_PADDING_TOP = 12;
-const BOTTOM_SPACER = 24;
+const GRID_PADDING_TOP = 4;
+const BOTTOM_SPACER = 8;
 const SWIPE_THRESHOLD = 60;
 
 const ChevronLeft = () => (
@@ -224,8 +224,8 @@ export function TimelineMobileDayView() {
       onTouchEnd={handleTouchEnd}
       onTouchCancel={() => setSwipeOffset(0)}
     >
-      {/* Header jour + nav */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]">
+      {/* Header jour + nav - compact */}
+      <div className="flex-shrink-0 flex items-center justify-between px-3 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]">
         <button
           type="button"
           onClick={goPrev}

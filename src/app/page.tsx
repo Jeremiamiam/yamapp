@@ -161,7 +161,7 @@ export default function Home() {
     switch (view) {
       case 'timeline':
         return (
-          <div className="flex-1 relative min-h-0 h-full">
+          <div className="flex-1 relative min-h-0 h-full overflow-hidden">
             <Timeline className="absolute inset-0" hideSidebar />
           </div>
         );
@@ -191,24 +191,10 @@ export default function Home() {
           {renderView(currentView)}
         </div>
 
-        {/* Mobile: FABs + drawers */}
+        {/* Mobile: FABs superposés pour gagner de la place */}
         {isMobile && (
           <>
-            {/* FAB Todo */}
-            <button
-              type="button"
-              onClick={() => setTodoDrawerOpen(true)}
-              className="fixed bottom-4 left-4 z-[55] w-14 h-14 rounded-full bg-[var(--accent-lime)] text-[var(--bg-primary)] shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center touch-manipulation"
-              aria-label="Ouvrir Todo du jour"
-            >
-              {TODO_FAB_ICON}
-            </button>
-            <DayTodoDrawer
-              isOpen={todoDrawerOpen}
-              onClose={() => setTodoDrawerOpen(false)}
-            />
-
-            {/* FAB Backlog */}
+            {/* FAB Backlog (dessous, légèrement à gauche) */}
             <button
               type="button"
               onClick={() => setBacklogDrawerOpen(true)}
@@ -217,6 +203,19 @@ export default function Home() {
             >
               {BACKLOG_FAB_ICON}
             </button>
+            {/* FAB Todo (superposé, au-dessus à gauche du Backlog) */}
+            <button
+              type="button"
+              onClick={() => setTodoDrawerOpen(true)}
+              className="fixed bottom-6 right-12 z-[56] w-14 h-14 rounded-full bg-[var(--accent-lime)] text-[var(--bg-primary)] shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center touch-manipulation"
+              aria-label="Ouvrir Todo du jour"
+            >
+              {TODO_FAB_ICON}
+            </button>
+            <DayTodoDrawer
+              isOpen={todoDrawerOpen}
+              onClose={() => setTodoDrawerOpen(false)}
+            />
             <BacklogDrawer
               isOpen={backlogDrawerOpen}
               onClose={() => setBacklogDrawerOpen(false)}
