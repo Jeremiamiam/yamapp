@@ -859,7 +859,6 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
           </>
         );
       })()}
-      </div>
 
     </div>
   );
