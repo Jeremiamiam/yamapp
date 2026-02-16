@@ -90,6 +90,9 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
   const compactWeeks = useAppStore((s) => s.compactWeeks);
   const setCompactWeeks = useAppStore((s) => s.setCompactWeeks);
 
+  // Animation staggered pour les cards au mount
+  const [cardsAnimationKey, setCardsAnimationKey] = useState(0);
+  
   // Initialiser compactWeeks depuis localStorage
   const setCompactWeeksRef = useRef(setCompactWeeks);
   setCompactWeeksRef.current = setCompactWeeks;
@@ -100,6 +103,11 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
       }
     } catch (_) {}
   }, []);
+  
+  // Déclencher l'animation staggered au mount et quand les filtres changent
+  useEffect(() => {
+    setCardsAnimationKey(prev => prev + 1);
+  }, [filters.teamMemberId]);
 
   const setJustLanded = useCallback((id: string) => {
     setLastDroppedId(id);
@@ -603,11 +611,11 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
 
               {/* Ligne des jours (numéro + jour) */}
             <div className="flex flex-shrink-0" style={{ width: totalWidth }}>
-            {datesWithWidth.map((d, index) => {
+            {datesWithWidth.map((d, dayIndex) => {
               const dateKey = d.date.toDateString();
               const items = itemsByDate.get(dateKey) || [];
               const today = isToday(d.date);
-              const showMonth = d.date.getDate() === 1 || index === 0;
+              const showMonth = d.date.getDate() === 1 || dayIndex === 0;
               const dropTarget = dragState ? getDropTarget(dragState.x, dragState.y) : null;
               const isDropColumn =
                     !!dragState && !d.isWeekend && dropTarget && dateKey === dropTarget.date.toDateString();
@@ -719,6 +727,9 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
                     {/* Items */}
                     {!d.isWeekend && items.map((item, itemIndex) => {
                       const top = GRID_PADDING_TOP + ((item.hour - START_HOUR) + item.minutes / 60) * hourHeight + 4;
+                      // Calcul du délai staggered : basé sur l'index du jour + index de l'item
+                      const globalIndex = dayIndex * 3 + itemIndex; // Approximation pour stagger
+                      const animationDelay = globalIndex * 20; // 20ms entre chaque card
                       const handleCardClick = () => {
                         // Ouvrir directement la modale du produit/appel
                         if (item.type === 'deliverable') {
@@ -735,7 +746,7 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
                       };
                       return (
                         <TimelineCard
-                          key={item.id}
+                          key={`${cardsAnimationKey}-${item.id}`}
                           item={item}
                           top={top}
                           index={itemIndex}
@@ -751,6 +762,7 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
                           compact={compactWeeks}
                           allowDragToBacklog={item.type !== 'todo'}
                           onDeleteTodo={item.type === 'todo' ? deleteDayTodo : undefined}
+                          animationDelay={animationDelay}
                         />
                       );
                     })}
