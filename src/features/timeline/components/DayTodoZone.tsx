@@ -26,22 +26,13 @@ const PLUS = (
 );
 
 export function DayTodoZone() {
-  const { getIncompleteDayTodos, addDayTodo, updateDayTodo, deleteDayTodo, compactWeeks, setCompactWeeks, team, getTeamMemberById } = useAppStore();
+  const { getIncompleteDayTodos, addDayTodo, updateDayTodo, deleteDayTodo, team, getTeamMemberById } = useAppStore();
   const todos = getIncompleteDayTodos();
   const [input, setInput] = useState('');
   const [selectedAssigneeIndex, setSelectedAssigneeIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const setCompactWeeksRef = useRef(setCompactWeeks);
-  setCompactWeeksRef.current = setCompactWeeks;
-
-
-  useEffect(() => {
-    try {
-      if (localStorage.getItem('yam-timeline-compact') === 'true') setCompactWeeksRef.current(true);
-    } catch (_) {}
-  }, []);
 
   // Close menu on outside click
   useEffect(() => {
@@ -95,38 +86,6 @@ export function DayTodoZone() {
 
   return (
     <div className="relative px-2.5 py-3 h-full flex flex-col">
-      {/* Toggle 1 sem. / 2 sem. */}
-      <div
-        role="group"
-        aria-label="Affichage calendrier : 1 ou 2 semaines"
-        className="flex rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-secondary)]/60 p-0.5 mb-3 flex-shrink-0"
-      >
-        <button
-          type="button"
-          onClick={() => compactWeeks && setCompactWeeks(false)}
-          className={`flex-1 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide rounded-md transition-all ${
-            !compactWeeks
-              ? 'bg-[var(--accent-lime)] text-[var(--bg-primary)]'
-              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-          }`}
-          title="1 semaine (5 jours)"
-        >
-          1 sem.
-        </button>
-        <button
-          type="button"
-          onClick={() => !compactWeeks && setCompactWeeks(true)}
-          className={`flex-1 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide rounded-md transition-all ${
-            compactWeeks
-              ? 'bg-[var(--accent-lime)] text-[var(--bg-primary)]'
-              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-          }`}
-          title="2 semaines (10 jours)"
-        >
-          2 sem.
-        </button>
-      </div>
-
       {/* Header Todo du jour */}
       <div className="flex items-center gap-1.5 mb-2.5 flex-shrink-0">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-lime)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

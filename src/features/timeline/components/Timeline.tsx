@@ -94,6 +94,18 @@ export function Timeline({ className }: TimelineProps) {
   const skipClickAfterDragRef = useRef<string | null>(null);
 
   const compactWeeks = useAppStore((s) => s.compactWeeks);
+  const setCompactWeeks = useAppStore((s) => s.setCompactWeeks);
+
+  // Initialiser compactWeeks depuis localStorage
+  const setCompactWeeksRef = useRef(setCompactWeeks);
+  setCompactWeeksRef.current = setCompactWeeks;
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('yam-timeline-compact') === 'true') {
+        setCompactWeeksRef.current(true);
+      }
+    } catch (_) {}
+  }, []);
 
   const setJustLanded = useCallback((id: string) => {
     setLastDroppedId(id);
@@ -463,19 +475,21 @@ export function Timeline({ className }: TimelineProps) {
 
               // Calculate needed height for backlog based on items count
               const backlogHeightNeeded = BACKLOG_HEADER_HEIGHT + (backlogItemsCount * ESTIMATED_CARD_HEIGHT);
-              const maxBacklogHeight = availableHeight * 0.5;
-              const backlogHeight = Math.min(backlogHeightNeeded, maxBacklogHeight);
+              const minBacklogHeight = availableHeight * 0.25; // Minimum 25%
+              const maxBacklogHeight = availableHeight * 0.5;  // Maximum 50%
 
-              // DayZone takes the rest, but minimum 50%
-              const minDayZoneHeight = availableHeight * 0.5;
-              const dayZoneHeight = Math.max(minDayZoneHeight, availableHeight - backlogHeight);
+              // Backlog height between 25% and 50%, dynamic based on content
+              const backlogHeight = Math.min(Math.max(backlogHeightNeeded, minBacklogHeight), maxBacklogHeight);
+
+              // DayZone takes the rest (between 50% and 75%)
+              const dayZoneHeight = availableHeight - backlogHeight;
 
               return (
                 <div
                   className="flex flex-col flex-shrink-0 border-r-2 border-[var(--border-subtle)] bg-[var(--bg-primary)] sticky left-0 z-30"
                   style={{ width: TODO_COLUMN_WIDTH, height: availableHeight }}
                 >
-                  {/* DayTodo Zone - always at least 50% */}
+                  {/* DayTodo Zone - takes remaining space (50-75%) */}
                   <div
                     className="flex-shrink-0 overflow-y-auto"
                     style={{ height: dayZoneHeight }}
@@ -483,15 +497,13 @@ export function Timeline({ className }: TimelineProps) {
                     <DayTodoZone />
                   </div>
 
-                  {/* Backlog Sidebar - max 50%, dynamic based on content */}
-                  {backlogItemsCount > 0 && (
-                    <div
-                      className="flex-shrink-0 border-t-2 border-[var(--border-subtle)] overflow-hidden"
-                      style={{ height: backlogHeight }}
-                    >
-                      <BacklogSidebar />
-                    </div>
-                  )}
+                  {/* Backlog Sidebar - always visible, 25-50% height */}
+                  <div
+                    className="flex-shrink-0 border-t-2 border-[var(--border-subtle)] overflow-hidden"
+                    style={{ height: backlogHeight }}
+                  >
+                    <BacklogSidebar />
+                  </div>
                 </div>
               );
             })()}
@@ -501,8 +513,42 @@ export function Timeline({ className }: TimelineProps) {
               className="flex-shrink-0 border-r border-[var(--border-subtle)] bg-[var(--bg-primary)]/95 backdrop-blur-sm sticky z-20 flex flex-col"
               style={{ width: HOURS_COLUMN_WIDTH, left: effectiveTodoColumnWidth, height: TOTAL_HEADER_HEIGHT + totalHeight + GRID_PADDING_TOP + BOTTOM_SPACER }}
             >
-              <div style={{ height: MONTH_ROW_HEIGHT }} className="border-b border-[var(--border-subtle)] flex-shrink-0" />
-              <div style={{ height: HEADER_HEIGHT }} className="border-b border-[var(--border-subtle)] flex-shrink-0" />
+              {/* Toggle I / II dans le header de la colonne horaires */}
+              <div 
+                style={{ height: MONTH_ROW_HEIGHT + HEADER_HEIGHT }} 
+                className="border-b border-[var(--border-subtle)] flex-shrink-0 flex items-center justify-center"
+              >
+                <div
+                  role="group"
+                  aria-label="Affichage : 1 ou 2 semaines"
+                  className="flex rounded-full border border-[var(--border-subtle)] bg-[var(--bg-secondary)]/60 p-0.5"
+                >
+                  <button
+                    type="button"
+                    onClick={() => compactWeeks && setCompactWeeks(false)}
+                    className={`w-7 h-7 text-sm font-bold rounded-full transition-all ${
+                      !compactWeeks
+                        ? 'bg-[var(--accent-lime)] text-[var(--bg-primary)]'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
+                    title="1 semaine (5 jours)"
+                  >
+                    I
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => !compactWeeks && setCompactWeeks(true)}
+                    className={`w-7 h-7 text-sm font-bold rounded-full transition-all ${
+                      compactWeeks
+                        ? 'bg-[var(--accent-lime)] text-[var(--bg-primary)]'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
+                    title="2 semaines (10 jours)"
+                  >
+                    II
+                  </button>
+                </div>
+              </div>
               <div className="relative flex-shrink-0" style={{ height: totalHeight + GRID_PADDING_TOP }}>
                 {/* Bande 12h–14h : pause déjeuner */}
                 {LUNCH_START_HOUR >= START_HOUR && LUNCH_START_HOUR + 1 < END_HOUR && (
