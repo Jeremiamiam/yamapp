@@ -481,15 +481,13 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
 
   return (
     <div className={['flex flex-col overflow-hidden h-full w-full', className].filter(Boolean).join(' ')}>
-      {/* Mobile: vue mono-jour avec swipe */}
-      {isMobile ? (
-        <div className="flex-1 flex flex-col min-h-0 relative z-10">
-          <TimelineMobileDayView />
-        </div>
-      ) : (
-      <>
-      {/* Timeline Content - Desktop */}
-      <div className="flex-1 flex overflow-hidden relative z-10">
+      {/* Mobile: vue mono-jour avec swipe — visible uniquement < 768px via CSS (pas de flash JS) */}
+      <div className="flex-1 flex flex-col min-h-0 relative z-10 md:hidden">
+        <TimelineMobileDayView />
+      </div>
+
+      {/* Timeline Content - Desktop — visible uniquement >= 768px */}
+      <div className="flex-1 flex overflow-hidden relative z-10 hidden md:flex">
         {/* Scrollable timeline : horaires + colonnes jours scrollent ensemble en Y ; en X la colonne horaires reste fixe (sticky) */}
         <div
           ref={scrollContainerRef}
@@ -861,8 +859,7 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
           </>
         );
       })()}
-      </>
-      )}
+      </div>
 
     </div>
   );

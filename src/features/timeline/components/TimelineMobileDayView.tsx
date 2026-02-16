@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@/lib/store';
 import { formatDateLong } from '@/lib/date-utils';
-import { useFilteredTimeline, useModal, useIsMobile } from '@/hooks';
+import { useFilteredTimeline, useModal } from '@/hooks';
 import { TimelineCard, TimelineCardItem } from './TimelineCard';
 
 const HEADER_HEIGHT = 44;
@@ -35,7 +35,6 @@ function addDays(date: Date, n: number): Date {
 }
 
 export function TimelineMobileDayView() {
-  const isMobile = useIsMobile();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
@@ -212,8 +211,6 @@ export function TimelineMobileDayView() {
     ? Math.max(MIN_HOUR_HEIGHT, Math.floor(gridHeight / (END_HOUR - START_HOUR + 1)))
     : MIN_HOUR_HEIGHT;
   const totalHeight = (END_HOUR - START_HOUR + 1) * hourHeight;
-
-  if (!isMobile) return null;
 
   return (
     <div

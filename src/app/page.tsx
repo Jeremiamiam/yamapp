@@ -191,14 +191,13 @@ export default function Home() {
           {renderView(currentView)}
         </div>
 
-        {/* Mobile: FABs superposés pour gagner de la place */}
-        {isMobile && (
-          <>
-            {/* FAB Backlog (dessous, légèrement à gauche) */}
+        {/* Mobile: FABs superposés — visible uniquement < 768px via CSS */}
+        <div className="fixed bottom-4 right-4 z-[55] md:hidden flex items-end justify-end gap-0">
+            {/* FAB Backlog (dessous) */}
             <button
               type="button"
               onClick={() => setBacklogDrawerOpen(true)}
-              className="fixed bottom-4 right-4 z-[55] w-14 h-14 rounded-full bg-[var(--accent-violet)] text-[var(--bg-primary)] shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center touch-manipulation"
+              className="w-14 h-14 rounded-full bg-[var(--accent-violet)] text-[var(--bg-primary)] shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center touch-manipulation"
               aria-label="Ouvrir À planifier"
             >
               {BACKLOG_FAB_ICON}
@@ -207,21 +206,20 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setTodoDrawerOpen(true)}
-              className="fixed bottom-6 right-12 z-[56] w-14 h-14 rounded-full bg-[var(--accent-lime)] text-[var(--bg-primary)] shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center touch-manipulation"
+              className="absolute bottom-2 right-12 w-14 h-14 rounded-full bg-[var(--accent-lime)] text-[var(--bg-primary)] shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center touch-manipulation"
               aria-label="Ouvrir Todo du jour"
             >
               {TODO_FAB_ICON}
             </button>
-            <DayTodoDrawer
-              isOpen={todoDrawerOpen}
-              onClose={() => setTodoDrawerOpen(false)}
-            />
-            <BacklogDrawer
-              isOpen={backlogDrawerOpen}
-              onClose={() => setBacklogDrawerOpen(false)}
-            />
-          </>
-        )}
+          </div>
+          <DayTodoDrawer
+            isOpen={todoDrawerOpen}
+            onClose={() => setTodoDrawerOpen(false)}
+          />
+          <BacklogDrawer
+            isOpen={backlogDrawerOpen}
+            onClose={() => setBacklogDrawerOpen(false)}
+          />
       </div>
       <DocumentModal />
       <ModalManager />

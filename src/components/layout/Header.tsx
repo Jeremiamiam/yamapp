@@ -100,8 +100,8 @@ export function Header() {
           </h1>
         </div>
         
-        {/* Filters équipe */}
-        <div className="flex-1 min-w-0">
+        {/* Filters équipe — masqués sur smartphone (< 768px) pour gagner de la place */}
+        <div className="flex-1 min-w-0 hidden md:block">
           {currentView === 'timeline' && (
             <TimelineFilters />
           )}
