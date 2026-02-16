@@ -85,7 +85,7 @@ export function DayTodoZone() {
   };
 
   return (
-    <div className="relative px-2.5 py-3 h-full flex flex-col">
+    <div className="relative px-2.5 py-3 h-full flex flex-col overflow-hidden">
       {/* Header Todo du jour */}
       <div className="flex items-center gap-1.5 mb-2.5 flex-shrink-0">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-lime)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -104,43 +104,43 @@ export function DayTodoZone() {
         )}
       </div>
 
-      {/* Add section - always visible with scroll picker */}
-      <div className="flex-shrink-0 mb-3">
-        <div className="flex items-center gap-1.5">
-          {/* Input */}
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Nouvelle todo…"
-            className="flex-1 px-2.5 py-2 text-sm rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-primary)]/80 text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-lime)]/50"
-          />
+{/* Add section - always visible with scroll picker */}
+        <div className="flex-shrink-0 mb-3">
+          <div className="flex items-center gap-1">
+            {/* Input */}
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Todo…"
+              className="flex-1 min-w-0 px-2 py-1.5 text-sm rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-primary)]/80 text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-lime)]/50"
+            />
 
-          {/* Assignee selector with dropdown */}
-          {team.length > 0 && (
-            <div className="relative flex-shrink-0">
-              <button
-                type="button"
-                onClick={handleToggleMenu}
-                className="w-9 h-9 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-secondary)]/60 flex items-center justify-center cursor-pointer select-none overflow-hidden relative hover:border-[var(--accent-lime)]/50 hover:scale-105 active:scale-95 transition-all"
-                title={`${team[selectedAssigneeIndex]?.name || ''}`}
-              >
-                <div
-                  className="transition-all duration-200 ease-out"
-                  style={{
-                    backgroundColor: team[selectedAssigneeIndex]?.color || '#84cc16',
-                    color: '#000',
-                    width: '28px',
-                    height: '28px',
+            {/* Assignee selector with dropdown */}
+            {team.length > 0 && (
+              <div className="relative flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleToggleMenu}
+                  className="w-7 h-7 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-secondary)]/60 flex items-center justify-center cursor-pointer select-none overflow-hidden relative hover:border-[var(--accent-lime)]/50 hover:scale-105 active:scale-95 transition-all"
+                  title={`${team[selectedAssigneeIndex]?.name || ''}`}
+                >
+                  <div
+                    className="transition-all duration-200 ease-out"
+                    style={{
+                      backgroundColor: team[selectedAssigneeIndex]?.color || '#84cc16',
+                      color: '#000',
+                    width: '20px',
+                    height: '20px',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '11px',
+                    fontSize: '9px',
                     fontWeight: '700',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                   }}
                 >
                   {team[selectedAssigneeIndex]?.initials || '?'}
@@ -151,7 +151,7 @@ export function DayTodoZone() {
               {menuOpen && (
                 <div
                   ref={menuRef}
-                  className="absolute right-0 top-10 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg shadow-xl overflow-hidden z-50 py-1"
+                  className="absolute right-0 top-8 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg shadow-xl overflow-hidden z-50 py-1"
                   style={{ minWidth: '120px', maxHeight: '240px', overflowY: 'auto' }}
                 >
                   {team.map((member, index) => (

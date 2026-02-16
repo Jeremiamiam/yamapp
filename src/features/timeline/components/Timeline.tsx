@@ -25,8 +25,8 @@ const WEEKEND_RATIO = 0.12;
 const GRID_PADDING_TOP = 12; // Espace au-dessus de la ligne 8h
 /** Espace en bas de la grille pour que les cartes 19h ne touchent pas le bord du navigateur (pas de scroll vertical) */
 const BOTTOM_SPACER = 80;
-/** Largeur réservée à droite pour la carte backlog (w-72 + marges) — 5 jours ouvrés doivent tenir dans la zone visible à gauche */
-const BACKLOG_OVERLAY_WIDTH = 240;
+/** Largeur réservée à droite (backlog maintenant à gauche, donc 0) */
+const BACKLOG_OVERLAY_WIDTH = 0;
 
 /** Snap minutes to 0 or 30 */
 function snapTo30Min(date: Date): Date {
@@ -510,44 +510,40 @@ export function Timeline({ className }: TimelineProps) {
 
             {/* Colonne horaires : sticky après la colonne todo (ou à gauche sur mobile) ; spacer en bas */}
             <div
-              className="flex-shrink-0 border-r border-[var(--border-subtle)] bg-[var(--bg-primary)]/95 backdrop-blur-sm sticky z-20 flex flex-col"
+              className="flex-shrink-0 border-r border-[var(--border-subtle)] bg-[var(--bg-primary)]/95 backdrop-blur-sm sticky z-30 flex flex-col"
               style={{ width: HOURS_COLUMN_WIDTH, left: effectiveTodoColumnWidth, height: TOTAL_HEADER_HEIGHT + totalHeight + GRID_PADDING_TOP + BOTTOM_SPACER }}
             >
-              {/* Toggle I / II dans le header de la colonne horaires */}
+              {/* Toggle I / II dans le header de la colonne horaires — layout vertical */}
               <div 
                 style={{ height: MONTH_ROW_HEIGHT + HEADER_HEIGHT }} 
                 className="border-b border-[var(--border-subtle)] flex-shrink-0 flex items-center justify-center"
               >
-                <div
-                  role="group"
-                  aria-label="Affichage : 1 ou 2 semaines"
-                  className="flex rounded-full border border-[var(--border-subtle)] bg-[var(--bg-secondary)]/60 p-0.5"
+                <button
+                  type="button"
+                  onClick={() => setCompactWeeks(!compactWeeks)}
+                  aria-label={compactWeeks ? "Passer à 1 semaine" : "Passer à 2 semaines"}
+                  title={compactWeeks ? "Passer à 1 semaine" : "Passer à 2 semaines"}
+                  className="flex flex-col gap-0.5 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-secondary)]/60 p-1 cursor-pointer hover:border-[var(--accent-lime)]/50 transition-all"
                 >
-                  <button
-                    type="button"
-                    onClick={() => compactWeeks && setCompactWeeks(false)}
-                    className={`w-7 h-7 text-sm font-bold rounded-full transition-all ${
+                  <span
+                    className={`w-6 h-6 text-xs font-bold rounded-full transition-all flex items-center justify-center ${
                       !compactWeeks
                         ? 'bg-[var(--accent-lime)] text-[var(--bg-primary)]'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        : 'text-[var(--text-muted)]'
                     }`}
-                    title="1 semaine (5 jours)"
                   >
                     I
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => !compactWeeks && setCompactWeeks(true)}
-                    className={`w-7 h-7 text-sm font-bold rounded-full transition-all ${
+                  </span>
+                  <span
+                    className={`w-6 h-6 text-xs font-bold rounded-full transition-all flex items-center justify-center ${
                       compactWeeks
                         ? 'bg-[var(--accent-lime)] text-[var(--bg-primary)]'
-                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        : 'text-[var(--text-muted)]'
                     }`}
-                    title="2 semaines (10 jours)"
                   >
                     II
-                  </button>
-                </div>
+                  </span>
+                </button>
               </div>
               <div className="relative flex-shrink-0" style={{ height: totalHeight + GRID_PADDING_TOP }}>
                 {/* Bande 12h–14h : pause déjeuner */}
@@ -663,11 +659,6 @@ export function Timeline({ className }: TimelineProps) {
                   >
                     {!d.isWeekend && (
                       <>
-                        {showMonth && (
-                          <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
-                            {d.date.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')}
-                          </span>
-                        )}
                         <span className={`text-lg font-bold ${
                           today 
                             ? 'text-[var(--bg-primary)] bg-[var(--accent-lime)] rounded-full w-8 h-8 flex items-center justify-center' 
