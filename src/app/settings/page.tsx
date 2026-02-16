@@ -59,7 +59,12 @@ export default function SettingsPage() {
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      setUsers(data as UserRoleRow[]);
+      // Normalize: Supabase returns team as array, but we expect single object
+      const normalized = data.map((row: any) => ({
+        ...row,
+        team: Array.isArray(row.team) ? (row.team[0] ?? null) : row.team,
+      }));
+      setUsers(normalized as UserRoleRow[]);
     }
     setLoading(false);
   }
