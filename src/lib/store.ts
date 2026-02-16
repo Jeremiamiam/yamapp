@@ -645,7 +645,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Reload history for this deliverable
       await get().loadBillingHistory(id);
     } catch (e) {
-      const message = e && typeof e === 'object' && 'message' in e ? e.message : String(e);
+      const message = e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e);
       console.error('updateDeliverableBillingStatus error:', e);
       handleError(new AppError(message, 'BILLING_UPDATE_FAILED', "Impossible de modifier le statut de facturation"));
     }
@@ -672,7 +672,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Reload history
       await get().loadBillingHistory(deliverableId);
     } catch (e) {
-      const message = e && typeof e === 'object' && 'message' in e ? e.message : String(e);
+      const message = e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e);
       console.error('updateBillingHistoryEntry error:', e);
       handleError(new AppError(message, 'BILLING_HISTORY_UPDATE_FAILED', "Impossible de modifier l'entrée d'historique"));
     }
@@ -764,7 +764,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Reload history
       await get().loadBillingHistory(deliverableId);
     } catch (e) {
-      const message = e && typeof e === 'object' && 'message' in e ? e.message : String(e);
+      const message = e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e);
       console.error('deleteBillingHistoryEntry error:', e);
       handleError(new AppError(message, 'BILLING_HISTORY_DELETE_FAILED', "Impossible de supprimer l'entrée d'historique"));
     }
@@ -791,7 +791,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         return { billingHistory: newMap };
       });
     } catch (e) {
-      const message = e && typeof e === 'object' && 'message' in e ? e.message : String(e);
+      const message = e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e);
       console.error('loadBillingHistory error:', e);
       handleError(new AppError(message, 'BILLING_HISTORY_LOAD_FAILED', "Impossible de charger l'historique de facturation"));
     }
