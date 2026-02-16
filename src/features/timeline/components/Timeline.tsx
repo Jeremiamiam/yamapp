@@ -6,7 +6,7 @@ import { useAppStore } from '@/lib/store';
 import { formatHeaderDate } from '@/lib/date-utils';
 import { useFilteredTimeline, useModal, useIsMobile } from '@/hooks';
 import { TimelineCard, TimelineCardItem } from './TimelineCard';
-import { BACKLOG_DRAG_TYPE } from './BacklogSidebar';
+import { BACKLOG_DRAG_TYPE, BacklogSidebar } from './BacklogSidebar';
 import { DayTodoZone, TODO_DRAG_TYPE } from './DayTodoZone';
 import { DayTodoDrawer } from './DayTodoDrawer';
 
@@ -52,7 +52,7 @@ export function Timeline({ className }: TimelineProps) {
   const isMobile = useIsMobile();
   const [dayTodoDrawerOpen, setDayTodoDrawerOpen] = useState(false);
   const { filteredDeliverables, filteredCalls } = useFilteredTimeline();
-  const { timelineRange, navigateToClient, getClientById, getTeamMemberById, updateDeliverable, updateCall, dayTodos, updateDayTodo, filters } = useAppStore(
+  const { timelineRange, navigateToClient, getClientById, getTeamMemberById, updateDeliverable, updateCall, dayTodos, updateDayTodo, filters, getBacklogDeliverables, getBacklogCalls } = useAppStore(
     useShallow((s) => ({
       timelineRange: s.timelineRange,
       navigateToClient: s.navigateToClient,
@@ -63,8 +63,15 @@ export function Timeline({ className }: TimelineProps) {
       dayTodos: s.dayTodos,
       updateDayTodo: s.updateDayTodo,
       filters: s.filters,
+      getBacklogDeliverables: s.getBacklogDeliverables,
+      getBacklogCalls: s.getBacklogCalls,
     }))
   );
+
+  // Calculate backlog items for dynamic height
+  const backlogDeliverables = getBacklogDeliverables();
+  const backlogCalls = getBacklogCalls();
+  const backlogItemsCount = backlogDeliverables.length + backlogCalls.length;
   const scheduledTodos = useMemo(
     () => dayTodos.filter(t => {
       if (t.done || !t.scheduledAt) return false;
@@ -448,18 +455,46 @@ export function Timeline({ className }: TimelineProps) {
           style={{ transform: 'translateZ(0)' }}
         >
           <div className="flex flex-row min-h-0" style={{ width: totalWidth + HOURS_COLUMN_WIDTH + effectiveTodoColumnWidth, transform: 'translateZ(0)' }}>
-            {/* Colonne todo : desktop only ; sur mobile → drawer */}
-            {!isMobile && (
-              <div
-                className="flex flex-col flex-shrink-0 border-r-2 border-[var(--border-subtle)] bg-[var(--bg-primary)] sticky left-0 z-30 overflow-y-auto"
-                style={{ width: TODO_COLUMN_WIDTH, height: TOTAL_HEADER_HEIGHT + totalHeight + GRID_PADDING_TOP + BOTTOM_SPACER }}
-              >
-                <div className="flex-1 min-h-0">
-                  <DayTodoZone />
+            {/* Colonne gauche : DayTodoZone + BacklogSidebar (desktop only ; sur mobile → drawer) */}
+            {!isMobile && (() => {
+              const ESTIMATED_CARD_HEIGHT = 72; // Hauteur estimée d'une carte backlog
+              const BACKLOG_HEADER_HEIGHT = 48; // Hauteur du header du backlog
+              const availableHeight = TOTAL_HEADER_HEIGHT + totalHeight + GRID_PADDING_TOP + BOTTOM_SPACER;
+
+              // Calculate needed height for backlog based on items count
+              const backlogHeightNeeded = BACKLOG_HEADER_HEIGHT + (backlogItemsCount * ESTIMATED_CARD_HEIGHT);
+              const maxBacklogHeight = availableHeight * 0.5;
+              const backlogHeight = Math.min(backlogHeightNeeded, maxBacklogHeight);
+
+              // DayZone takes the rest, but minimum 50%
+              const minDayZoneHeight = availableHeight * 0.5;
+              const dayZoneHeight = Math.max(minDayZoneHeight, availableHeight - backlogHeight);
+
+              return (
+                <div
+                  className="flex flex-col flex-shrink-0 border-r-2 border-[var(--border-subtle)] bg-[var(--bg-primary)] sticky left-0 z-30"
+                  style={{ width: TODO_COLUMN_WIDTH, height: availableHeight }}
+                >
+                  {/* DayTodo Zone - always at least 50% */}
+                  <div
+                    className="flex-shrink-0 overflow-y-auto"
+                    style={{ height: dayZoneHeight }}
+                  >
+                    <DayTodoZone />
+                  </div>
+
+                  {/* Backlog Sidebar - max 50%, dynamic based on content */}
+                  {backlogItemsCount > 0 && (
+                    <div
+                      className="flex-shrink-0 border-t-2 border-[var(--border-subtle)] overflow-hidden"
+                      style={{ height: backlogHeight }}
+                    >
+                      <BacklogSidebar />
+                    </div>
+                  )}
                 </div>
-                <div aria-hidden className="flex-shrink-0 bg-[var(--bg-primary)]" style={{ height: BOTTOM_SPACER }} />
-              </div>
-            )}
+              );
+            })()}
 
             {/* Colonne horaires : sticky après la colonne todo (ou à gauche sur mobile) ; spacer en bas */}
             <div
@@ -653,16 +688,17 @@ export function Timeline({ className }: TimelineProps) {
                     {!d.isWeekend && items.map((item, itemIndex) => {
                       const top = GRID_PADDING_TOP + ((item.hour - START_HOUR) + item.minutes / 60) * hourHeight + 4;
                       const handleCardClick = () => {
-                        if (item.clientId) {
-                          navigateToClient(item.clientId);
-                        } else {
-                          if (item.type === 'deliverable') {
-                            const deliverable = filteredDeliverables.find(x => x.id === item.id);
-                            if (deliverable) openDeliverableModal(deliverable.clientId, deliverable);
-                          } else {
-                            const call = filteredCalls.find(x => x.id === item.id);
-                            if (call) openCallModal(call.clientId, call);
-                          }
+                        // Ouvrir directement la modale du livrable/appel
+                        if (item.type === 'deliverable') {
+                          const deliverable = filteredDeliverables.find(x => x.id === item.id);
+                          if (deliverable) openDeliverableModal(deliverable.clientId, deliverable);
+                        } else if (item.type === 'call') {
+                          const call = filteredCalls.find(x => x.id === item.id);
+                          if (call) openCallModal(call.clientId, call);
+                        } else if (item.type === 'todo') {
+                          // Pour les todos, on pourrait ouvrir une modale todo si elle existe
+                          // Pour l'instant, on ne fait rien ou on navigue vers le client
+                          if (item.clientId) navigateToClient(item.clientId);
                         }
                       };
                       return (

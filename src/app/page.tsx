@@ -91,14 +91,6 @@ export default function Home() {
         {currentView === 'timeline' && (
           <div className="flex-1 relative min-h-0">
             <Timeline className="absolute inset-0" />
-            {/* Desktop: sidebar fixe à droite */}
-            {!isMobile && (
-              <div className="absolute top-4 right-4 bottom-4 z-20 w-60 pointer-events-none">
-                <div className="h-full w-full pointer-events-auto">
-                  <BacklogSidebar />
-                </div>
-              </div>
-            )}
             {/* Mobile: FAB + drawer */}
             {isMobile && (
               <>
