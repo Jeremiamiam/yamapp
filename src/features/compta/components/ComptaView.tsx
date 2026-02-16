@@ -4,11 +4,40 @@ import React, { useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useModal } from '@/hooks';
 import { useUserRole } from '@/hooks/useUserRole';
-import type { Deliverable } from '@/types';
+import type { Deliverable, BillingStatus } from '@/types';
 import { YearSelector } from './YearSelector';
 
 const formatEur = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+
+const BILLING_STATUS_CONFIG: Record<BillingStatus, { label: string; color: string; bgColor: string }> = {
+  'pending': { label: 'En attente', color: 'var(--text-muted)', bgColor: 'var(--bg-tertiary)' },
+  'deposit': { label: 'Acompte', color: 'var(--accent-cyan)', bgColor: 'var(--accent-cyan)/10' },
+  'progress': { label: 'Avancement', color: 'var(--accent-lime)', bgColor: 'var(--accent-lime)/10' },
+  'balance': { label: 'Soldé', color: '#22c55e', bgColor: '#22c55e/10' },
+};
+
+const BillingStatusChip = ({ status }: { status: BillingStatus }) => {
+  const config = BILLING_STATUS_CONFIG[status];
+
+  // Fallback for old or undefined status values
+  if (!config) {
+    return (
+      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
+        {status || 'N/A'}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="text-xs px-2 py-0.5 rounded-full font-medium"
+      style={{ color: config.color, backgroundColor: config.bgColor }}
+    >
+      {config.label}
+    </span>
+  );
+};
 
 type FilterMode = 'all' | 'with-validated' | 'with-potential';
 
@@ -382,7 +411,10 @@ export function ComptaView() {
                                         onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
                                         className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] text-sm cursor-pointer hover:border-[var(--accent-violet)]/50 hover:bg-[var(--bg-tertiary)]/30 transition-colors"
                                       >
-                                        <span className="text-[var(--text-primary)]">{d.name}</span>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <span className="text-[var(--text-primary)] truncate">{d.name}</span>
+                                          <BillingStatusChip status={d.billingStatus} />
+                                        </div>
                                         <div className="flex items-center gap-4 shrink-0 text-xs">
                                           <span className="text-[#22c55e]">{formatEur(d.prixFacturé ?? 0)}</span>
                                           {(d.coutSousTraitance ?? 0) > 0 && (
@@ -408,11 +440,9 @@ export function ComptaView() {
                                         onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
                                         className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] text-sm cursor-pointer hover:border-[var(--accent-violet)]/50 hover:bg-[var(--bg-tertiary)]/30 transition-colors"
                                       >
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-[var(--text-primary)]">{d.name}</span>
-                                          <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
-                                            {d.status === 'pending' ? 'à venir' : 'en cours'}
-                                          </span>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <span className="text-[var(--text-primary)] truncate">{d.name}</span>
+                                          <BillingStatusChip status={d.billingStatus} />
                                         </div>
                                         <span className="text-amber-600 dark:text-amber-400 shrink-0 text-xs">
                                           {formatEur(d.prixFacturé ?? 0)}

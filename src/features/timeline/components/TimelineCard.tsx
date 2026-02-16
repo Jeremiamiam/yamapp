@@ -3,13 +3,6 @@
 import { memo, useRef, useCallback } from 'react';
 import { Deliverable, TeamMember } from '@/types';
 
-// Délai d'animation stable par id
-function stableDelay(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h << 5) - h + id.charCodeAt(i);
-  return (Math.abs(h) % 25) * 0.01; // 0 à 0.24s
-}
-
 // Icons
 const PhoneIcon = () => (
   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -41,15 +34,9 @@ const ClockIcon = () => (
   </svg>
 );
 
-const GripIcon = () => (
-  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h.01M20 8h.01M4 16h.01M20 16h.01M4 12h16" />
-  </svg>
-);
-
 export interface TimelineCardItem {
   id: string;
-  type: 'deliverable' | 'call';
+  type: 'deliverable' | 'call' | 'todo';
   clientId: string;
   clientName: string;
   clientStatus: 'client' | 'prospect';
@@ -57,14 +44,15 @@ export interface TimelineCardItem {
   time: string;
   status?: Deliverable['status'];
   assignee?: TeamMember;
-  deliverableType?: 'creative' | 'document' | 'other'; // Added
-  isPresentation?: boolean; // Added
+  deliverableType?: 'creative' | 'document' | 'other';
+  isPresentation?: boolean;
+  isTodo?: boolean; // For visual distinction
 }
 
 type GetDropTargetFn = (clientX: number, clientY: number) => { date: Date; hour: number; minutes: number } | null;
-type OnMoveFn = (itemId: string, type: 'deliverable' | 'call', newDate: Date) => void;
+type OnMoveFn = (itemId: string, type: 'deliverable' | 'call' | 'todo', newDate: Date) => void;
 type DragItem = TimelineCardItem & { hour?: number; minutes?: number };
-type OnDragStartFn = (item: DragItem, type: 'deliverable' | 'call', x: number, y: number) => void;
+type OnDragStartFn = (item: DragItem, type: 'deliverable' | 'call' | 'todo', x: number, y: number) => void;
 
 interface TimelineCardProps {
   item: TimelineCardItem;
@@ -79,6 +67,10 @@ interface TimelineCardProps {
   skipClickAfterDragRef?: React.MutableRefObject<string | null>;
   isGhost?: boolean;
   isDragging?: boolean;
+  /** True juste après un drop : courte animation "atterrissage" */
+  justLanded?: boolean;
+  /** Mode compact (2 semaines): affichage ultra-condensé */
+  compact?: boolean;
 }
 
 const DRAG_THRESHOLD_PX = 5;
@@ -95,6 +87,8 @@ function TimelineCardInner({
   skipClickAfterDragRef,
   isGhost = false,
   isDragging = false,
+  justLanded = false,
+  compact = false,
 }: TimelineCardProps) {
   const isCall = item.type === 'call';
   const isCompleted = item.status === 'completed';
@@ -159,9 +153,110 @@ function TimelineCardInner({
     onClick?.();
   }, [onClick, skipClickAfterDragRef, item.id]);
 
+  // MINI-CARD POUR LES TODOS
+  if (item.type === 'todo') {
+    const todoColor = item.assignee?.color || '#84cc16'; // Lime fallback
+    const todoColorDark = item.assignee?.color
+      ? `color-mix(in srgb, ${item.assignee.color} 80%, #000 20%)`
+      : '#65a30d';
+
+    // Version compacte pour todos — harmonisée avec les cards event compactes
+    if (compact) {
+      const todoBorder = (alpha: number) => {
+        if (todoColor.startsWith('#')) {
+          const r = parseInt(todoColor.slice(1, 3), 16);
+          const g = parseInt(todoColor.slice(3, 5), 16);
+          const b = parseInt(todoColor.slice(5, 7), 16);
+          return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+        return todoColor;
+      };
+      return (
+        <div
+          className={`rounded-lg overflow-hidden group transition-all duration-150
+            ${isGhost
+              ? 'opacity-95 scale-105 z-50 cursor-grabbing shadow-lg'
+              : isDragging
+                ? 'opacity-0 pointer-events-none'
+                : `absolute left-1 right-1 cursor-pointer z-10 hover:z-20 ${justLanded ? 'animate-card-land' : ''}`}`}
+          style={{
+            background: `linear-gradient(135deg, ${todoColor} 0%, ${todoColorDark} 100%)`,
+            border: `1.5px solid ${todoBorder(0.55)}`,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+            ...(isGhost ? {} : { top })
+          }}
+          onClick={isGhost ? undefined : handleCardClick}
+          onMouseEnter={isGhost ? undefined : (e) => {
+            const el = e.currentTarget;
+            el.style.borderColor = todoColor;
+          }}
+          onMouseLeave={isGhost ? undefined : (e) => {
+            const el = e.currentTarget;
+            el.style.borderColor = todoBorder(0.55);
+          }}
+        >
+          {/* Barre : "Todo" à gauche, heure à droite (zone de drag) */}
+          <div
+            className={`flex items-center justify-between px-2 py-0.5 border-b border-black/10 ${!isGhost && getDropTarget && onMove ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            onMouseDown={!isGhost && getDropTarget && onMove ? handleHandleMouseDown : undefined}
+            onClick={!isGhost ? (e) => e.stopPropagation() : undefined}
+            role={!isGhost && getDropTarget && onMove ? 'button' : undefined}
+            aria-label={!isGhost && getDropTarget && onMove ? 'Déplacer' : undefined}
+          >
+            <span className="text-[11px] font-semibold text-zinc-800 truncate">{'Todo'}</span>
+            <span className="text-[11px] font-semibold font-mono text-zinc-800 tabular-nums flex-shrink-0 ml-1">{item.time}</span>
+          </div>
+          {/* Contenu : tout ferré à gauche, label seul (pas de client pour les todos) */}
+          <div className="px-2 py-1.5 flex flex-col items-stretch gap-0.5 text-left">
+            <span className="text-xs font-semibold text-zinc-900 truncate leading-tight">
+              {item.label}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    // Version normale pour todos — barre "Todo" + heure, puis contenu
+    return (
+      <div
+        className={`rounded-lg overflow-hidden transition-all duration-200
+          ${isGhost
+            ? 'opacity-95 scale-105 z-50 cursor-grabbing'
+            : isDragging
+              ? 'opacity-0 pointer-events-none'
+              : `absolute left-2 right-2 z-10 hover:z-20 ${justLanded ? 'animate-card-land' : ''}`}`}
+        style={{
+          background: `linear-gradient(135deg, ${todoColor} 0%, ${todoColorDark} 100%)`,
+          border: `1px solid ${todoColor}40`,
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          ...(isGhost ? {} : { top })
+        }}
+      >
+        {/* Barre : "Todo" à gauche, heure à droite (zone de drag) */}
+        <div
+          className={`flex items-center justify-between px-2.5 py-1 border-b border-black/10 ${!isGhost && getDropTarget && onMove ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
+          onMouseDown={!isGhost && getDropTarget && onMove ? handleHandleMouseDown : undefined}
+          onClick={!isGhost && !getDropTarget ? handleCardClick : (e) => e.stopPropagation()}
+          role={!isGhost && getDropTarget && onMove ? 'button' : undefined}
+          aria-label={!isGhost && getDropTarget && onMove ? 'Déplacer' : undefined}
+        >
+          <span className="text-xs font-semibold text-zinc-800 truncate">{'Todo'}</span>
+          <span className="text-xs font-semibold font-mono text-zinc-800 tabular-nums flex-shrink-0">{item.time}</span>
+        </div>
+        <div className="px-2.5 py-2 flex items-center gap-2">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+            <path d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v0z" />
+          </svg>
+          <span className="text-xs font-medium text-zinc-900 flex-1 min-w-0 truncate">{item.label}</span>
+        </div>
+      </div>
+    );
+  }
+
   // COULEURS BASÉES SUR LE MEMBRE (ASSIGNEE)
   const assigneeColor = item.assignee?.color || '#52525b'; // Zinc-600 fallback
-  
+
   // Conversion hex -> rgba
   const hexToRgba = (hex: string, alpha: number) => {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -170,37 +265,84 @@ function TimelineCardInner({
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
-  // STYLE 2026: Border fine + Glow subtil + Fond sombre clean
+  // MODE COMPACT (2 SEMAINES) — Tout à gauche, client en entier, livrable indiqué, pas de picto
+  if (compact) {
+    const style = {
+      bg: `linear-gradient(145deg, ${hexToRgba('#18181b', 1)}, ${hexToRgba('#09090b', 1)})`,
+      border: `1.5px solid ${hexToRgba(assigneeColor, 0.55)}`,
+      hoverBorder: `1.5px solid ${assigneeColor}`,
+      accent: assigneeColor,
+    };
+
+    return (
+      <div
+        className={`rounded-lg overflow-hidden group transition-all duration-150
+          ${isGhost
+            ? 'opacity-95 scale-105 z-50 cursor-grabbing shadow-lg'
+            : isDragging
+              ? 'opacity-0 pointer-events-none'
+              : `absolute left-1 right-1 cursor-pointer z-10 hover:z-20 ${justLanded ? 'animate-card-land' : ''}`}`}
+        style={{
+          background: style.bg,
+          border: style.border,
+          boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+          ...(isGhost ? {} : { top })
+        }}
+        onClick={isGhost ? undefined : handleCardClick}
+        onMouseEnter={isGhost ? undefined : (e) => {
+          const el = e.currentTarget;
+          el.style.borderColor = assigneeColor;
+        }}
+        onMouseLeave={isGhost ? undefined : (e) => {
+          const el = e.currentTarget;
+          el.style.borderColor = hexToRgba(assigneeColor, 0.55);
+        }}
+      >
+        {/* Barre : nom client à gauche, heure à droite (zone de drag) */}
+        <div
+          className={`flex items-center justify-between gap-2 px-2 py-0.5 border-b border-white/5 ${!isGhost && getDropTarget && onMove ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          onMouseDown={!isGhost && getDropTarget && onMove ? handleHandleMouseDown : undefined}
+          onClick={!isGhost ? (e) => e.stopPropagation() : undefined}
+        >
+          <span className="text-[11px] font-semibold text-zinc-300 truncate min-w-0">{item.clientName || '—'}</span>
+          <span className="text-[11px] font-semibold font-mono text-zinc-400 tabular-nums flex-shrink-0">{item.time}</span>
+        </div>
+
+        {/* Contenu compact : livrable uniquement (client déjà dans la barre) */}
+        <div className="px-2 py-1.5 text-left min-w-0">
+          <span className="text-[11px] text-zinc-500 truncate block">
+            {item.label}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // STYLE 2026: Contour accentué par la couleur assignation (pas de pastille)
   const style = {
-    // Fond très sombre légèrement teinté par la couleur du membre
     bg: `linear-gradient(145deg, ${hexToRgba('#18181b', 1)}, ${hexToRgba('#09090b', 1)})`,
-    // Bordure fine avec la couleur du membre (faible opacité par défaut)
-    border: `1px solid ${hexToRgba(assigneeColor, 0.2)}`,
-    // Glow au hover
-    hoverGlow: `0 0 20px ${hexToRgba(assigneeColor, 0.15)}`,
-    // Bordure au hover (plus visible)
-    hoverBorder: `1px solid ${hexToRgba(assigneeColor, 0.6)}`,
+    // Contour accentué = couleur assignation (visible, pas de pastille)
+    border: `1.5px solid ${hexToRgba(assigneeColor, 0.55)}`,
+    hoverGlow: `0 0 20px ${hexToRgba(assigneeColor, 0.2)}`,
+    hoverBorder: `1.5px solid ${assigneeColor}`,
     accent: assigneeColor,
   };
 
-  const delay = stableDelay(item.id);
-
   return (
     <div
-      className={`rounded-xl overflow-hidden group transition-all duration-300 ease-out
-        ${isGhost ? 'opacity-90 scale-105 z-50 cursor-grabbing' : isDragging ? 'opacity-0 pointer-events-none' : 'absolute left-2 right-2 cursor-pointer opacity-0 animate-fade-in-up z-10 hover:z-20 hover:-translate-y-0.5'}`}
+      className={`rounded-xl overflow-hidden group transition-all duration-200 ease-out
+        ${isGhost
+          ? 'opacity-95 scale-[1.08] -translate-y-2 z-50 cursor-grabbing shadow-[0_12px_28px_rgba(0,0,0,0.35)]'
+          : isDragging
+            ? 'opacity-0 pointer-events-none'
+            : `absolute left-2 right-2 cursor-pointer z-10 hover:z-20 hover:-translate-y-0.5 ${justLanded ? 'animate-card-land' : ''}`}`}
       style={{
         background: style.bg,
         border: style.border,
-        boxShadow: isGhost ? style.hoverGlow : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        ...(isGhost
-          ? {}
-          : {
-              top,
-              animationDelay: `${delay}s`,
-              animationFillMode: 'forwards',
-              willChange: 'transform, box-shadow, border-color',
-            })
+        boxShadow: isGhost
+          ? `0 12px 28px rgba(0,0,0,0.35), ${style.hoverGlow}`
+          : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        ...(isGhost ? {} : { top, willChange: justLanded ? 'transform' : 'transform, box-shadow, border-color' })
       }}
       onClick={isGhost ? undefined : handleCardClick}
       onMouseEnter={isGhost ? undefined : (e) => {
@@ -210,91 +352,56 @@ function TimelineCardInner({
       }}
       onMouseLeave={isGhost ? undefined : (e) => {
         const el = e.currentTarget;
-        el.style.borderColor = hexToRgba(assigneeColor, 0.2);
+        el.style.borderColor = hexToRgba(assigneeColor, 0.55);
         el.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
       }}
     >
-      {/* Horaire en haut — aligné avec la grille (top de la card = début du créneau) */}
-      <div className="px-3 py-1 border-b border-white/5 flex items-center">
-        <span className="text-[11px] font-mono text-zinc-500 tracking-wide">
+      {/* Barre : nom client à gauche, heure à droite (zone de drag) */}
+      <div
+        className={`flex items-center justify-between gap-2 px-3 py-1.5 border-b border-white/5 min-w-0 ${!isGhost && getDropTarget && onMove ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        onMouseDown={!isGhost && getDropTarget && onMove ? handleHandleMouseDown : undefined}
+        onClick={!isGhost ? (e) => e.stopPropagation() : undefined}
+        role={!isGhost && getDropTarget && onMove ? 'button' : undefined}
+        aria-label="Déplacer"
+      >
+        <span className="text-xs font-semibold text-zinc-300 truncate min-w-0">{item.clientName || '—'}</span>
+        <span className="text-xs font-semibold font-mono text-zinc-400 tabular-nums tracking-wide flex-shrink-0">
           {item.time}
         </span>
       </div>
 
-      {/* Contenu principal */}
-      <div className="px-3 py-2.5 flex flex-col gap-1.5">
-        
-        {/* Ligne 1: Client + Actions */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-             {/* Petit point indicateur statut (plus discret que le badge) */}
-            <div 
-              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                item.clientStatus === 'client' ? 'bg-[#22d3ee] shadow-[0_0_8px_#22d3ee]' : 'bg-[#fbbf24] shadow-[0_0_8px_#fbbf24]'
-              }`} 
-              title={item.clientStatus === 'client' ? 'Client' : 'Prospect'}
-            />
-            <span className="text-[13px] font-bold text-zinc-100 truncate tracking-tight">
-              {item.clientName}
-            </span>
-          </div>
-
-          {!isGhost && getDropTarget && onMove && (
-            <button
-              type="button"
-              className="p-1 rounded text-zinc-500 opacity-0 group-hover:opacity-100 hover:text-zinc-300 hover:bg-white/5 transition-all cursor-grab active:cursor-grabbing"
-              onMouseDown={handleHandleMouseDown}
-              onClick={e => e.stopPropagation()}
-            >
-              <GripIcon />
-            </button>
-          )}
-        </div>
-
-        {/* Ligne 2: Tâche / Call */}
-        <div className="flex items-center gap-2">
+      {/* Contenu principal : livrable / call uniquement (client déjà dans la barre) */}
+      <div className="px-3 py-2.5">
+        <div className="flex items-center gap-2 min-w-0">
           {isCall ? (
              item.isPresentation ? (
-               <span className="text-[var(--accent-violet)] opacity-90">
+               <span className="text-[var(--accent-violet)] opacity-90 flex-shrink-0">
                  <PresentationIcon />
                </span>
              ) : (
-               <span className="text-[var(--accent-coral)]">
+               <span className="text-[var(--accent-coral)] flex-shrink-0">
                  <PhoneIcon />
                </span>
              )
           ) : (
-             // Deliverable
              (item.deliverableType === 'creative' || item.deliverableType === 'document') ? (
-               <span className="text-[var(--accent-cyan)] opacity-90">
+               <span className="text-[var(--accent-cyan)] opacity-90 flex-shrink-0">
                  <PackageIcon />
                </span>
              ) : (
-               // Petit trait vertical décoratif pour les tâches classiques
-               <div className="w-0.5 h-3 bg-zinc-700 rounded-full" />
+               <div className="w-0.5 h-3 bg-zinc-700 rounded-full flex-shrink-0" />
              )
           )}
-          <span className="text-[13px] font-medium text-zinc-400 truncate leading-snug">
+          <span className="text-[13px] font-medium text-zinc-400 truncate leading-snug flex-1 min-w-0">
             {item.label}
           </span>
-        </div>
-      </div>
-
-      {/* Footer minimaliste (statut + assigné) */}
-      <div className="px-3 py-2 border-t border-white/5 bg-white/[0.01] flex items-center justify-end gap-2">
-        {isCompleted && <CheckIcon />}
-        {isInProgress && (
-          <span className="animate-pulse text-[var(--accent-violet)]"><ClockIcon /></span>
-        )}
-        {item.assignee && (
-          <div
-            className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-black shadow-sm ring-1 ring-black/20"
-            style={{ backgroundColor: item.assignee.color }}
-            title={item.assignee.name}
-          >
-            {item.assignee.initials}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {isCompleted && <CheckIcon />}
+            {isInProgress && (
+              <span className="animate-pulse text-[var(--accent-violet)]"><ClockIcon /></span>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

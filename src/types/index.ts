@@ -9,6 +9,12 @@ export type DeliverableCategory = 'print' | 'digital' | 'other';
 
 export type DeliverableStatus = 'pending' | 'in-progress' | 'completed';
 
+export type BillingStatus =
+  | 'pending'       // En attente de facturation
+  | 'deposit'       // Acompte facturé
+  | 'progress'      // Avancement facturé
+  | 'balance';      // Soldé (facturé et payé)
+
 export type TeamMemberRole = 'founder' | 'employee' | 'freelance';
 
 export interface TeamMember {
@@ -69,6 +75,16 @@ export interface Client {
   updatedAt: Date;
 }
 
+export interface BillingHistory {
+  id: string;
+  deliverableId: string;
+  status: BillingStatus;
+  amount?: number;        // Montant facturé (optionnel)
+  notes?: string;         // Notes (ex: "Acompte 30%")
+  changedAt: Date;
+  changedBy?: string;     // user_id
+}
+
 export interface Deliverable {
   id: string;
   /** Optionnel : livrable créé depuis le backlog sans client assigné */
@@ -92,6 +108,13 @@ export interface Deliverable {
   coutSousTraitance?: number;
   /** Si true : livrable potentiel (pipeline), affiché en Compta Potentiel. Sinon : livrable réel (facturé). Modifiable à tout moment. */
   isPotentiel?: boolean;
+  // Facturation
+  billingStatus: BillingStatus;
+  quoteAmount?: number;       // Montant total devisé
+  depositAmount?: number;     // Montant acompte
+  progressAmount?: number;    // Montant avancement
+  balanceAmount?: number;     // Montant solde
+  totalInvoiced?: number;     // Total facturé (auto-calculé)
 }
 
 /** Type d'événement : appel classique ou présentation client (affichage icône sur la timeline) */
@@ -110,6 +133,17 @@ export interface Call {
   callType?: CallType;
   notes?: string;
   createdAt: Date;
+}
+
+/** Todo du jour : tant qu'elle n'est pas cochée, elle reste affichée (même le lendemain) */
+export interface DayTodo {
+  id: string;
+  text: string;
+  forDate: Date; // jour pour lequel la todo a été créée
+  done: boolean;
+  createdAt: Date;
+  scheduledAt?: Date; // si planifiée dans la timeline
+  assigneeId?: string; // membre assigné
 }
 
 // Timeline item for unified display

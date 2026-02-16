@@ -177,6 +177,19 @@ h1, h2, h3 {
   animation: fadeInUp 0.4s ease-out forwards;
 }
 
+/* Carte qui se pose après un drop (scale 1.08 → 1) */
+@keyframes card-land {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.animate-card-land {
+  animation: card-land 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }

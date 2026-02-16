@@ -21,7 +21,9 @@
       "Bash(grep \"React.memo\\\\|memo\\(\" src/**/*.tsx)",
       "Skill(gsd:discuss-phase)",
       "Skill(gsd:execute-phase)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx supabase db push:*)",
+      "Skill(gsd:plan-phase)"
     ]
   }
 }

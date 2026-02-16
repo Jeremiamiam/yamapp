@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, TeamMember, Contact, ClientDocument, DeliverableStatus } from '@/types';
-import { handleError, AppError } from './error-handler';
+import { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, TeamMember, Contact, ClientDocument, DeliverableStatus, DayTodo, BillingHistory, BillingStatus } from '@/types';
+import { handleError, AppError, getErrorMessage } from './error-handler';
 import { createClient } from '@/lib/supabase/client';
 import {
   mapTeamRow,
@@ -10,15 +10,18 @@ import {
   mapDocumentRow,
   mapDeliverableRow,
   mapCallRow,
+  mapDayTodoRow,
+  mapBillingHistoryRow,
   toSupabaseClient,
   toSupabaseContact,
   toSupabaseClientLink,
   toSupabaseDocument,
   toSupabaseDeliverable,
   toSupabaseCall,
+  toSupabaseDayTodo,
 } from './supabase-mappers';
 
-type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta';
+type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta' | 'admin';
 
 // Filter types
 type ClientStatusFilter = 'all' | 'prospect' | 'client';
@@ -43,6 +46,8 @@ interface AppState {
   deliverables: Deliverable[];
   calls: Call[];
   team: TeamMember[];
+  dayTodos: DayTodo[];
+  billingHistory: Map<string, BillingHistory[]>; // deliverableId → history entries
   comptaMonthly: { month: string; year: number; entrées: number; sorties: number; soldeCumulé: number }[];
   isLoading: boolean;
   loadingError: string | null;
@@ -67,6 +72,7 @@ interface AppState {
   navigateToTimeline: () => void;
   navigateToClients: () => void;
   navigateToCompta: () => void;
+  navigateToAdmin: () => void;
   openDocument: (doc: ClientDocument) => void;
   closeDocument: () => void;
   
@@ -98,6 +104,11 @@ interface AppState {
   updateDeliverable: (id: string, data: Partial<Deliverable>) => Promise<void>;
   deleteDeliverable: (id: string) => Promise<void>;
   toggleDeliverableStatus: (id: string) => Promise<void>;
+  updateDeliverableBillingStatus: (id: string, newStatus: BillingStatus, amount?: number, notes?: string) => Promise<void>;
+  updateBillingHistoryEntry: (historyId: string, deliverableId: string, amount?: number, notes?: string) => Promise<void>;
+  deleteBillingHistoryEntry: (historyId: string, deliverableId: string) => Promise<void>;
+  loadBillingHistory: (deliverableId: string) => Promise<void>;
+  getBillingHistory: (deliverableId: string) => BillingHistory[];
 
   // CRUD Actions - Calls (async Supabase)
   addCall: (call: Omit<Call, 'id' | 'createdAt'>) => Promise<void>;
@@ -111,6 +122,10 @@ interface AppState {
   
   // Other Actions
   setTimelineRange: (start: Date, end: Date) => void;
+
+  // Timeline vue 1 sem. / 2 sem. (persistée en localStorage)
+  compactWeeks: boolean;
+  setCompactWeeks: (value: boolean) => void;
   
   // Data helpers
   getClientById: (id: string) => Client | undefined;
@@ -119,6 +134,12 @@ interface AppState {
   getCallsByClientId: (clientId: string) => Call[];
   getBacklogDeliverables: () => Deliverable[];
   getBacklogCalls: () => Call[];
+  getIncompleteDayTodos: () => DayTodo[];
+
+  addDayTodo: (text: string, assigneeId?: string) => Promise<void>;
+  updateDayTodo: (id: string, data: Partial<Pick<DayTodo, 'text' | 'done' | 'scheduledAt' | 'assigneeId'>>) => Promise<void>;
+  deleteDayTodo: (id: string) => Promise<void>;
+  updateTeamMember: (id: string, data: Partial<Pick<TeamMember, 'name' | 'initials' | 'color'>>) => Promise<void>;
   /** Sélecteurs optimisés : deliverables/calls filtrés par plage timeline + filtres (clientStatus, teamMemberId) */
   getFilteredDeliverables: () => Deliverable[];
   getFilteredCalls: () => Call[];
@@ -141,6 +162,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   deliverables: [],
   calls: [],
   team: [],
+  dayTodos: [],
+  billingHistory: new Map(),
   comptaMonthly: [],
   isLoading: false,
   loadingError: null,
@@ -149,7 +172,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isLoading: true, loadingError: null });
     try {
       const supabase = createClient();
-      const [teamRes, clientsRes, contactsRes, linksRes, docsRes, delivRes, callsRes, comptaRes] = await Promise.all([
+      const [teamRes, clientsRes, contactsRes, linksRes, docsRes, delivRes, callsRes, comptaRes, todosRes] = await Promise.all([
         supabase.from('team').select('id,name,initials,role,color,email'),
         supabase.from('clients').select('*'),
         supabase.from('contacts').select('*'),
@@ -158,6 +181,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         supabase.from('deliverables').select('*'),
         supabase.from('calls').select('*'),
         supabase.from('compta_monthly').select('month,year,entrees,sorties,solde_cumule'),
+        supabase.from('day_todos').select('id,text,for_date,done,created_at,scheduled_at,assignee_id'),
       ]);
       if (teamRes.error) throw teamRes.error;
       if (clientsRes.error) throw clientsRes.error;
@@ -167,6 +191,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (delivRes.error) throw delivRes.error;
       if (callsRes.error) throw callsRes.error;
       if (comptaRes.error) throw comptaRes.error;
+      if (todosRes.error) throw todosRes.error;
 
       const teamRows = teamRes.data ?? [];
       const clientsData = clientsRes.data ?? [];
@@ -176,6 +201,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const delivData = delivRes.data ?? [];
       const callsData = callsRes.data ?? [];
       const comptaData = comptaRes.data ?? [];
+      const todosData = todosRes.data ?? [];
 
       const team = teamRows.map(mapTeamRow);
       const clients: Client[] = clientsData.map((row) => {
@@ -189,6 +215,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       const deliverables = delivData.map(mapDeliverableRow);
       const calls = callsData.map(mapCallRow);
+      const dayTodos = todosData.map(mapDayTodoRow);
       const comptaMonthly = comptaData.map((m: { month: string; year: number; entrees: number; sorties: number; solde_cumule: number }) => ({
         month: m.month,
         year: m.year,
@@ -202,6 +229,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         clients,
         deliverables,
         calls,
+        dayTodos,
         comptaMonthly,
         isLoading: false,
         loadingError: null,
@@ -235,13 +263,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     currentView: 'timeline', 
     selectedClientId: null 
   }),
-  navigateToClients: () => set({ 
-    currentView: 'clients', 
-    selectedClientId: null 
+  navigateToClients: () => set({
+    currentView: 'clients',
+    selectedClientId: null
   }),
-  navigateToCompta: () => set({ 
-    currentView: 'compta', 
-    selectedClientId: null 
+  navigateToCompta: () => set({
+    currentView: 'compta',
+    selectedClientId: null
+  }),
+  navigateToAdmin: () => set({
+    currentView: 'admin',
+    selectedClientId: null
   }),
   openDocument: (doc) => set({ selectedDocument: doc }),
   closeDocument: () => set({ selectedDocument: null }),
@@ -270,7 +302,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         ),
       }));
     } catch (e) {
-      handleError(new AppError(String(e), 'CONTACT_ADD_FAILED', "Impossible d'ajouter le contact"));
+      handleError(new AppError(getErrorMessage(e), 'CONTACT_ADD_FAILED', "Impossible d'ajouter le contact"));
     }
   },
 
@@ -296,7 +328,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         ),
       }));
     } catch (e) {
-      handleError(new AppError(String(e), 'CONTACT_UPDATE_FAILED', "Impossible de modifier le contact"));
+      handleError(new AppError(getErrorMessage(e), 'CONTACT_UPDATE_FAILED', "Impossible de modifier le contact"));
     }
   },
 
@@ -313,7 +345,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         ),
       }));
     } catch (e) {
-      handleError(new AppError(String(e), 'CONTACT_DELETE_FAILED', "Impossible de supprimer le contact"));
+      handleError(new AppError(getErrorMessage(e), 'CONTACT_DELETE_FAILED', "Impossible de supprimer le contact"));
     }
   },
 
@@ -336,7 +368,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         ),
       }));
     } catch (e) {
-      handleError(new AppError(String(e), 'LINK_ADD_FAILED', "Impossible d'ajouter le lien"));
+      handleError(new AppError(getErrorMessage(e), 'LINK_ADD_FAILED', "Impossible d'ajouter le lien"));
     }
   },
 
@@ -353,7 +385,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         ),
       }));
     } catch (e) {
-      handleError(new AppError(String(e), 'LINK_DELETE_FAILED', "Impossible de supprimer le lien"));
+      handleError(new AppError(getErrorMessage(e), 'LINK_DELETE_FAILED', "Impossible de supprimer le lien"));
     }
   },
 
@@ -380,7 +412,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
       set((state) => ({ clients: [...state.clients, client] }));
     } catch (e) {
-      handleError(new AppError(String(e), 'CLIENT_ADD_FAILED', "Impossible d'ajouter le client"));
+      handleError(new AppError(getErrorMessage(e), 'CLIENT_ADD_FAILED', "Impossible d'ajouter le client"));
     }
   },
 
@@ -396,7 +428,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         clients: state.clients.map((c) => (c.id === id ? { ...c, ...data, updatedAt: new Date() } : c)),
       }));
     } catch (e) {
-      handleError(new AppError(String(e), 'CLIENT_UPDATE_FAILED', "Impossible de modifier le client"));
+      handleError(new AppError(getErrorMessage(e), 'CLIENT_UPDATE_FAILED', "Impossible de modifier le client"));
     }
   },
 
@@ -412,7 +444,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         selectedClientId: state.selectedClientId === id ? null : state.selectedClientId,
       }));
     } catch (e) {
-      handleError(new AppError(String(e), 'CLIENT_DELETE_FAILED', "Impossible de supprimer le client"));
+      handleError(new AppError(getErrorMessage(e), 'CLIENT_DELETE_FAILED', "Impossible de supprimer le client"));
     }
   },
 
@@ -437,7 +469,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         ),
       }));
     } catch (e) {
-      handleError(new AppError(String(e), 'DOC_ADD_FAILED', "Impossible d'ajouter le document"));
+      handleError(new AppError(getErrorMessage(e), 'DOC_ADD_FAILED', "Impossible d'ajouter le document"));
     }
   },
 
@@ -464,7 +496,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           state.selectedDocument?.id === docId ? { ...state.selectedDocument, ...data, updatedAt: new Date() } : state.selectedDocument,
       }));
     } catch (e) {
-      handleError(new AppError(String(e), 'DOC_UPDATE_FAILED', "Impossible de modifier le document"));
+      handleError(new AppError(getErrorMessage(e), 'DOC_UPDATE_FAILED', "Impossible de modifier le document"));
     }
   },
 
@@ -482,7 +514,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         selectedDocument: state.selectedDocument?.id === docId ? null : state.selectedDocument,
       }));
     } catch (e) {
-      handleError(new AppError(String(e), 'DOC_DELETE_FAILED', "Impossible de supprimer le document"));
+      handleError(new AppError(getErrorMessage(e), 'DOC_DELETE_FAILED', "Impossible de supprimer le document"));
     }
   },
   
@@ -501,25 +533,31 @@ export const useAppStore = create<AppState>((set, get) => ({
       const deliv: Deliverable = { ...deliverableData, id, createdAt: now };
       set((state) => ({ deliverables: [...state.deliverables, deliv] }));
     } catch (e) {
-      handleError(new AppError(String(e), 'DELIV_ADD_FAILED', "Impossible d'ajouter le livrable"));
+      handleError(new AppError(getErrorMessage(e), 'DELIV_ADD_FAILED', "Impossible d'ajouter le livrable"));
     }
   },
 
   updateDeliverable: async (id, data) => {
+    const prev = get().deliverables.find((d) => d.id === id);
+    if (!prev) return;
+    set((state) => ({
+      deliverables: state.deliverables.map((d) => (d.id === id ? { ...d, ...data } : d)),
+    }));
     try {
       const supabase = createClient();
       const payload = toSupabaseDeliverable(data);
       const dbPayload: Record<string, unknown> = {};
       Object.entries(payload).forEach(([k, v]) => {
-        if (v !== undefined) dbPayload[k] = v;
+        // Ne pas envoyer undefined ni null pour éviter d'écraser des colonnes NOT NULL (ex. billing_status)
+        if (v !== undefined && v !== null) dbPayload[k] = v;
       });
       const { error } = await supabase.from('deliverables').update(dbPayload).eq('id', id);
       if (error) throw error;
-      set((state) => ({
-        deliverables: state.deliverables.map((d) => (d.id === id ? { ...d, ...data } : d)),
-      }));
     } catch (e) {
-      handleError(new AppError(String(e), 'DELIV_UPDATE_FAILED', "Impossible de modifier le livrable"));
+      set((state) => ({
+        deliverables: state.deliverables.map((d) => (d.id === id ? prev : d)),
+      }));
+      handleError(new AppError(getErrorMessage(e), 'DELIV_UPDATE_FAILED', "Impossible de modifier le livrable"));
     }
   },
 
@@ -530,7 +568,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (error) throw error;
       set((state) => ({ deliverables: state.deliverables.filter((d) => d.id !== id) }));
     } catch (e) {
-      handleError(new AppError(String(e), 'DELIV_DELETE_FAILED', "Impossible de supprimer le livrable"));
+      handleError(new AppError(getErrorMessage(e), 'DELIV_DELETE_FAILED', "Impossible de supprimer le livrable"));
     }
   },
 
@@ -548,8 +586,219 @@ export const useAppStore = create<AppState>((set, get) => ({
         deliverables: s.deliverables.map((x) => (x.id === id ? { ...x, status: nextStatus } : x)),
       }));
     } catch (e) {
-      handleError(new AppError(String(e), 'DELIV_UPDATE_FAILED', "Impossible de modifier le statut"));
+      handleError(new AppError(getErrorMessage(e), 'DELIV_UPDATE_FAILED', "Impossible de modifier le statut"));
     }
+  },
+
+  updateDeliverableBillingStatus: async (id, newStatus, amount, notes) => {
+    const prev = get().deliverables.find((d) => d.id === id);
+    if (!prev) return;
+    try {
+      const supabase = createClient();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      console.log('Auth user:', user?.id, 'Auth error:', authError);
+
+      // Update deliverable billing status
+      const { error: updateError } = await supabase
+        .from('deliverables')
+        .update({ billing_status: newStatus })
+        .eq('id', id);
+      if (updateError) {
+        console.error('Billing update error:', updateError);
+        throw updateError;
+      }
+
+      // Insert billing history entry
+      const historyId = crypto.randomUUID();
+      const historyPayload = {
+        id: historyId,
+        deliverable_id: id,
+        status: newStatus,
+        amount: amount ?? null,
+        notes: notes ?? null,
+        changed_at: new Date().toISOString(),
+        changed_by: user?.id ?? null,
+      };
+
+      console.log('Inserting billing history:', historyPayload);
+
+      const { data: insertedData, error: historyError } = await supabase
+        .from('billing_history')
+        .insert(historyPayload)
+        .select();
+
+      console.log('Insert result - data:', insertedData, 'error:', historyError);
+
+      if (historyError) {
+        console.error('Billing history insert error:', historyError);
+        throw historyError;
+      }
+
+      // Update local state
+      set((state) => ({
+        deliverables: state.deliverables.map((d) =>
+          d.id === id ? { ...d, billingStatus: newStatus } : d
+        ),
+      }));
+
+      // Reload history for this deliverable
+      await get().loadBillingHistory(id);
+    } catch (e) {
+      const message = e && typeof e === 'object' && 'message' in e ? e.message : String(e);
+      console.error('updateDeliverableBillingStatus error:', e);
+      handleError(new AppError(message, 'BILLING_UPDATE_FAILED', "Impossible de modifier le statut de facturation"));
+    }
+  },
+
+  updateBillingHistoryEntry: async (historyId, deliverableId, amount, notes) => {
+    try {
+      const supabase = createClient();
+
+      const payload: Record<string, unknown> = {};
+      if (amount !== undefined) payload.amount = amount;
+      if (notes !== undefined) payload.notes = notes;
+
+      const { error } = await supabase
+        .from('billing_history')
+        .update(payload)
+        .eq('id', historyId);
+
+      if (error) {
+        console.error('Update billing history error:', error);
+        throw error;
+      }
+
+      // Reload history
+      await get().loadBillingHistory(deliverableId);
+    } catch (e) {
+      const message = e && typeof e === 'object' && 'message' in e ? e.message : String(e);
+      console.error('updateBillingHistoryEntry error:', e);
+      handleError(new AppError(message, 'BILLING_HISTORY_UPDATE_FAILED', "Impossible de modifier l'entrée d'historique"));
+    }
+  },
+
+  deleteBillingHistoryEntry: async (historyId, deliverableId) => {
+    console.log('🔧 deleteBillingHistoryEntry called', { historyId, deliverableId });
+    try {
+      const supabase = createClient();
+
+      // Get current deliverable to check if we're deleting the most recent entry
+      const currentDeliverable = get().deliverables.find(d => d.id === deliverableId);
+      console.log('📦 Current deliverable:', currentDeliverable?.name);
+      if (!currentDeliverable) {
+        console.error('❌ Deliverable not found');
+        return;
+      }
+
+      // Get the entry we're about to delete
+      console.log('🔍 Fetching entry to delete...');
+      const { data: entryToDelete, error: fetchError } = await supabase
+        .from('billing_history')
+        .select('*')
+        .eq('id', historyId)
+        .single();
+
+      console.log('📄 Entry to delete:', entryToDelete, 'Error:', fetchError);
+      if (fetchError) throw fetchError;
+
+      // Get all current history entries
+      const { data: allHistory, error: historyError } = await supabase
+        .from('billing_history')
+        .select('*')
+        .eq('deliverable_id', deliverableId)
+        .order('changed_at', { ascending: false });
+
+      if (historyError) throw historyError;
+
+      const isMostRecent = allHistory && allHistory.length > 0 && allHistory[0].id === historyId;
+      console.log('🎯 Is most recent entry?', isMostRecent);
+
+      // Delete the history entry
+      console.log('🗑️ Attempting to delete entry from database...');
+      const { error: deleteError } = await supabase
+        .from('billing_history')
+        .delete()
+        .eq('id', historyId);
+
+      console.log('🗑️ Delete result - Error:', deleteError);
+      if (deleteError) {
+        console.error('❌ Delete billing history error:', deleteError);
+        throw deleteError;
+      }
+      console.log('✅ Entry deleted successfully from database');
+
+      // Only update deliverable status if we deleted the most recent entry
+      if (isMostRecent) {
+        // Get remaining history to find previous status
+        const { data: remainingHistory, error: remainingError } = await supabase
+          .from('billing_history')
+          .select('*')
+          .eq('deliverable_id', deliverableId)
+          .order('changed_at', { ascending: false })
+          .limit(1);
+
+        if (remainingError) throw remainingError;
+
+        // Determine previous status (last entry in history, or 'pending' if no history)
+        const previousStatus: BillingStatus = remainingHistory && remainingHistory.length > 0
+          ? (remainingHistory[0].status as BillingStatus)
+          : 'pending';
+
+        // Update deliverable status
+        const { error: updateError } = await supabase
+          .from('deliverables')
+          .update({ billing_status: previousStatus })
+          .eq('id', deliverableId);
+
+        if (updateError) throw updateError;
+
+        // Update local state
+        set((state) => ({
+          deliverables: state.deliverables.map((d) =>
+            d.id === deliverableId ? { ...d, billingStatus: previousStatus } : d
+          ),
+        }));
+      }
+
+      // Reload history
+      await get().loadBillingHistory(deliverableId);
+    } catch (e) {
+      const message = e && typeof e === 'object' && 'message' in e ? e.message : String(e);
+      console.error('deleteBillingHistoryEntry error:', e);
+      handleError(new AppError(message, 'BILLING_HISTORY_DELETE_FAILED', "Impossible de supprimer l'entrée d'historique"));
+    }
+  },
+
+  loadBillingHistory: async (deliverableId) => {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('billing_history')
+        .select('*')
+        .eq('deliverable_id', deliverableId)
+        .order('changed_at', { ascending: true });
+
+      if (error) {
+        console.error('Load billing history error:', error);
+        throw error;
+      }
+
+      const history = (data ?? []).map(mapBillingHistoryRow);
+      set((state) => {
+        const newMap = new Map(state.billingHistory);
+        newMap.set(deliverableId, history);
+        return { billingHistory: newMap };
+      });
+    } catch (e) {
+      const message = e && typeof e === 'object' && 'message' in e ? e.message : String(e);
+      console.error('loadBillingHistory error:', e);
+      handleError(new AppError(message, 'BILLING_HISTORY_LOAD_FAILED', "Impossible de charger l'historique de facturation"));
+    }
+  },
+
+  getBillingHistory: (deliverableId) => {
+    return get().billingHistory.get(deliverableId) ?? [];
   },
 
   // CRUD Actions - Calls (async Supabase)
@@ -567,11 +816,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       const call: Call = { ...callData, id, createdAt: now };
       set((state) => ({ calls: [...state.calls, call] }));
     } catch (e) {
-      handleError(new AppError(String(e), 'CALL_ADD_FAILED', "Impossible d'ajouter l'appel"));
+      handleError(new AppError(getErrorMessage(e), 'CALL_ADD_FAILED', "Impossible d'ajouter l'appel"));
     }
   },
 
   updateCall: async (id, data) => {
+    const prev = get().calls.find((c) => c.id === id);
+    if (!prev) return;
+    set((state) => ({
+      calls: state.calls.map((c) => (c.id === id ? { ...c, ...data } : c)),
+    }));
     try {
       const supabase = createClient();
       const payload = toSupabaseCall(data);
@@ -581,11 +835,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       const { error } = await supabase.from('calls').update(dbPayload).eq('id', id);
       if (error) throw error;
-      set((state) => ({
-        calls: state.calls.map((c) => (c.id === id ? { ...c, ...data } : c)),
-      }));
     } catch (e) {
-      handleError(new AppError(String(e), 'CALL_UPDATE_FAILED', "Impossible de modifier l'appel"));
+      set((state) => ({
+        calls: state.calls.map((c) => (c.id === id ? prev : c)),
+      }));
+      handleError(new AppError(getErrorMessage(e), 'CALL_UPDATE_FAILED', "Impossible de modifier l'appel"));
     }
   },
 
@@ -596,7 +850,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (error) throw error;
       set((state) => ({ calls: state.calls.filter((c) => c.id !== id) }));
     } catch (e) {
-      handleError(new AppError(String(e), 'CALL_DELETE_FAILED', "Impossible de supprimer l'appel"));
+      handleError(new AppError(getErrorMessage(e), 'CALL_DELETE_FAILED', "Impossible de supprimer l'appel"));
     }
   },
   
@@ -613,7 +867,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // Other Actions
   setTimelineRange: (start, end) => set({ timelineRange: { start, end } }),
-  
+
+  compactWeeks: false,
+  setCompactWeeks: (value) => {
+    try {
+      localStorage.setItem('yam-timeline-compact', String(value));
+    } catch (_) {}
+    set({ compactWeeks: value });
+  },
+
   // Data helpers
   getClientById: (id) => get().clients.find(c => c.id === id),
   getTeamMemberById: (id) => get().team.find(m => m.id === id),
@@ -621,6 +883,82 @@ export const useAppStore = create<AppState>((set, get) => ({
   getCallsByClientId: (clientId) => get().calls.filter(c => c.clientId === clientId),
   getBacklogDeliverables: () => get().deliverables.filter(d => d.dueDate == null),
   getBacklogCalls: () => get().calls.filter(c => c.scheduledAt == null),
+  getIncompleteDayTodos: () => get().dayTodos.filter(t => !t.done),
+
+  addDayTodo: async (text, assigneeId) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Non connecté');
+      const forDate = new Date();
+      forDate.setHours(0, 0, 0, 0);
+      // Auto-assign to current user if no assignee provided
+      const finalAssigneeId = assigneeId !== undefined ? assigneeId : user.id;
+      const payload = {
+        ...toSupabaseDayTodo({ text: trimmed, forDate, done: false, assigneeId: finalAssigneeId }),
+        user_id: user.id
+      };
+      const { data, error } = await supabase.from('day_todos').insert(payload).select('id,text,for_date,done,created_at,scheduled_at,assignee_id').single();
+      if (error) throw error;
+      const newTodo = mapDayTodoRow(data);
+      set((state) => ({ dayTodos: [...state.dayTodos, newTodo] }));
+    } catch (e) {
+      handleError(new AppError(getErrorMessage(e), 'DAY_TODO_ADD_FAILED', 'Impossible d\'ajouter la todo'));
+    }
+  },
+
+  updateDayTodo: async (id, data) => {
+    try {
+      const supabase = createClient();
+      const payload: Record<string, unknown> = {};
+      if (data.text !== undefined) payload.text = data.text.trim();
+      if (data.done !== undefined) payload.done = data.done;
+      if (data.scheduledAt !== undefined) {
+        payload.scheduled_at = data.scheduledAt ? data.scheduledAt.toISOString() : null;
+      }
+      if (data.assigneeId !== undefined) {
+        payload.assignee_id = data.assigneeId || null;
+      }
+      if (Object.keys(payload).length === 0) return;
+      const { data: row, error } = await supabase.from('day_todos').update(payload).eq('id', id).select('id,text,for_date,done,created_at,scheduled_at,assignee_id').single();
+      if (error) throw error;
+      const updated = mapDayTodoRow(row);
+      set((state) => ({ dayTodos: state.dayTodos.map((t) => (t.id === id ? updated : t)) }));
+    } catch (e) {
+      handleError(new AppError(getErrorMessage(e), 'DAY_TODO_UPDATE_FAILED', 'Impossible de modifier la todo'));
+    }
+  },
+
+  deleteDayTodo: async (id) => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from('day_todos').delete().eq('id', id);
+      if (error) throw error;
+      set((state) => ({ dayTodos: state.dayTodos.filter((t) => t.id !== id) }));
+    } catch (e) {
+      handleError(new AppError(getErrorMessage(e), 'DAY_TODO_DELETE_FAILED', 'Impossible de supprimer la todo'));
+    }
+  },
+
+  updateTeamMember: async (id, data) => {
+    try {
+      const supabase = createClient();
+      const payload: Record<string, unknown> = {};
+      if (data.name !== undefined) payload.name = data.name.trim();
+      if (data.initials !== undefined) payload.initials = data.initials.trim();
+      if (data.color !== undefined) payload.color = data.color;
+      if (Object.keys(payload).length === 0) return;
+      const { error } = await supabase.from('team').update(payload).eq('id', id);
+      if (error) throw error;
+      set((state) => ({
+        team: state.team.map((m) => (m.id === id ? { ...m, ...data } : m)),
+      }));
+    } catch (e) {
+      handleError(new AppError(getErrorMessage(e), 'TEAM_MEMBER_UPDATE_FAILED', 'Impossible de modifier le membre'));
+    }
+  },
 
   getFilteredDeliverables: () => {
     const state = get();

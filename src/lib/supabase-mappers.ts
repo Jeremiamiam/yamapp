@@ -11,6 +11,9 @@ import type {
   ClientDocument,
   ClientLink,
   TeamMember,
+  DayTodo,
+  BillingHistory,
+  BillingStatus,
 } from '@/types';
 
 // Types pour les rows Supabase (snake_case)
@@ -72,7 +75,23 @@ interface DeliverableRow {
   prix_facture?: number | null;
   cout_sous_traitance?: number | null;
   is_potentiel?: boolean | null;
+  billing_status: string;
+  quote_amount?: number | null;
+  deposit_amount?: number | null;
+  progress_amount?: number | null;
+  balance_amount?: number | null;
+  total_invoiced?: number | null;
   created_at: string;
+}
+
+interface BillingHistoryRow {
+  id: string;
+  deliverable_id: string;
+  status: string;
+  amount?: number | null;
+  notes?: string | null;
+  changed_at: string;
+  changed_by?: string | null;
 }
 
 interface CallRow {
@@ -85,6 +104,16 @@ interface CallRow {
   call_type?: string | null;
   notes?: string | null;
   created_at: string;
+}
+
+interface DayTodoRow {
+  id: string;
+  text: string;
+  for_date: string;
+  done: boolean;
+  created_at: string;
+  scheduled_at?: string;
+  assignee_id?: string;
 }
 
 // --- Supabase → App ---
@@ -155,6 +184,12 @@ export function mapDeliverableRow(row: DeliverableRow): Deliverable {
     prixFacturé: row.prix_facture != null ? Number(row.prix_facture) : undefined,
     coutSousTraitance: row.cout_sous_traitance != null ? Number(row.cout_sous_traitance) : undefined,
     isPotentiel: row.is_potentiel === true,
+    billingStatus: (row.billing_status as BillingStatus) || 'pending',
+    quoteAmount: row.quote_amount != null ? Number(row.quote_amount) : undefined,
+    depositAmount: row.deposit_amount != null ? Number(row.deposit_amount) : undefined,
+    progressAmount: row.progress_amount != null ? Number(row.progress_amount) : undefined,
+    balanceAmount: row.balance_amount != null ? Number(row.balance_amount) : undefined,
+    totalInvoiced: row.total_invoiced != null ? Number(row.total_invoiced) : undefined,
     createdAt: new Date(row.created_at),
   };
 }
@@ -170,6 +205,18 @@ export function mapCallRow(row: CallRow): Call {
     callType: (row.call_type as Call['callType']) ?? undefined,
     notes: row.notes ?? undefined,
     createdAt: new Date(row.created_at),
+  };
+}
+
+export function mapDayTodoRow(row: DayTodoRow): DayTodo {
+  return {
+    id: row.id,
+    text: row.text,
+    forDate: new Date(row.for_date),
+    done: row.done,
+    createdAt: new Date(row.created_at),
+    scheduledAt: row.scheduled_at ? new Date(row.scheduled_at) : undefined,
+    assigneeId: row.assignee_id,
   };
 }
 
@@ -221,6 +268,24 @@ export function toSupabaseDeliverable(data: Partial<Deliverable>) {
     prix_facture: data.prixFacturé ?? null,
     cout_sous_traitance: data.coutSousTraitance ?? null,
     is_potentiel: data.isPotentiel === true,
+    billing_status: data.billingStatus ?? null,
+    quote_amount: data.quoteAmount ?? null,
+    deposit_amount: data.depositAmount ?? null,
+    progress_amount: data.progressAmount ?? null,
+    balance_amount: data.balanceAmount ?? null,
+    total_invoiced: data.totalInvoiced ?? null,
+  };
+}
+
+export function mapBillingHistoryRow(row: BillingHistoryRow): BillingHistory {
+  return {
+    id: row.id,
+    deliverableId: row.deliverable_id,
+    status: row.status as BillingStatus,
+    amount: row.amount != null ? Number(row.amount) : undefined,
+    notes: row.notes ?? undefined,
+    changedAt: new Date(row.changed_at),
+    changedBy: row.changed_by ?? undefined,
   };
 }
 
@@ -234,4 +299,19 @@ export function toSupabaseCall(data: Partial<Call>) {
     call_type: data.callType ?? 'call',
     notes: data.notes ?? null,
   };
+}
+
+export function toSupabaseDayTodo(data: Partial<DayTodo> & Pick<DayTodo, 'text' | 'forDate' | 'done'>) {
+  const result: Record<string, unknown> = {
+    text: data.text,
+    for_date: data.forDate.toISOString().slice(0, 10),
+    done: data.done,
+  };
+  if (data.scheduledAt !== undefined) {
+    result.scheduled_at = data.scheduledAt ? data.scheduledAt.toISOString() : null;
+  }
+  if (data.assigneeId !== undefined) {
+    result.assignee_id = data.assigneeId || null;
+  }
+  return result;
 }

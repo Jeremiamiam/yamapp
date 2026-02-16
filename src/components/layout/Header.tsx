@@ -1,8 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
-import { formatHeaderDate } from '@/lib/date-utils';
 import { TimelineFilters } from '@/features/timeline/components/TimelineFilters';
 import { createClient } from '@/lib/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -49,11 +49,38 @@ const SettingsIcon = () => (
   </svg>
 );
 
+/** Affiche le prénom ou la partie avant @ de l'email */
+function displayName(email: string | undefined, fullName: string | undefined): string {
+  if (fullName?.trim()) return fullName.trim();
+  if (email) {
+    const beforeAt = email.split('@')[0];
+    if (beforeAt) return beforeAt.charAt(0).toUpperCase() + beforeAt.slice(1).toLowerCase();
+  }
+  return 'Compte';
+}
+
 export function Header() {
   const router = useRouter();
   const { isAdmin } = useUserRole();
+  const [userDisplayName, setUserDisplayName] = useState<string>('');
   const { currentView, navigateToTimeline, navigateToClients, navigateToCompta } = useAppStore();
   const canAccessCompta = isAdmin;
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const name = (user.user_metadata?.full_name as string) || (user.user_metadata?.name as string);
+        setUserDisplayName(displayName(user.email ?? undefined, name));
+      }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      const u = session?.user;
+      if (u) setUserDisplayName(displayName(u.email ?? undefined, u.user_metadata?.full_name ?? u.user_metadata?.name));
+      else setUserDisplayName('');
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -65,13 +92,25 @@ export function Header() {
   return (
     <header className="flex-shrink-0 px-8 py-4 border-b border-[var(--border-subtle)] relative z-10 bg-[var(--bg-primary)]/80 backdrop-blur-sm">
       <div className="flex items-center justify-between gap-6">
-        <div className="animate-slide-in flex-shrink-0 flex items-center gap-8">
-          <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
-            <span className="text-[var(--text-primary)]">YAM</span>
+        <div className="animate-slide-in flex-shrink-0">
+          <h1 className="text-lg font-bold tracking-tight leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
+            <span className="text-[var(--text-primary)] block">dashboard</span>
+            <span className="text-[var(--text-primary)]">yam</span>
             <span className="text-[var(--accent-lime)]">.</span>
           </h1>
-
-          {/* View Switcher */}
+        </div>
+        
+        {/* Filters — hidden on compta */}
+        <div className="flex-1">
+          {currentView !== 'compta' && (
+            <div className="animate-slide-in" style={{ animationDelay: '0.05s' }}>
+              <TimelineFilters />
+            </div>
+          )}
+        </div>
+        
+        <div className="animate-slide-in flex-shrink-0 flex items-center gap-4" style={{ animationDelay: '0.1s' }}>
+          {/* View Switcher — à droite avant l'utilisateur */}
           <div className="flex p-1 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-subtle)]">
             <button
               onClick={navigateToTimeline}
@@ -108,42 +147,35 @@ export function Header() {
                 Comptabilité
               </button>
             )}
+          </div>
+          {/* Utilisateur connecté + zone compte */}
+          {userDisplayName && (
+            <span className="text-sm font-medium text-[var(--text-primary)]" title="Connecté">
+              {userDisplayName}
+            </span>
+          )}
+          <div className="flex items-center gap-1 pl-3 border-l border-[var(--border-subtle)]">
             {isAdmin && (
               <button
                 type="button"
                 onClick={() => router.push('/settings')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all text-[var(--text-muted)] hover:text-[var(--text-primary)]`}
+                className="p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                 title="Paramètres et gestion des rôles"
+                aria-label="Paramètres"
               >
                 <SettingsIcon />
-                Settings
               </button>
             )}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+              title="Se déconnecter"
+              aria-label="Se déconnecter"
+            >
+              <LogoutIcon />
+            </button>
           </div>
-        </div>
-        
-        {/* Filters — hidden on compta */}
-        <div className="flex-1">
-          {currentView !== 'compta' && (
-            <div className="animate-slide-in" style={{ animationDelay: '0.05s' }}>
-              <TimelineFilters />
-            </div>
-          )}
-        </div>
-        
-        <div className="text-right animate-slide-in flex-shrink-0 flex items-center gap-4" style={{ animationDelay: '0.1s' }}>
-          <div className="text-sm text-[var(--text-muted)] uppercase tracking-wider">
-            {formatHeaderDate(new Date())}
-          </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-            title="Se déconnecter"
-          >
-            <LogoutIcon />
-            Déconnexion
-          </button>
         </div>
       </div>
     </header>

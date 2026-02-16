@@ -110,14 +110,34 @@ export function ClientForm() {
           />
         </FormField>
         <FormField label="Statut">
-          <Select
-            value={formData.status}
-            onChange={e => setFormData(prev => ({ ...prev, status: e.target.value as ClientStatus }))}
-            options={[
-              { value: 'prospect', label: 'Prospect' },
-              { value: 'client', label: 'Client' }
-            ]}
-          />
+          <div
+            role="group"
+            aria-label="Statut du client"
+            className="flex rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-secondary)]/60 p-0.5"
+          >
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, status: 'prospect' }))}
+              className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-md transition-all ${
+                formData.status === 'prospect'
+                  ? 'bg-[var(--accent-lime)] text-[var(--bg-primary)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Prospect
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, status: 'client' }))}
+              className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-md transition-all ${
+                formData.status === 'client'
+                  ? 'bg-[var(--accent-lime)] text-[var(--bg-primary)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Client
+            </button>
+          </div>
         </FormField>
       </div>
     </Modal>

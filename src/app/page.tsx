@@ -74,9 +74,13 @@ export default function Home() {
       <Header />
       <div className="flex-1 flex flex-col min-h-0">
         {currentView === 'timeline' && (
-          <div className="flex-1 flex min-h-0">
-            <Timeline />
-            <BacklogSidebar />
+          <div className="flex-1 relative min-h-0">
+            <Timeline className="absolute inset-0" />
+            <div className="absolute top-4 right-4 bottom-4 z-20 w-60 pointer-events-none">
+              <div className="h-full w-full pointer-events-auto">
+                <BacklogSidebar />
+              </div>
+            </div>
           </div>
         )}
         {currentView === 'clients' && <ClientsList />}

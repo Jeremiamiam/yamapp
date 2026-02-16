@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Modal, FormField, Input, Textarea, Select, Button } from '@/components/ui';
+import { Modal, FormField, Input, Textarea, Select, Button, BillingStatusToggle, BillingTimeline } from '@/components/ui';
 import { useAppStore } from '@/lib/store';
 import { useUserRole } from '@/hooks/useUserRole';
 import { DeliverableSchema, type DeliverableFormData } from '@/lib/validation';
-import { DeliverableType, DeliverableStatus, Deliverable } from '@/types';
+import { DeliverableType, DeliverableStatus, Deliverable, BillingStatus } from '@/types';
 import { formatDateForInput, formatTimeForInput } from '@/lib/date-utils';
 
 const Package = () => (
@@ -38,7 +38,19 @@ type FreelanceEntry = {
 
 export function DeliverableForm() {
   const { isAdmin } = useUserRole();
-  const { activeModal, closeModal, addDeliverable, updateDeliverable, deleteDeliverable, team, clients, openModal } = useAppStore();
+  const {
+    activeModal,
+    closeModal,
+    addDeliverable,
+    updateDeliverable,
+    deleteDeliverable,
+    team,
+    clients,
+    openModal,
+    updateDeliverableBillingStatus,
+    loadBillingHistory,
+    getBillingHistory,
+  } = useAppStore();
   const isOpen = activeModal?.type === 'deliverable';
   const mode = isOpen ? activeModal.mode : 'create';
   const modalClientId = isOpen ? activeModal.clientId : undefined;
@@ -47,6 +59,13 @@ export function DeliverableForm() {
 
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
   const [freelances, setFreelances] = useState<FreelanceEntry[]>([]);
+  const [billingStatus, setBillingStatus] = useState<BillingStatus>('pending');
+  const [quoteAmount, setQuoteAmount] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [progressAmount, setProgressAmount] = useState('');
+  const [balanceAmount, setBalanceAmount] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const billingHistory = existingDeliverable ? getBillingHistory(existingDeliverable.id) : [];
 
   const {
     register,
@@ -107,6 +126,14 @@ export function DeliverableForm() {
         } else {
           setFreelances([]);
         }
+        // Initialize billing state
+        setBillingStatus(existingDeliverable.billingStatus);
+        setQuoteAmount(existingDeliverable.quoteAmount != null ? String(existingDeliverable.quoteAmount) : '');
+        setDepositAmount(existingDeliverable.depositAmount != null ? String(existingDeliverable.depositAmount) : '');
+        setProgressAmount(existingDeliverable.progressAmount != null ? String(existingDeliverable.progressAmount) : '');
+        setBalanceAmount(existingDeliverable.balanceAmount != null ? String(existingDeliverable.balanceAmount) : '');
+        // Load billing history
+        loadBillingHistory(existingDeliverable.id);
       } else {
         reset({
           name: '',
@@ -127,9 +154,16 @@ export function DeliverableForm() {
         });
         setSelectedTeamIds([]);
         setFreelances([]);
+        // Reset billing state
+        setBillingStatus('pending');
+        setQuoteAmount('');
+        setDepositAmount('');
+        setProgressAmount('');
+        setBalanceAmount('');
       }
+      setValidationError(null);
     }
-  }, [isOpen, existingDeliverable, modalClientId, reset]);
+  }, [isOpen, existingDeliverable, modalClientId, reset, loadBillingHistory]);
 
   const onSubmit = (data: DeliverableFormData) => {
     const dueDate = data.toBacklog ? undefined : new Date(`${data.dueDate}T${data.dueTime || '18:00'}`);
@@ -155,6 +189,14 @@ export function DeliverableForm() {
       deliveredAt: undefined,
       externalContractor: undefined,
       notes: data.notes?.trim() || undefined,
+      billingStatus,
+      quoteAmount: parseEur(quoteAmount),
+      depositAmount: parseEur(depositAmount),
+      progressAmount: parseEur(progressAmount),
+      balanceAmount: parseEur(balanceAmount),
+      totalInvoiced: [depositAmount, progressAmount, balanceAmount]
+        .map(parseEur)
+        .reduce((sum, v) => sum + (v ?? 0), 0) || undefined,
     };
 
     if (mode === 'edit' && existingDeliverable) {
@@ -204,7 +246,7 @@ export function DeliverableForm() {
       icon={<Package />}
       iconBg="bg-[var(--accent-violet)]/10"
       iconColor="text-[var(--accent-violet)]"
-      size="md"
+      size="lg"
       footer={
         <>
           {mode === 'edit' && (
@@ -222,7 +264,9 @@ export function DeliverableForm() {
         </>
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* LEFT COLUMN - General Info */}
+        <div className="space-y-5">
         {showClientSelector && (
           <FormField label="Client">
             <div className="flex items-center gap-2">
@@ -291,11 +335,16 @@ export function DeliverableForm() {
                   key={member.id}
                   type="button"
                   onClick={() => toggleTeamMember(member.id)}
-                  className={`inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold transition-all cursor-pointer ${
+                  className={`inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold transition-all cursor-pointer border-2 ${
                     isSelected
-                      ? 'bg-[var(--accent-violet)] text-white ring-2 ring-[var(--accent-violet)] ring-offset-2 ring-offset-[var(--bg-primary)] hover:bg-[var(--accent-violet)]/90'
-                      : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--accent-violet)]/20 hover:border-[var(--accent-violet)] border border-[var(--border-subtle)]'
+                      ? 'ring-2 ring-[var(--accent-lime)] ring-offset-2 ring-offset-[var(--bg-primary)]'
+                      : 'opacity-70 hover:opacity-100 border-transparent'
                   }`}
+                  style={{
+                    backgroundColor: member.color,
+                    color: '#000',
+                    borderColor: isSelected ? member.color : 'transparent',
+                  }}
                   title={member.name}
                 >
                   {member.initials}
@@ -339,8 +388,122 @@ export function DeliverableForm() {
           </p>
         </FormField>
 
+        <FormField label="Notes">
+          <Textarea {...register('notes')} placeholder="Détails, suivi..." rows={3} className="resize-y" />
+        </FormField>
+        </div>
+
+        {/* RIGHT COLUMN - Money & Billing */}
+        <div className="space-y-5">
         {isAdmin && (
           <>
+            {/* Billing section */}
+            <div className="space-y-4 p-4 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/20">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                💰 Facturation
+              </h3>
+
+              <FormField label="Statut de facturation">
+                <BillingStatusToggle
+                  value={billingStatus}
+                  onChange={(newStatus) => {
+                    setValidationError(null);
+                    setBillingStatus(newStatus);
+                    // Only create history entry when editing existing deliverable
+                    if (mode === 'edit' && existingDeliverable && newStatus !== existingDeliverable.billingStatus) {
+                      // Get the amount corresponding to the new status
+                      const amount =
+                        newStatus === 'deposit' ? parseEur(depositAmount) :
+                        newStatus === 'progress' ? parseEur(progressAmount) :
+                        newStatus === 'balance' ? parseEur(balanceAmount) :
+                        undefined;
+
+                      updateDeliverableBillingStatus(existingDeliverable.id, newStatus, amount);
+                    }
+                  }}
+                  depositAmount={depositAmount}
+                  progressAmount={progressAmount}
+                  balanceAmount={balanceAmount}
+                  onValidationError={(message) => {
+                    setValidationError(message);
+                  }}
+                />
+                {validationError && (
+                  <p className="text-xs text-[#ef4444] mt-2 flex items-center gap-1">
+                    <span>⚠️</span>
+                    {validationError}
+                  </p>
+                )}
+              </FormField>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Devis (€)">
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={quoteAmount}
+                    onChange={(e) => setQuoteAmount(e.target.value)}
+                    placeholder="Ex: 5000"
+                  />
+                </FormField>
+                <FormField label="Acompte (€)">
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    placeholder="Ex: 1500"
+                  />
+                </FormField>
+                <FormField label="Avancement (€)">
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={progressAmount}
+                    onChange={(e) => setProgressAmount(e.target.value)}
+                    placeholder="Ex: 2000"
+                  />
+                </FormField>
+                <FormField label="Solde (€)">
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={balanceAmount}
+                    onChange={(e) => setBalanceAmount(e.target.value)}
+                    placeholder="Ex: 1500"
+                  />
+                </FormField>
+              </div>
+
+              {/* Total invoiced display */}
+              {(depositAmount || progressAmount || balanceAmount) && (
+                <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-[var(--bg-secondary)]">
+                  <span className="text-sm font-medium text-[var(--text-primary)]">Total facturé</span>
+                  <span className="text-lg font-bold text-[var(--accent-lime)]">
+                    {[depositAmount, progressAmount, balanceAmount]
+                      .map(parseEur)
+                      .reduce((sum, v) => sum + (v ?? 0), 0)
+                      .toFixed(0)} €
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Billing history - only in edit mode */}
+            {mode === 'edit' && existingDeliverable && billingHistory.length > 0 && (
+              <div className="space-y-3 p-4 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/20">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                  📊 Historique de facturation
+                </h3>
+                <BillingTimeline
+                  history={billingHistory}
+                  deliverableId={existingDeliverable.id}
+                  canEdit={true}
+                  canDelete={true}
+                />
+              </div>
+            )}
+
             <FormField label="Prix facturé (€)">
               <Input type="text" inputMode="decimal" {...register('prixFacturé')} placeholder="Ex: 4500" />
             </FormField>
@@ -393,10 +556,7 @@ export function DeliverableForm() {
             </FormField>
           </>
         )}
-
-        <FormField label="Notes">
-          <Textarea {...register('notes')} placeholder="Détails, suivi..." rows={2} className="resize-y" />
-        </FormField>
+        </div>
       </form>
     </Modal>
   );
