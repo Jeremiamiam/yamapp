@@ -106,13 +106,15 @@ export interface Deliverable {
   prixFacturé?: number;
   /** Coût sous-traitance : impression, freelance, etc. (sortie) — € */
   coutSousTraitance?: number;
+  /** Si true : ST facture le client directement (hors notre facture), sinon ST nous facture (déduit de la marge) */
+  stHorsFacture?: boolean;
   /** Si true : livrable potentiel (pipeline), affiché en Compta Potentiel. Sinon : livrable réel (facturé). Modifiable à tout moment. */
   isPotentiel?: boolean;
   // Facturation
   billingStatus: BillingStatus;
   quoteAmount?: number;       // Montant total devisé
   depositAmount?: number;     // Montant acompte
-  progressAmount?: number;    // Montant avancement
+  progressAmounts?: number[]; // Montants des avancements (peut y en avoir plusieurs)
   balanceAmount?: number;     // Montant solde
   totalInvoiced?: number;     // Total facturé (auto-calculé)
 }

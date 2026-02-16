@@ -681,6 +681,7 @@ export function Timeline({ className }: TimelineProps) {
                           isDragging={dragState?.item.id === item.id}
                           justLanded={lastDroppedId === item.id}
                           compact={compactWeeks}
+                          allowDragToBacklog={item.type !== 'todo'}
                         />
                       );
                     })}

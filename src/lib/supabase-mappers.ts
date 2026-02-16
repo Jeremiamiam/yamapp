@@ -81,6 +81,7 @@ interface DeliverableRow {
   progress_amount?: number | null;
   balance_amount?: number | null;
   total_invoiced?: number | null;
+  st_hors_facture?: boolean | null;
   created_at: string;
 }
 
@@ -187,9 +188,10 @@ export function mapDeliverableRow(row: DeliverableRow): Deliverable {
     billingStatus: (row.billing_status as BillingStatus) || 'pending',
     quoteAmount: row.quote_amount != null ? Number(row.quote_amount) : undefined,
     depositAmount: row.deposit_amount != null ? Number(row.deposit_amount) : undefined,
-    progressAmount: row.progress_amount != null ? Number(row.progress_amount) : undefined,
+    progressAmounts: row.progress_amount != null ? [Number(row.progress_amount)] : undefined,
     balanceAmount: row.balance_amount != null ? Number(row.balance_amount) : undefined,
     totalInvoiced: row.total_invoiced != null ? Number(row.total_invoiced) : undefined,
+    stHorsFacture: row.st_hors_facture === true,
     createdAt: new Date(row.created_at),
   };
 }
@@ -271,9 +273,13 @@ export function toSupabaseDeliverable(data: Partial<Deliverable>) {
     billing_status: data.billingStatus ?? null,
     quote_amount: data.quoteAmount ?? null,
     deposit_amount: data.depositAmount ?? null,
-    progress_amount: data.progressAmount ?? null,
+    // Convert array to single value (take sum for backward compatibility)
+    progress_amount: data.progressAmounts && data.progressAmounts.length > 0
+      ? data.progressAmounts.reduce((sum, v) => sum + v, 0)
+      : null,
     balance_amount: data.balanceAmount ?? null,
     total_invoiced: data.totalInvoiced ?? null,
+    st_hors_facture: data.stHorsFacture === true,
   };
 }
 

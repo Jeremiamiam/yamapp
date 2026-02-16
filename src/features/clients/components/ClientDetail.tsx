@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useClient } from '@/hooks';
 import {
@@ -25,14 +26,29 @@ const Pencil = () => (
 
 export function ClientDetail() {
   const selectedClientId = useAppStore((state) => state.selectedClientId);
-  const navigateToTimeline = useAppStore((state) => state.navigateToTimeline);
+  const navigateBack = useAppStore((state) => state.navigateBack);
   const openModal = useAppStore((state) => state.openModal);
   const client = useClient(selectedClientId);
 
+  // Listener pour la touche Échap
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        navigateBack();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigateBack]);
+
   if (!client) {
     return (
-      <div className="h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-        <p className="text-[var(--text-muted)]">Client non trouvé</p>
+      <div className="h-screen flex flex-col gradient-mesh relative">
+        <div className="noise-overlay" />
+        <div className="relative z-10 h-full flex items-center justify-center">
+          <p className="text-[var(--text-muted)]">Client non trouvé</p>
+        </div>
       </div>
     );
   }
@@ -47,13 +63,13 @@ export function ClientDetail() {
         <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-5">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
             <button
-              onClick={navigateToTimeline}
+              onClick={navigateBack}
               className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors group self-start touch-manipulation min-h-[44px] -ml-1"
             >
               <span className="group-hover:-translate-x-1 transition-transform">
                 <ArrowLeft />
               </span>
-              <span className="text-sm font-medium">Timeline</span>
+              <span className="text-sm font-medium">Retour</span>
             </button>
 
             <div className="hidden sm:block h-6 w-px bg-[var(--border-subtle)] flex-shrink-0" />

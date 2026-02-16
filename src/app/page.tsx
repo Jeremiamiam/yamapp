@@ -18,6 +18,7 @@ const BACKLOG_FAB_ICON = (
 
 export default function Home() {
   const loadData = useAppStore((state) => state.loadData);
+  const restoreViewFromStorage = useAppStore((state) => state.restoreViewFromStorage);
   const currentView = useAppStore((state) => state.currentView);
   const navigateToTimeline = useAppStore((state) => state.navigateToTimeline);
   const isLoading = useAppStore((state) => state.isLoading);
@@ -25,6 +26,11 @@ export default function Home() {
   const { role, loading } = useUserRole();
   const isMobile = useIsMobile();
   const [backlogDrawerOpen, setBacklogDrawerOpen] = useState(false);
+
+  // Restaurer la vue depuis localStorage après hydratation
+  useEffect(() => {
+    restoreViewFromStorage();
+  }, [restoreViewFromStorage]);
 
   useEffect(() => {
     loadData();

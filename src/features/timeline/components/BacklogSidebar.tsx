@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useModal } from '@/hooks';
 
@@ -17,8 +18,10 @@ const PHONE = (
 const DRAG_TYPE = 'application/x-yam-backlog-item';
 
 export function BacklogSidebar() {
-  const { getBacklogDeliverables, getBacklogCalls, getClientById, navigateToClient } = useAppStore();
+  const { getBacklogDeliverables, getBacklogCalls, getClientById, navigateToClient, updateDeliverable, updateCall } = useAppStore();
   const { openDeliverableModal, openCallModal } = useModal();
+  const [isDragOver, setIsDragOver] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const backlogDeliverables = getBacklogDeliverables();
   const backlogCalls = getBacklogCalls();
@@ -34,12 +37,58 @@ export function BacklogSidebar() {
     window.dispatchEvent(new CustomEvent('backlog-drag-end'));
   };
 
+  // Écouter les événements custom de drag depuis la timeline (mouse-based drag)
+  useEffect(() => {
+    const handleTimelineDragMove = (e: CustomEvent<{ x: number; y: number }>) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const { x, y } = e.detail;
+      const isOver = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+      setIsDragOver(isOver);
+    };
+
+    const handleTimelineDragEnd = async (e: CustomEvent<{ x: number; y: number; type: 'deliverable' | 'call' | 'todo'; id: string } | null>) => {
+      setIsDragOver(false);
+      if (!e.detail || !containerRef.current) return;
+      
+      const rect = containerRef.current.getBoundingClientRect();
+      const { x, y, type, id } = e.detail;
+      const isOver = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+      
+      if (isOver) {
+        // Remettre l'item dans le backlog en supprimant sa date
+        if (type === 'deliverable') {
+          await updateDeliverable(id, { dueDate: undefined });
+        } else if (type === 'call') {
+          await updateCall(id, { scheduledAt: undefined });
+        }
+        // Les todos ne peuvent pas retourner au backlog
+      }
+    };
+
+    window.addEventListener('timeline-drag-move', handleTimelineDragMove as any);
+    window.addEventListener('timeline-drag-end', handleTimelineDragEnd as any);
+
+    return () => {
+      window.removeEventListener('timeline-drag-move', handleTimelineDragMove as any);
+      window.removeEventListener('timeline-drag-end', handleTimelineDragEnd as any);
+    };
+  }, [updateDeliverable, updateCall]);
+
   return (
-    <div className="flex flex-col h-full min-h-0 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)]/95 backdrop-blur-sm shadow-[0_8px_30px_rgba(0,0,0,0.25)] overflow-hidden">
+    <div 
+      ref={containerRef}
+      data-backlog-drop-zone
+      className={`flex flex-col h-full min-h-0 rounded-2xl border bg-[var(--bg-card)]/95 backdrop-blur-sm shadow-[0_8px_30px_rgba(0,0,0,0.25)] overflow-hidden transition-all duration-200 ${
+        isDragOver 
+          ? 'border-[var(--accent-violet)] ring-2 ring-[var(--accent-violet)]/30 scale-[1.02]' 
+          : 'border-[var(--border-subtle)]'
+      }`}
+    >
       {/* Header */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-[var(--border-subtle)]/80">
         <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-          À planifier {total > 0 && `(${total})`}
+          {isDragOver ? '↓ Déposer ici' : `À planifier ${total > 0 ? `(${total})` : ''}`}
         </p>
       </div>
 

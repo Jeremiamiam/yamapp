@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Modal, FormField, Input, Textarea, Select, Button, BillingStatusToggle, BillingTimeline } from '@/components/ui';
+import { Modal, FormField, Input, Textarea, Select, Button, BillingForm, BillingTimeline } from '@/components/ui';
 import { useAppStore } from '@/lib/store';
 import { useUserRole } from '@/hooks/useUserRole';
 import { DeliverableSchema, type DeliverableFormData } from '@/lib/validation';
-import { DeliverableType, DeliverableStatus, Deliverable, BillingStatus } from '@/types';
+import { DeliverableType, DeliverableStatus, Deliverable } from '@/types';
 import { formatDateForInput, formatTimeForInput } from '@/lib/date-utils';
 
 const Package = () => (
@@ -59,12 +59,14 @@ export function DeliverableForm() {
 
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
   const [freelances, setFreelances] = useState<FreelanceEntry[]>([]);
-  const [billingStatus, setBillingStatus] = useState<BillingStatus>('pending');
-  const [quoteAmount, setQuoteAmount] = useState('');
-  const [depositAmount, setDepositAmount] = useState('');
-  const [progressAmount, setProgressAmount] = useState('');
-  const [balanceAmount, setBalanceAmount] = useState('');
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [billingData, setBillingData] = useState<{
+    devis?: number;
+    acompte?: number;
+    avancements?: number[];
+    solde?: number;
+    sousTraitance?: number;
+    stHorsFacture?: boolean;
+  }>({});
   const billingHistory = existingDeliverable ? getBillingHistory(existingDeliverable.id) : [];
 
   const {
@@ -126,12 +128,15 @@ export function DeliverableForm() {
         } else {
           setFreelances([]);
         }
-        // Initialize billing state
-        setBillingStatus(existingDeliverable.billingStatus);
-        setQuoteAmount(existingDeliverable.quoteAmount != null ? String(existingDeliverable.quoteAmount) : '');
-        setDepositAmount(existingDeliverable.depositAmount != null ? String(existingDeliverable.depositAmount) : '');
-        setProgressAmount(existingDeliverable.progressAmount != null ? String(existingDeliverable.progressAmount) : '');
-        setBalanceAmount(existingDeliverable.balanceAmount != null ? String(existingDeliverable.balanceAmount) : '');
+        // Initialize billing data
+        setBillingData({
+          devis: existingDeliverable.quoteAmount,
+          acompte: existingDeliverable.depositAmount,
+          avancements: existingDeliverable.progressAmounts || [],
+          solde: existingDeliverable.balanceAmount,
+          sousTraitance: existingDeliverable.coutSousTraitance,
+          stHorsFacture: existingDeliverable.stHorsFacture || false,
+        });
         // Load billing history
         loadBillingHistory(existingDeliverable.id);
       } else {
@@ -154,14 +159,9 @@ export function DeliverableForm() {
         });
         setSelectedTeamIds([]);
         setFreelances([]);
-        // Reset billing state
-        setBillingStatus('pending');
-        setQuoteAmount('');
-        setDepositAmount('');
-        setProgressAmount('');
-        setBalanceAmount('');
+        // Reset billing data
+        setBillingData({});
       }
-      setValidationError(null);
     }
   }, [isOpen, existingDeliverable, modalClientId, reset, loadBillingHistory]);
 
@@ -175,6 +175,17 @@ export function DeliverableForm() {
       return sum + (cost ?? 0);
     }, 0);
 
+    // Calculate billing status based on filled amounts
+    const getBillingStatus = () => {
+      if (billingData.solde != null) return 'balance';
+      if (billingData.avancements && billingData.avancements.length > 0) return 'progress';
+      if (billingData.acompte != null) return 'deposit';
+      return 'pending';
+    };
+
+    const avancementsTotal = (billingData.avancements || []).reduce((sum, v) => sum + v, 0);
+    const totalInvoiced = (billingData.acompte || 0) + avancementsTotal + (billingData.solde || 0);
+
     const deliverableData: Omit<Deliverable, 'id' | 'createdAt'> = {
       clientId: effectiveClientId,
       name: data.name.trim(),
@@ -184,19 +195,18 @@ export function DeliverableForm() {
       assigneeId: selectedTeamIds[0] || undefined, // First selected team member
       category: 'other',
       isPotentiel: data.isPotentiel === true,
-      prixFacturé: parseEur(data.prixFacturé ?? ''),
-      coutSousTraitance: totalFreelanceCost > 0 ? totalFreelanceCost : undefined,
+      prixFacturé: totalInvoiced > 0 ? totalInvoiced : undefined,
+      coutSousTraitance: billingData.sousTraitance,
+      stHorsFacture: billingData.stHorsFacture || false,
       deliveredAt: undefined,
       externalContractor: undefined,
       notes: data.notes?.trim() || undefined,
-      billingStatus,
-      quoteAmount: parseEur(quoteAmount),
-      depositAmount: parseEur(depositAmount),
-      progressAmount: parseEur(progressAmount),
-      balanceAmount: parseEur(balanceAmount),
-      totalInvoiced: [depositAmount, progressAmount, balanceAmount]
-        .map(parseEur)
-        .reduce((sum: number, v) => sum + (v ?? 0), 0) || undefined,
+      billingStatus: getBillingStatus(),
+      quoteAmount: billingData.devis,
+      depositAmount: billingData.acompte,
+      progressAmounts: billingData.avancements,
+      balanceAmount: billingData.solde,
+      totalInvoiced: totalInvoiced > 0 ? totalInvoiced : undefined,
     };
 
     if (mode === 'edit' && existingDeliverable) {
@@ -246,7 +256,7 @@ export function DeliverableForm() {
       icon={<Package />}
       iconBg="bg-[var(--accent-violet)]/10"
       iconColor="text-[var(--accent-violet)]"
-      size="lg"
+      size="xl"
       footer={
         <>
           {mode === 'edit' && (
@@ -397,97 +407,12 @@ export function DeliverableForm() {
         <div className="space-y-5">
         {isAdmin && (
           <>
-            {/* Billing section */}
-            <div className="space-y-4 p-4 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/20">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                💰 Facturation
-              </h3>
-
-              <FormField label="Statut de facturation">
-                <BillingStatusToggle
-                  value={billingStatus}
-                  onChange={(newStatus) => {
-                    setValidationError(null);
-                    setBillingStatus(newStatus);
-                    // Only create history entry when editing existing deliverable
-                    if (mode === 'edit' && existingDeliverable && newStatus !== existingDeliverable.billingStatus) {
-                      // Get the amount corresponding to the new status
-                      const amount =
-                        newStatus === 'deposit' ? parseEur(depositAmount) :
-                        newStatus === 'progress' ? parseEur(progressAmount) :
-                        newStatus === 'balance' ? parseEur(balanceAmount) :
-                        undefined;
-
-                      updateDeliverableBillingStatus(existingDeliverable.id, newStatus, amount);
-                    }
-                  }}
-                  depositAmount={depositAmount}
-                  progressAmount={progressAmount}
-                  balanceAmount={balanceAmount}
-                  onValidationError={(message) => {
-                    setValidationError(message);
-                  }}
-                />
-                {validationError && (
-                  <p className="text-xs text-[#ef4444] mt-2 flex items-center gap-1">
-                    <span>⚠️</span>
-                    {validationError}
-                  </p>
-                )}
-              </FormField>
-
-              <div className="grid grid-cols-2 gap-3">
-                <FormField label="Devis (€)">
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    value={quoteAmount}
-                    onChange={(e) => setQuoteAmount(e.target.value)}
-                    placeholder="Ex: 5000"
-                  />
-                </FormField>
-                <FormField label="Acompte (€)">
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(e.target.value)}
-                    placeholder="Ex: 1500"
-                  />
-                </FormField>
-                <FormField label="Avancement (€)">
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    value={progressAmount}
-                    onChange={(e) => setProgressAmount(e.target.value)}
-                    placeholder="Ex: 2000"
-                  />
-                </FormField>
-                <FormField label="Solde (€)">
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    value={balanceAmount}
-                    onChange={(e) => setBalanceAmount(e.target.value)}
-                    placeholder="Ex: 1500"
-                  />
-                </FormField>
-              </div>
-
-              {/* Total invoiced display */}
-              {(depositAmount || progressAmount || balanceAmount) && (
-                <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-[var(--bg-secondary)]">
-                  <span className="text-sm font-medium text-[var(--text-primary)]">Total facturé</span>
-                  <span className="text-lg font-bold text-[var(--accent-lime)]">
-                    {([depositAmount, progressAmount, balanceAmount]
-                      .map(parseEur)
-                      .reduce((sum: number, v) => sum + (v ?? 0), 0) || 0)
-                      .toFixed(0)} €
-                  </span>
-                </div>
-              )}
-            </div>
+            {/* New Billing Form */}
+            <BillingForm
+              key={existingDeliverable?.id || 'new'}
+              value={billingData}
+              onChange={setBillingData}
+            />
 
             {/* Billing history - only in edit mode */}
             {mode === 'edit' && existingDeliverable && billingHistory.length > 0 && (
@@ -503,57 +428,6 @@ export function DeliverableForm() {
                 />
               </div>
             )}
-
-            <FormField label="Prix facturé (€)">
-              <Input type="text" inputMode="decimal" {...register('prixFacturé')} placeholder="Ex: 4500" />
-            </FormField>
-
-            {/* Freelances list */}
-            <FormField label="Freelances / Sous-traitance">
-              <div className="space-y-3">
-                {freelances.map((freelance, index) => (
-                  <div key={freelance.id} className="flex items-center gap-2 p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/20">
-                    <input
-                      type="text"
-                      value={freelance.name}
-                      onChange={(e) => updateFreelance(freelance.id, 'name', e.target.value)}
-                      placeholder="Prénom freelance"
-                      className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-violet)]"
-                    />
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={freelance.budget}
-                      onChange={(e) => updateFreelance(freelance.id, 'budget', e.target.value)}
-                      placeholder="Budget €"
-                      className="w-28 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-violet)]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeFreelance(freelance.id)}
-                      className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-
-                <button
-                  type="button"
-                  onClick={addFreelance}
-                  className="w-full py-2.5 rounded-lg border-2 border-dashed border-[var(--border-subtle)] text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/5 transition-colors"
-                >
-                  + Ajouter freelance
-                </button>
-
-                {freelances.length > 0 && (
-                  <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg-tertiary)]/30">
-                    <span className="text-sm font-medium text-[var(--text-primary)]">Total sous-traitance</span>
-                    <span className="text-sm font-bold text-[#ef4444]">{totalFreelanceCost.toFixed(0)} €</span>
-                  </div>
-                )}
-              </div>
-            </FormField>
           </>
         )}
         </div>

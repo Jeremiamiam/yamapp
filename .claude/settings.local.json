@@ -28,7 +28,9 @@
       "Bash(git pull:*)",
       "Bash(git stash:*)",
       "Bash(git restore:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 10 npm run dev:*)"
     ]
   }
 }

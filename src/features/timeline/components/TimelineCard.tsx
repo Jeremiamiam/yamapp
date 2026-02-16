@@ -71,6 +71,8 @@ interface TimelineCardProps {
   justLanded?: boolean;
   /** Mode compact (2 semaines): affichage ultra-condensé */
   compact?: boolean;
+  /** Permet le drag HTML5 vers le backlog */
+  allowDragToBacklog?: boolean;
 }
 
 const DRAG_THRESHOLD_PX = 5;
@@ -89,6 +91,7 @@ function TimelineCardInner({
   isDragging = false,
   justLanded = false,
   compact = false,
+  allowDragToBacklog = false,
 }: TimelineCardProps) {
   const isCall = item.type === 'call';
   const isCompleted = item.status === 'completed';
@@ -117,16 +120,42 @@ function TimelineCardInner({
             onDragStart(item as DragItem, item.type, e.clientX, e.clientY);
           }
           onDragMove?.(e.clientX, e.clientY);
+          // Émettre événement pour le backlog (détection hover)
+          if (allowDragToBacklog && item.type !== 'todo') {
+            window.dispatchEvent(new CustomEvent('timeline-drag-move', { 
+              detail: { x: e.clientX, y: e.clientY } 
+            }));
+          }
         }
       };
 
       const onMouseUp = (e: MouseEvent) => {
         if (!dragStartRef.current) return;
         if (didDragRef.current) {
-          const target = getDropTarget(e.clientX, e.clientY);
-          if (target) {
-            skipClickAfterDragRef && (skipClickAfterDragRef.current = item.id);
-            onMove(item.id, item.type, target.date);
+          // Vérifier si on est au-dessus du backlog
+          let droppedOnBacklog = false;
+          if (allowDragToBacklog && item.type !== 'todo') {
+            // Chercher le container backlog par data attribute
+            const backlogEl = document.querySelector('[data-backlog-drop-zone]');
+            if (backlogEl) {
+              const rect = backlogEl.getBoundingClientRect();
+              droppedOnBacklog = e.clientX >= rect.left && e.clientX <= rect.right && 
+                                 e.clientY >= rect.top && e.clientY <= rect.bottom;
+            }
+            
+            // Émettre événement pour le backlog
+            window.dispatchEvent(new CustomEvent('timeline-drag-end', { 
+              detail: { x: e.clientX, y: e.clientY, type: item.type, id: item.id } 
+            }));
+          }
+          
+          // Si pas droppé sur backlog, traiter comme drop timeline normal
+          if (!droppedOnBacklog) {
+            const target = getDropTarget(e.clientX, e.clientY);
+            if (target) {
+              skipClickAfterDragRef && (skipClickAfterDragRef.current = item.id);
+              onMove(item.id, item.type, target.date);
+            }
           }
           onDragEnd?.();
         }
