@@ -8,6 +8,7 @@ import { useFilteredTimeline, useModal, useIsMobile } from '@/hooks';
 import { TimelineCard, TimelineCardItem } from './TimelineCard';
 import { BACKLOG_DRAG_TYPE, BacklogSidebar } from './BacklogSidebar';
 import { DayTodoZone, TODO_DRAG_TYPE } from './DayTodoZone';
+import { TimelineMobileDayView } from './TimelineMobileDayView';
 
 // Timeline dimensions
 const HEADER_HEIGHT = 56;
@@ -480,7 +481,14 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
 
   return (
     <div className={['flex flex-col overflow-hidden h-full w-full', className].filter(Boolean).join(' ')}>
-      {/* Timeline Content */}
+      {/* Mobile: vue mono-jour avec swipe */}
+      {isMobile ? (
+        <div className="flex-1 flex flex-col min-h-0 relative z-10">
+          <TimelineMobileDayView />
+        </div>
+      ) : (
+      <>
+      {/* Timeline Content - Desktop */}
       <div className="flex-1 flex overflow-hidden relative z-10">
         {/* Scrollable timeline : horaires + colonnes jours scrollent ensemble en Y ; en X la colonne horaires reste fixe (sticky) */}
         <div
@@ -795,7 +803,7 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
       </div>
       </div>
 
-      {/* Drag feedback: ligne de repère + ghost (carte timeline) ou idem pour backlog */}
+      {/* Drag feedback: ligne de repère + ghost (carte timeline) ou idem pour backlog - desktop only */}
       {(dragState || backlogDragPos) && (() => {
         const x = dragState ? dragState.x : backlogDragPos!.x;
         const y = dragState ? dragState.y : backlogDragPos!.y;
@@ -853,6 +861,8 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
           </>
         );
       })()}
+      </>
+      )}
 
     </div>
   );

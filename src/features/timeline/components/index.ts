@@ -1,5 +1,6 @@
 export { Timeline } from './Timeline';
 export { HorizontalEventTimeline } from './HorizontalEventTimeline';
+export { TimelineMobileDayView } from './TimelineMobileDayView';
 export { TimelineCard } from './TimelineCard';
 export { TimelineFilters } from './TimelineFilters';
 export { BacklogSidebar, BACKLOG_DRAG_TYPE } from './BacklogSidebar';
