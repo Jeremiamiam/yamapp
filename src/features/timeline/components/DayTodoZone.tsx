@@ -244,7 +244,7 @@ export function DayTodoZone() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className="flex-shrink-0 mt-0.5"
-                    title={`Planifiée le ${todo.scheduledAt.toLocaleString('fr-FR', {
+                    aria-label={`Planifiée le ${todo.scheduledAt.toLocaleString('fr-FR', {
                       day: 'numeric',
                       month: 'short',
                       hour: '2-digit',
