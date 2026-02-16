@@ -90,24 +90,25 @@ export function Header() {
   }
 
   return (
-    <header className="flex-shrink-0 px-4 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-[var(--border-subtle)] relative z-10 bg-[var(--bg-primary)]/80 backdrop-blur-sm">
+    <header className="flex-shrink-0 px-4 sm:px-6 md:px-8 py-2 md:py-3 sm:py-4 border-b border-[var(--border-subtle)] relative z-10 bg-[var(--bg-primary)]/80 backdrop-blur-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-6">
-        <div className="flex-shrink-0">
-          <h1 className="text-lg font-bold tracking-tight leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
+        <div className="flex-shrink-0 md:flex-shrink-0 flex-1 md:flex-initial flex justify-center md:justify-start">
+          <h1 className="text-base md:text-lg font-bold tracking-tight leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
             <span className="text-[var(--text-primary)] block">dashboard</span>
             <span className="text-[var(--text-primary)]">yam</span>
             <span className="text-[var(--accent-lime)]">.</span>
           </h1>
         </div>
         
-        {/* Filters équipe — masqués sur smartphone (< 768px) pour gagner de la place */}
+        {/* Filters équipe — masqués sur smartphone (< 768px) */}
         <div className="flex-1 min-w-0 hidden md:block">
           {currentView === 'timeline' && (
             <TimelineFilters />
           )}
         </div>
         
-        <div className="flex-shrink-0 flex items-center gap-3 sm:gap-4">
+        {/* View switcher + user — masqués sur smartphone (nav en bas) */}
+        <div className="flex-shrink-0 flex items-center gap-3 sm:gap-4 hidden md:flex">
           {/* View Switcher — à droite avant l'utilisateur */}
           <div className="flex p-1 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-subtle)]">
             <button

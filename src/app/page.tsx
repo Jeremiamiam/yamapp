@@ -8,6 +8,7 @@ import { useIsMobile } from '@/hooks';
 import { Timeline, BacklogDrawer } from '@/features/timeline/components';
 import { Header } from '@/components/layout/Header';
 import { GlobalSidebar } from '@/components/layout/GlobalSidebar';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { ModalManager } from '@/components/ModalManager';
 import { ClientDetail, ClientsList, DocumentModal } from '@/features/clients/components';
 import { ComptaView } from '@/features/compta/components';
@@ -16,21 +17,6 @@ import { DayTodoDrawer } from '@/features/timeline/components/DayTodoDrawer';
 // Ordre des vues pour la navigation clavier (sans client-detail qui est une vue modale)
 const VIEW_ORDER = ['timeline', 'clients', 'compta'] as const;
 type MainView = typeof VIEW_ORDER[number];
-
-const BACKLOG_FAB_ICON = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-  </svg>
-);
-
-const TODO_FAB_ICON = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-    <path d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v0z" />
-    <line x1="9" y1="12" x2="15" y2="12" />
-    <line x1="9" y1="16" x2="15" y2="16" />
-  </svg>
-);
 
 export default function Home() {
   const loadData = useAppStore((state) => state.loadData);
@@ -186,33 +172,19 @@ export default function Home() {
           <GlobalSidebar height={sidebarHeight} />
         )}
 
-        {/* Contenu principal */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* Contenu principal — padding-bottom sur mobile pour la bottom nav */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-[72px] md:pb-0">
           {renderView(currentView)}
         </div>
 
-        {/* Mobile: FABs superposés — visible uniquement < 768px via CSS */}
-        <div className="fixed bottom-4 right-4 z-[55] md:hidden flex items-end justify-end gap-0">
-            {/* FAB Backlog (dessous) */}
-            <button
-              type="button"
-              onClick={() => setBacklogDrawerOpen(true)}
-              className="w-14 h-14 rounded-full bg-[var(--accent-violet)] text-[var(--bg-primary)] shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center touch-manipulation"
-              aria-label="Ouvrir À planifier"
-            >
-              {BACKLOG_FAB_ICON}
-            </button>
-            {/* FAB Todo (superposé, au-dessus à gauche du Backlog) */}
-            <button
-              type="button"
-              onClick={() => setTodoDrawerOpen(true)}
-              className="absolute bottom-2 right-12 w-14 h-14 rounded-full bg-[var(--accent-lime)] text-[var(--bg-primary)] shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center touch-manipulation"
-              aria-label="Ouvrir Todo du jour"
-            >
-              {TODO_FAB_ICON}
-            </button>
-          </div>
-          <DayTodoDrawer
+        {/* Mobile: barre de navigation en bas */}
+        <MobileBottomNav
+          onOpenTodo={() => setTodoDrawerOpen(true)}
+          onOpenBacklog={() => setBacklogDrawerOpen(true)}
+          canAccessCompta={role === 'admin'}
+        />
+
+        <DayTodoDrawer
             isOpen={todoDrawerOpen}
             onClose={() => setTodoDrawerOpen(false)}
           />
