@@ -95,7 +95,7 @@ interface AppState {
   deleteContact: (clientId: string, contactId: string) => Promise<void>;
 
   // CRUD Actions - Clients (async Supabase)
-  addClient: (data: Pick<Client, 'name' | 'status'>) => Promise<Client | undefined>;
+  addClient: (data: Pick<Client, 'name' | 'status'>) => Promise<{ client: Client; isExisting: boolean } | undefined>;
   updateClient: (id: string, data: Partial<Pick<Client, 'name' | 'status'>>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
 
