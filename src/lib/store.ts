@@ -943,31 +943,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   updateTeamMember: async (id, data) => {
-    console.log('🔧 updateTeamMember called:', { id, data });
     try {
       const supabase = createClient();
       const payload: Record<string, unknown> = {};
       if (data.name !== undefined) payload.name = data.name.trim();
       if (data.initials !== undefined) payload.initials = data.initials.trim();
       if (data.color !== undefined) payload.color = data.color;
-      console.log('📦 Payload to send:', payload);
-      if (Object.keys(payload).length === 0) {
-        console.log('⚠️ Empty payload, aborting');
-        return;
-      }
-      console.log('🚀 Calling Supabase update...');
+      if (Object.keys(payload).length === 0) return;
       const { error } = await supabase.from('team').update(payload).eq('id', id);
-      if (error) {
-        console.error('❌ Supabase error:', error);
-        throw error;
-      }
-      console.log('✅ Supabase update successful, updating local state');
+      if (error) throw error;
       set((state) => ({
         team: state.team.map((m) => (m.id === id ? { ...m, ...data } : m)),
       }));
-      console.log('✅ Local state updated');
     } catch (e) {
-      console.error('💥 updateTeamMember caught error:', e);
       handleError(new AppError(getErrorMessage(e), 'TEAM_MEMBER_UPDATE_FAILED', 'Impossible de modifier le membre'));
     }
   },
