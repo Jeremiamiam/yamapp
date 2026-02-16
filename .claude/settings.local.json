@@ -23,7 +23,12 @@
       "Skill(gsd:execute-phase)",
       "Bash(npx tsc:*)",
       "Bash(npx supabase db push:*)",
-      "Skill(gsd:plan-phase)"
+      "Skill(gsd:plan-phase)",
+      "Bash(npm run typecheck:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(git restore:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }

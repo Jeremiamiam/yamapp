@@ -1,3 +1,8 @@
+---
+description: 
+alwaysApply: true
+---
+
 # YAM Dashboard - Cursor Rules
 
 ## Project Context
@@ -321,3 +326,17 @@ type Contact = {
 ---
 
 **Remember:** You're building a SIMPLE alternative to Notion, not rebuilding Notion. When in doubt, choose simplicity.
+
+———
+
+# Documentation Integrity
+ALWAYS apply the "Boy Scout Rule" to documentation.
+IF you modify logic, add a function, or change a parameter:
+1. You MUST check if existing documentation (README, TSDoc, comments) needs updating.
+2. You MUST include the documentation update in the SAME response/changeset as the code.
+3. DO NOT ask for permission to update docs, just do it.
+
+# Output Format
+When generating a new feature via Composer (Cmd+I):
+- Update the code.
+- Update the relevant markdown docs immediately after.
