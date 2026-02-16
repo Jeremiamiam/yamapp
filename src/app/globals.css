@@ -232,6 +232,22 @@ h1, h2, h3 {
   animation: slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
+/* Slide down with fade (pour les avatars filtres) */
+@keyframes slide-down-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-slide-down-fade {
+  opacity: 0;
+  animation: slide-down-fade 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
 /* Staggered animations */
 .stagger-1 { animation-delay: 0.05s; }
 .stagger-2 { animation-delay: 0.1s; }

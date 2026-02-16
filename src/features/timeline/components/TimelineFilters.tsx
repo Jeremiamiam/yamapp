@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 
 // Icons
@@ -17,6 +18,9 @@ export function TimelineFilters() {
     setTeamMemberFilter, 
     resetFilters 
   } = useAppStore();
+  
+  // État pour l'animation staggered
+  const [visibleIndexes, setVisibleIndexes] = useState<number[]>([]);
 
   const hasActiveFilters = filters.teamMemberId !== null;
   
@@ -24,6 +28,18 @@ export function TimelineFilters() {
   const selectedMember = filters.teamMemberId 
     ? team.find(m => m.id === filters.teamMemberId) 
     : null;
+    
+  // Animation staggered au mount
+  useEffect(() => {
+    if (!selectedMember && team.length > 0) {
+      setVisibleIndexes([]);
+      team.forEach((_, index) => {
+        setTimeout(() => {
+          setVisibleIndexes(prev => [...prev, index]);
+        }, index * 80);
+      });
+    }
+  }, [selectedMember, team]);
 
   return (
     <div className="flex items-center gap-2 animate-fade-in">
@@ -49,21 +65,27 @@ export function TimelineFilters() {
       ) : (
         // Liste des membres
         <div className="flex items-center gap-1">
-          {team.map(member => (
-            <button
-              key={member.id}
-              onClick={() => setTeamMemberFilter(member.id)}
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border-2 hover:opacity-80 transition-opacity cursor-pointer"
-              style={{ 
-                backgroundColor: 'transparent', 
-                color: member.color,
-                borderColor: member.color 
-              }}
-              title={member.name}
-            >
-              {member.initials}
-            </button>
-          ))}
+          {team.map((member, index) => {
+            const isVisible = visibleIndexes.includes(index);
+            return (
+              <button
+                key={member.id}
+                onClick={() => setTeamMemberFilter(member.id)}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border-2 hover:opacity-80 cursor-pointer"
+                style={{ 
+                  backgroundColor: 'transparent', 
+                  color: member.color,
+                  borderColor: member.color,
+                  opacity: isVisible ? 1 : 0,
+                  transform: isVisible ? 'translateY(0)' : 'translateY(-12px)',
+                  transition: 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                }}
+                title={member.name}
+              >
+                {member.initials}
+              </button>
+            );
+          })}
         </div>
       )}
 
