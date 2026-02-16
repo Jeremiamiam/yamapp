@@ -1,13 +1,20 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useUserRole } from '@/hooks/useUserRole';
-import { Timeline, BacklogSidebar } from '@/features/timeline/components';
+import { useIsMobile } from '@/hooks';
+import { Timeline, BacklogSidebar, BacklogDrawer } from '@/features/timeline/components';
 import { Header } from '@/components/layout/Header';
 import { ModalManager } from '@/components/ModalManager';
 import { ClientDetail, ClientsList, DocumentModal } from '@/features/clients/components';
 import { ComptaView } from '@/features/compta/components';
+
+const BACKLOG_FAB_ICON = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+  </svg>
+);
 
 export default function Home() {
   const loadData = useAppStore((state) => state.loadData);
@@ -16,6 +23,8 @@ export default function Home() {
   const isLoading = useAppStore((state) => state.isLoading);
   const loadingError = useAppStore((state) => state.loadingError);
   const { role, loading } = useUserRole();
+  const isMobile = useIsMobile();
+  const [backlogDrawerOpen, setBacklogDrawerOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -76,11 +85,31 @@ export default function Home() {
         {currentView === 'timeline' && (
           <div className="flex-1 relative min-h-0">
             <Timeline className="absolute inset-0" />
-            <div className="absolute top-4 right-4 bottom-4 z-20 w-60 pointer-events-none">
-              <div className="h-full w-full pointer-events-auto">
-                <BacklogSidebar />
+            {/* Desktop: sidebar fixe à droite */}
+            {!isMobile && (
+              <div className="absolute top-4 right-4 bottom-4 z-20 w-60 pointer-events-none">
+                <div className="h-full w-full pointer-events-auto">
+                  <BacklogSidebar />
+                </div>
               </div>
-            </div>
+            )}
+            {/* Mobile: FAB + drawer */}
+            {isMobile && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setBacklogDrawerOpen(true)}
+                  className="fixed bottom-4 right-4 z-[55] w-14 h-14 rounded-full bg-[var(--accent-violet)] text-[var(--bg-primary)] shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center touch-manipulation"
+                  aria-label="Ouvrir À planifier"
+                >
+                  {BACKLOG_FAB_ICON}
+                </button>
+                <BacklogDrawer
+                  isOpen={backlogDrawerOpen}
+                  onClose={() => setBacklogDrawerOpen(false)}
+                />
+              </>
+            )}
           </div>
         )}
         {currentView === 'clients' && <ClientsList />}

@@ -137,11 +137,12 @@ export function Timeline({ className }: TimelineProps) {
   }, [containerHeight]);
 
   const effectiveTodoColumnWidth = isMobile ? 0 : TODO_COLUMN_WIDTH;
+  const effectiveBacklogWidth = isMobile ? 0 : BACKLOG_OVERLAY_WIDTH;
 
   // Calculate day widths : 5 ou 10 jours ouvrés dans la zone visible selon compactWeeks (1 sem. vs 2 sem.)
   const dayWidths = useMemo(() => {
     if (containerWidth === 0) return { weekday: 160, weekend: 30 };
-    const visibleWidth = Math.max(200, containerWidth - BACKLOG_OVERLAY_WIDTH - effectiveTodoColumnWidth - HOURS_COLUMN_WIDTH);
+    const visibleWidth = Math.max(200, containerWidth - effectiveBacklogWidth - effectiveTodoColumnWidth - HOURS_COLUMN_WIDTH);
     const weekdayCount = compactWeeks ? 10 : 5;
     const totalUnits = weekdayCount + 2 * WEEKEND_RATIO;
     const unitWidth = visibleWidth / totalUnits;
@@ -149,7 +150,7 @@ export function Timeline({ className }: TimelineProps) {
       weekday: unitWidth,
       weekend: unitWidth * WEEKEND_RATIO,
     };
-  }, [containerWidth, compactWeeks, effectiveTodoColumnWidth]);
+  }, [containerWidth, compactWeeks, effectiveTodoColumnWidth, effectiveBacklogWidth]);
 
   // Generate dates with widths
   const datesWithWidth = useMemo(() => {
