@@ -14,6 +14,7 @@ const X = () => (
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSubmit?: () => void;
   title: string;
   subtitle?: string;
   icon?: ReactNode;
@@ -27,6 +28,7 @@ interface ModalProps {
 export function Modal({ 
   isOpen, 
   onClose, 
+  onSubmit,
   title, 
   subtitle,
   icon,
@@ -37,8 +39,21 @@ export function Modal({
   size = 'md'
 }: ModalProps) {
   
-  useKeyPress('Escape', () => {
+  useKeyPress('Escape', (_e) => {
     if (isOpen) onClose();
+  });
+
+  // Entrée pour soumettre (sauf si focus sur textarea)
+  useKeyPress('Enter', (e) => {
+    if (!isOpen || !onSubmit) return;
+    const target = e.target as HTMLElement;
+    // Ne pas soumettre si on est dans un textarea ou un élément avec role combobox (autocomplete)
+    if (target.tagName === 'TEXTAREA') return;
+    if (target.getAttribute('role') === 'combobox') return;
+    // Ne pas soumettre si Shift+Enter (nouvelle ligne)
+    if (e.shiftKey) return;
+    e.preventDefault();
+    onSubmit();
   });
 
   useEffect(() => {

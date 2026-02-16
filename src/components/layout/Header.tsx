@@ -92,7 +92,7 @@ export function Header() {
   return (
     <header className="flex-shrink-0 px-4 sm:px-6 md:px-8 py-3 sm:py-4 border-b border-[var(--border-subtle)] relative z-10 bg-[var(--bg-primary)]/80 backdrop-blur-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-6">
-        <div className="animate-slide-in flex-shrink-0">
+        <div className="flex-shrink-0">
           <h1 className="text-lg font-bold tracking-tight leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
             <span className="text-[var(--text-primary)] block">dashboard</span>
             <span className="text-[var(--text-primary)]">yam</span>
@@ -100,16 +100,14 @@ export function Header() {
           </h1>
         </div>
         
-        {/* Filters — hidden on compta */}
-        <div className="flex-1 min-w-0 w-full sm:w-auto">
-          {currentView !== 'compta' && (
-            <div className="animate-slide-in" style={{ animationDelay: '0.05s' }}>
-              <TimelineFilters />
-            </div>
+        {/* Filters équipe */}
+        <div className="flex-1 min-w-0">
+          {currentView === 'timeline' && (
+            <TimelineFilters />
           )}
         </div>
         
-        <div className="animate-slide-in flex-shrink-0 flex items-center gap-3 sm:gap-4" style={{ animationDelay: '0.1s' }}>
+        <div className="flex-shrink-0 flex items-center gap-3 sm:gap-4">
           {/* View Switcher — à droite avant l'utilisateur */}
           <div className="flex p-1 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-subtle)]">
             <button

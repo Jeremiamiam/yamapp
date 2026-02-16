@@ -48,10 +48,10 @@ type ClientTableRow = {
   rentreesValidees: number;
   sousTraitance: number;
   margeNette: number;
-  potentiel: number;
+  margePotentielleYam: number;
   totalGlobal: number;
-  completedDeliverables: Deliverable[];
-  potentielDeliverables: Deliverable[];
+  billedDeliverables: Deliverable[];
+  margePotentielleDeliverables: Deliverable[];
 };
 
 const ChevronDown = ({ open }: { open: boolean }) => (
@@ -86,41 +86,42 @@ export function ComptaView() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
 
-  // Filter deliverables by selected year (dueDate-based)
+  // Filter deliverables by selected year (dueDate, fallback to createdAt for backlog items)
   const yearDeliverables = useMemo(() => {
     return deliverables.filter(d => {
-      if (!d.dueDate) return false;
-      return new Date(d.dueDate).getFullYear() === comptaYear;
+      const date = d.dueDate ?? d.createdAt;
+      if (!date) return false;
+      return new Date(date).getFullYear() === comptaYear;
     });
   }, [deliverables, comptaYear]);
 
-  // Completed deliverables = rentrées validées
-  const completedDeliverables = useMemo(() =>
-    yearDeliverables.filter(d => d.status === 'completed'),
+  // Billed deliverables = billing has progressed (acompte/avancement/solde engagé)
+  const billedDeliverables = useMemo(() =>
+    yearDeliverables.filter(d => d.billingStatus !== 'pending'),
     [yearDeliverables]
   );
 
-  // Potentiel deliverables = pending + in-progress
-  const potentielDeliverables = useMemo(() =>
-    yearDeliverables.filter(d => d.status === 'pending' || d.status === 'in-progress'),
+  // Marge potentielle deliverables = no billing progress + margePotentielle set
+  const margePotentielleDeliverables = useMemo(() =>
+    yearDeliverables.filter(d => d.billingStatus === 'pending' && (d.margePotentielle ?? 0) > 0),
     [yearDeliverables]
   );
 
-  // KPI calculations: rentrées, dépenses, marge
+  // KPI calculations: rentrées, dépenses, marge (from billed deliverables only)
   const { totalFacturé, totalDépensé, margeNette } = useMemo(() => {
     let facturé = 0;
     let dépensé = 0;
-    for (const d of completedDeliverables) {
+    for (const d of billedDeliverables) {
       facturé += d.prixFacturé ?? 0;
       dépensé += d.coutSousTraitance ?? 0;
     }
     return { totalFacturé: facturé, totalDépensé: dépensé, margeNette: facturé - dépensé };
-  }, [completedDeliverables]);
+  }, [billedDeliverables]);
 
-  // Potentiel total
-  const totalPotentiel = useMemo(() => {
-    return potentielDeliverables.reduce((sum, d) => sum + (d.prixFacturé ?? 0), 0);
-  }, [potentielDeliverables]);
+  // Marge potentielle Yam (only deliverables with no billing progress)
+  const totalMargePotentielle = useMemo(() => {
+    return margePotentielleDeliverables.reduce((sum, d) => sum + (d.margePotentielle ?? 0), 0);
+  }, [margePotentielleDeliverables]);
 
   // Total unique clients (independent of filter)
   const totalClients = useMemo(() => {
@@ -131,65 +132,50 @@ export function ComptaView() {
     return clientIds.size;
   }, [yearDeliverables]);
 
-  // Build table rows: one row per client with 4 KPI columns
+  // Build table rows: one row per client
   const tableRows = useMemo(() => {
     const map = new Map<string, ClientTableRow>();
 
-    // Add completed deliverables
-    for (const d of completedDeliverables) {
-      if (!d.clientId) continue;
-      const client = getClientById(d.clientId);
-      const prix = d.prixFacturé ?? 0;
-      const sousTraitance = d.coutSousTraitance ?? 0;
-
-      const existing = map.get(d.clientId);
-      if (existing) {
-        existing.rentreesValidees += prix;
-        existing.sousTraitance += sousTraitance;
-        existing.margeNette = existing.rentreesValidees - existing.sousTraitance;
-        existing.totalGlobal += prix;
-        existing.completedDeliverables.push(d);
-      } else {
-        map.set(d.clientId, {
-          clientId: d.clientId,
-          clientName: client?.name ?? 'Sans nom',
-          isProspect: client?.status === 'prospect',
-          rentreesValidees: prix,
-          sousTraitance,
-          margeNette: prix - sousTraitance,
-          potentiel: 0,
-          totalGlobal: prix,
-          completedDeliverables: [d],
-          potentielDeliverables: [],
-        });
-      }
-    }
-
-    // Add potentiel deliverables
-    for (const d of potentielDeliverables) {
-      if (!d.clientId) continue;
-      const client = getClientById(d.clientId);
-      const prix = d.prixFacturé ?? 0;
-
-      const existing = map.get(d.clientId);
-      if (existing) {
-        existing.potentiel += prix;
-        existing.totalGlobal += prix;
-        existing.potentielDeliverables.push(d);
-      } else {
-        map.set(d.clientId, {
-          clientId: d.clientId,
+    const ensureRow = (clientId: string) => {
+      if (!map.has(clientId)) {
+        const client = getClientById(clientId);
+        map.set(clientId, {
+          clientId,
           clientName: client?.name ?? 'Sans nom',
           isProspect: client?.status === 'prospect',
           rentreesValidees: 0,
           sousTraitance: 0,
           margeNette: 0,
-          potentiel: prix,
-          totalGlobal: prix,
-          completedDeliverables: [],
-          potentielDeliverables: [d],
+          margePotentielleYam: 0,
+          totalGlobal: 0,
+          billedDeliverables: [],
+          margePotentielleDeliverables: [],
         });
       }
+      return map.get(clientId)!;
+    };
+
+    // Billed deliverables → rentrées / sous-traitance / marge nette
+    for (const d of billedDeliverables) {
+      if (!d.clientId) continue;
+      const row = ensureRow(d.clientId);
+      const prix = d.prixFacturé ?? 0;
+      const st = d.coutSousTraitance ?? 0;
+      row.rentreesValidees += prix;
+      row.sousTraitance += st;
+      row.margeNette = row.rentreesValidees - row.sousTraitance;
+      row.totalGlobal += prix;
+      row.billedDeliverables.push(d);
+    }
+
+    // Marge potentielle deliverables → marge Yam
+    for (const d of margePotentielleDeliverables) {
+      if (!d.clientId) continue;
+      const row = ensureRow(d.clientId);
+      const marge = d.margePotentielle ?? 0;
+      row.margePotentielleYam += marge;
+      row.totalGlobal += marge;
+      row.margePotentielleDeliverables.push(d);
     }
 
     let rows = Array.from(map.values());
@@ -198,7 +184,7 @@ export function ComptaView() {
     if (filterMode === 'with-validated') {
       rows = rows.filter(r => r.rentreesValidees > 0);
     } else if (filterMode === 'with-potential') {
-      rows = rows.filter(r => r.potentiel > 0);
+      rows = rows.filter(r => r.margePotentielleYam > 0);
     }
 
     // Sort by totalGlobal
@@ -211,7 +197,7 @@ export function ComptaView() {
     });
 
     return rows;
-  }, [completedDeliverables, potentielDeliverables, getClientById, sortDirection, filterMode]);
+  }, [billedDeliverables, margePotentielleDeliverables, getClientById, sortDirection, filterMode]);
 
   if (roleLoading) {
     return (
@@ -259,7 +245,7 @@ export function ComptaView() {
               Rentrées validées
             </p>
             <p className="text-2xl font-bold text-[#22c55e]">{formatEur(totalFacturé)}</p>
-            <p className="text-sm text-[var(--text-muted)] mt-1">délivrables terminés {comptaYear}</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">produits terminés {comptaYear}</p>
           </div>
           <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 shadow-lg">
             <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">
@@ -275,12 +261,12 @@ export function ComptaView() {
             <p className="text-2xl font-bold text-[#3b82f6]">{formatEur(margeNette)}</p>
             <p className="text-sm text-[var(--text-muted)] mt-1">rentrées - sous-traitance</p>
           </div>
-          <div className="rounded-xl border-2 border-dashed border-amber-500/60 bg-amber-500/5 p-6 shadow-lg">
-            <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-2">
-              Potentiel
+          <div className="rounded-xl border-2 border-[var(--accent-violet)]/40 bg-[var(--accent-violet)]/5 p-6 shadow-lg">
+            <p className="text-xs font-medium text-[var(--accent-violet)] uppercase tracking-wider mb-2">
+              Rentrée potentielle
             </p>
-            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{formatEur(totalPotentiel)}</p>
-            <p className="text-sm text-[var(--text-muted)] mt-1">en cours + à venir {comptaYear}</p>
+            <p className="text-2xl font-bold text-[var(--accent-violet)]">{formatEur(totalMargePotentielle)}</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">rentrée potentielle {comptaYear}</p>
           </div>
         </div>
 
@@ -313,11 +299,11 @@ export function ComptaView() {
                 onClick={() => setFilterMode('with-potential')}
                 className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
                   filterMode === 'with-potential'
-                    ? 'bg-amber-500 text-white'
+                    ? 'bg-[var(--accent-violet)] text-white'
                     : 'bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border-subtle)] hover:bg-[var(--bg-tertiary)]'
                 }`}
               >
-                Potentiels
+                Rentrée pot.
               </button>
             </div>
           </div>
@@ -337,11 +323,11 @@ export function ComptaView() {
             <table className="w-full text-sm table-fixed">
               <colgroup>
                 <col style={{ width: '40px' }} />
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '20.5%' }} />
-                <col style={{ width: '20.5%' }} />
-                <col style={{ width: '20.5%' }} />
-                <col style={{ width: '20.5%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
               </colgroup>
               <thead>
                 <tr className="border-b border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30">
@@ -350,7 +336,7 @@ export function ComptaView() {
                   <th className="text-right py-4 px-4 font-medium text-[#22c55e]">Rentrées validées</th>
                   <th className="text-right py-4 px-4 font-medium text-[#ef4444]">Sous-traitance</th>
                   <th className="text-right py-4 px-4 font-medium text-[#3b82f6]">Marge nette</th>
-                  <th className="text-right py-4 px-4 font-medium text-amber-600 dark:text-amber-400">Potentiel</th>
+                  <th className="text-right py-4 px-4 font-medium text-[var(--accent-violet)]">Rentrée pot.</th>
                 </tr>
               </thead>
               <tbody>
@@ -390,22 +376,22 @@ export function ComptaView() {
                         <td className="py-4 px-4 text-right text-[#3b82f6] font-medium">
                           {filterMode === 'with-potential' ? '—' : (row.margeNette !== 0 ? formatEur(row.margeNette) : '—')}
                         </td>
-                        <td className="py-4 px-4 text-right text-amber-600 dark:text-amber-400 font-medium">
-                          {filterMode === 'with-validated' ? '—' : (row.potentiel > 0 ? formatEur(row.potentiel) : '—')}
+                        <td className="py-4 px-4 text-right text-[var(--accent-violet)] font-medium">
+                          {row.margePotentielleYam > 0 ? formatEur(row.margePotentielleYam) : '—'}
                         </td>
                       </tr>
                       {isExpanded && (
                         <tr>
                           <td colSpan={6} className="py-0 px-0 bg-[var(--bg-tertiary)]/20">
                             <div className="px-8 py-6 space-y-4">
-                              {/* Show completed deliverables only if not filtering by potential */}
-                              {row.completedDeliverables.length > 0 && filterMode !== 'with-potential' && (
+                              {/* Billed deliverables (rentrées) */}
+                              {row.billedDeliverables.length > 0 && filterMode !== 'with-potential' && (
                                 <div>
                                   <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
-                                    Rentrées ({row.completedDeliverables.length})
+                                    Rentrées ({row.billedDeliverables.length})
                                   </p>
                                   <ul className="space-y-2">
-                                    {row.completedDeliverables.map((d) => (
+                                    {row.billedDeliverables.map((d) => (
                                       <li
                                         key={d.id}
                                         onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
@@ -427,25 +413,22 @@ export function ComptaView() {
                                 </div>
                               )}
 
-                              {/* Show potential deliverables only if not filtering by validated */}
-                              {row.potentielDeliverables.length > 0 && filterMode !== 'with-validated' && (
+                              {/* Marge potentielle deliverables */}
+                              {row.margePotentielleDeliverables.length > 0 && filterMode !== 'with-validated' && (
                                 <div>
-                                  <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
-                                    Potentiel ({row.potentielDeliverables.length})
+                                  <p className="text-xs font-medium text-[var(--accent-violet)] uppercase tracking-wider mb-3">
+                                    Rentrée potentielle ({row.margePotentielleDeliverables.length})
                                   </p>
                                   <ul className="space-y-2">
-                                    {row.potentielDeliverables.map((d) => (
+                                    {row.margePotentielleDeliverables.map((d) => (
                                       <li
                                         key={d.id}
                                         onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
-                                        className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] text-sm cursor-pointer hover:border-[var(--accent-violet)]/50 hover:bg-[var(--bg-tertiary)]/30 transition-colors"
+                                        className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-card)] border border-[var(--accent-violet)]/20 text-sm cursor-pointer hover:border-[var(--accent-violet)]/50 hover:bg-[var(--bg-tertiary)]/30 transition-colors"
                                       >
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <span className="text-[var(--text-primary)] truncate">{d.name}</span>
-                                          <BillingStatusChip status={d.billingStatus} />
-                                        </div>
-                                        <span className="text-amber-600 dark:text-amber-400 shrink-0 text-xs">
-                                          {formatEur(d.prixFacturé ?? 0)}
+                                        <span className="text-[var(--text-primary)] truncate">{d.name}</span>
+                                        <span className="text-[var(--accent-violet)] font-medium shrink-0 text-xs">
+                                          {formatEur(d.margePotentielle ?? 0)}
                                         </span>
                                       </li>
                                     ))}

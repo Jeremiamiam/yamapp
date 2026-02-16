@@ -122,6 +122,7 @@ export function DocumentForm() {
     <Modal
       isOpen={isOpen}
       onClose={closeModal}
+      onSubmit={handleSubmit(onSubmit)}
       title={mode === 'edit' ? 'Modifier le document' : 'Nouveau document'}
       subtitle="Document"
       icon={<FileText />}
@@ -202,7 +203,7 @@ export function DocumentForm() {
           <Textarea
             {...register('content')}
             placeholder={
-              type === 'brief' ? 'Objectifs, contexte, livrables attendus...' :
+              type === 'brief' ? 'Objectifs, contexte, produits attendus...' :
               type === 'report' ? "Transcription de l'appel, points clés discutés..." :
               'Contenu de la note...'
             }

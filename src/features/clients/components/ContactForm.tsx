@@ -78,6 +78,7 @@ export function ContactForm() {
     <Modal
       isOpen={isOpen}
       onClose={closeModal}
+      onSubmit={handleSubmit(onSubmit)}
       title={mode === 'edit' ? 'Modifier le contact' : 'Nouveau contact'}
       subtitle="Contact"
       icon={<User />}

@@ -8,7 +8,6 @@ import { useFilteredTimeline, useModal, useIsMobile } from '@/hooks';
 import { TimelineCard, TimelineCardItem } from './TimelineCard';
 import { BACKLOG_DRAG_TYPE, BacklogSidebar } from './BacklogSidebar';
 import { DayTodoZone, TODO_DRAG_TYPE } from './DayTodoZone';
-import { DayTodoDrawer } from './DayTodoDrawer';
 
 // Timeline dimensions
 const HEADER_HEIGHT = 56;
@@ -37,22 +36,16 @@ function snapTo30Min(date: Date): Date {
   return d;
 }
 
-type TimelineProps = { className?: string };
+type TimelineProps = { 
+  className?: string;
+  /** Si true, la sidebar (DayTodoZone + Backlog) n'est pas affichée (gérée par le parent) */
+  hideSidebar?: boolean;
+};
 
-const TODO_FAB_ICON = (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-    <path d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v0z" />
-    <line x1="9" y1="12" x2="15" y2="12" />
-    <line x1="9" y1="16" x2="15" y2="16" />
-  </svg>
-);
-
-export function Timeline({ className }: TimelineProps) {
+export function Timeline({ className, hideSidebar = false }: TimelineProps) {
   const isMobile = useIsMobile();
-  const [dayTodoDrawerOpen, setDayTodoDrawerOpen] = useState(false);
   const { filteredDeliverables, filteredCalls } = useFilteredTimeline();
-  const { timelineRange, navigateToClient, getClientById, getTeamMemberById, updateDeliverable, updateCall, dayTodos, updateDayTodo, filters, getBacklogDeliverables, getBacklogCalls } = useAppStore(
+  const { timelineRange, navigateToClient, getClientById, getTeamMemberById, updateDeliverable, updateCall, dayTodos, updateDayTodo, deleteDayTodo, filters, getBacklogDeliverables, getBacklogCalls } = useAppStore(
     useShallow((s) => ({
       timelineRange: s.timelineRange,
       navigateToClient: s.navigateToClient,
@@ -62,6 +55,7 @@ export function Timeline({ className }: TimelineProps) {
       updateCall: s.updateCall,
       dayTodos: s.dayTodos,
       updateDayTodo: s.updateDayTodo,
+      deleteDayTodo: s.deleteDayTodo,
       filters: s.filters,
       getBacklogDeliverables: s.getBacklogDeliverables,
       getBacklogCalls: s.getBacklogCalls,
@@ -155,7 +149,8 @@ export function Timeline({ className }: TimelineProps) {
     return Math.max(MIN_HOUR_HEIGHT, Math.floor(h));
   }, [containerHeight]);
 
-  const effectiveTodoColumnWidth = isMobile ? 0 : TODO_COLUMN_WIDTH;
+  // Si hideSidebar est true, la sidebar est gérée par le parent (GlobalSidebar)
+  const effectiveTodoColumnWidth = (isMobile || hideSidebar) ? 0 : TODO_COLUMN_WIDTH;
   const effectiveBacklogWidth = isMobile ? 0 : BACKLOG_OVERLAY_WIDTH;
 
   // Calculate day widths : 5 ou 10 jours ouvrés dans la zone visible selon compactWeeks (1 sem. vs 2 sem.)
@@ -292,7 +287,7 @@ export function Timeline({ className }: TimelineProps) {
           })();
       setJustLanded(payload.id);
       if (payload.type === 'deliverable') {
-        updateDeliverable(payload.id, { dueDate: dateToUse });
+        updateDeliverable(payload.id, { dueDate: dateToUse, inBacklog: false });
       } else {
         updateCall(payload.id, { scheduledAt: dateToUse });
       }
@@ -467,8 +462,8 @@ export function Timeline({ className }: TimelineProps) {
           style={{ transform: 'translateZ(0)' }}
         >
           <div className="flex flex-row min-h-0" style={{ width: totalWidth + HOURS_COLUMN_WIDTH + effectiveTodoColumnWidth, transform: 'translateZ(0)' }}>
-            {/* Colonne gauche : DayTodoZone + BacklogSidebar (desktop only ; sur mobile → drawer) */}
-            {!isMobile && (() => {
+            {/* Colonne gauche : DayTodoZone + BacklogSidebar (desktop only, si pas hideSidebar ; sur mobile → drawer) */}
+            {!isMobile && !hideSidebar && (() => {
               const ESTIMATED_CARD_HEIGHT = 72; // Hauteur estimée d'une carte backlog
               const BACKLOG_HEADER_HEIGHT = 48; // Hauteur du header du backlog
               const availableHeight = TOTAL_HEADER_HEIGHT + totalHeight + GRID_PADDING_TOP + BOTTOM_SPACER;
@@ -725,7 +720,7 @@ export function Timeline({ className }: TimelineProps) {
                     {!d.isWeekend && items.map((item, itemIndex) => {
                       const top = GRID_PADDING_TOP + ((item.hour - START_HOUR) + item.minutes / 60) * hourHeight + 4;
                       const handleCardClick = () => {
-                        // Ouvrir directement la modale du livrable/appel
+                        // Ouvrir directement la modale du produit/appel
                         if (item.type === 'deliverable') {
                           const deliverable = filteredDeliverables.find(x => x.id === item.id);
                           if (deliverable) openDeliverableModal(deliverable.clientId, deliverable);
@@ -755,6 +750,7 @@ export function Timeline({ className }: TimelineProps) {
                           justLanded={lastDroppedId === item.id}
                           compact={compactWeeks}
                           allowDragToBacklog={item.type !== 'todo'}
+                          onDeleteTodo={item.type === 'todo' ? deleteDayTodo : undefined}
                         />
                       );
                     })}
@@ -827,23 +823,6 @@ export function Timeline({ className }: TimelineProps) {
         );
       })()}
 
-      {/* Mobile: FAB pour ouvrir le drawer Todo du jour */}
-      {isMobile && (
-        <>
-          <button
-            type="button"
-            onClick={() => setDayTodoDrawerOpen(true)}
-            className="fixed bottom-4 left-4 z-[55] w-14 h-14 rounded-full bg-[var(--accent-lime)] text-[var(--bg-primary)] shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center touch-manipulation"
-            aria-label="Ouvrir Todo du jour"
-          >
-            {TODO_FAB_ICON}
-          </button>
-          <DayTodoDrawer
-            isOpen={dayTodoDrawerOpen}
-            onClose={() => setDayTodoDrawerOpen(false)}
-          />
-        </>
-      )}
     </div>
   );
 }

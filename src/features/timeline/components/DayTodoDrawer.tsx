@@ -58,7 +58,7 @@ export function DayTodoDrawer({ isOpen, onClose }: DayTodoDrawerProps) {
         </div>
 
         {/* Content - DayTodoZone */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 pb-8">
           <DayTodoZone />
         </div>
       </div>

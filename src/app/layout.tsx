@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "YAM Dashboard",
-  description: "Gestion clients et livrables pour agence de communication",
+  description: "Gestion clients et produits pour agence de communication",
 };
 
 export const viewport: Viewport = {

@@ -87,11 +87,13 @@ export interface BillingHistory {
 
 export interface Deliverable {
   id: string;
-  /** Optionnel : livrable créé depuis le backlog sans client assigné */
+  /** Optionnel : produit créé depuis le backlog sans client assigné */
   clientId?: string;
   name: string;
-  /** Optionnel : si absent, le livrable est dans le backlog (à planifier) */
+  /** Optionnel : date de deadline sur la timeline */
   dueDate?: Date;
+  /** Si true, le produit apparaît dans le backlog "À planifier". Par défaut false. */
+  inBacklog?: boolean;
   type: DeliverableType;
   status: DeliverableStatus;
   assigneeId?: string; // TeamMember id
@@ -108,7 +110,7 @@ export interface Deliverable {
   coutSousTraitance?: number;
   /** Si true : ST facture le client directement (hors notre facture), sinon ST nous facture (déduit de la marge) */
   stHorsFacture?: boolean;
-  /** Si true : livrable potentiel (pipeline), affiché en Compta Potentiel. Sinon : livrable réel (facturé). Modifiable à tout moment. */
+  /** Si true : produit potentiel (pipeline), affiché en Compta Potentiel. Sinon : produit réel (facturé). Modifiable à tout moment. */
   isPotentiel?: boolean;
   // Facturation
   billingStatus: BillingStatus;
@@ -117,6 +119,8 @@ export interface Deliverable {
   progressAmounts?: number[]; // Montants des avancements (peut y en avoir plusieurs)
   balanceAmount?: number;     // Montant solde
   totalInvoiced?: number;     // Total facturé (auto-calculé)
+  /** Marge potentielle Yam — note libre indépendante du calcul facturation — € */
+  margePotentielle?: number;
 }
 
 /** Type d'événement : appel classique ou présentation client (affichage icône sur la timeline) */

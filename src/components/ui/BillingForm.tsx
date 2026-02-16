@@ -4,11 +4,16 @@ import { useState, useEffect, useRef } from 'react';
 
 interface BillingFormData {
   devis?: number;
+  devisDate?: string; // ISO date string YYYY-MM-DD
   acompte?: number;
+  acompteDate?: string;
   avancements?: number[];
+  avancementsDate?: string[]; // One date per avancement
   solde?: number;
+  soldeDate?: string;
   sousTraitance?: number;
   stHorsFacture?: boolean;
+  margePotentielle?: number;
 }
 
 interface BillingFormProps {
@@ -21,6 +26,7 @@ type SimpleFieldName = 'devis' | 'acompte' | 'sousTraitance';
 
 interface FieldState {
   amount: string;
+  date: string; // YYYY-MM-DD format
   validated: boolean;
   error?: string;
 }
@@ -28,99 +34,121 @@ interface FieldState {
 interface AvancementState {
   id: string;
   amount: string;
+  date: string;
   validated: boolean;
   error?: string;
 }
 
+// Get today's date in YYYY-MM-DD format
+const getTodayDate = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+};
+
 export function BillingForm({ value, onChange, disabled = false }: BillingFormProps) {
   const [fields, setFields] = useState<Record<SimpleFieldName, FieldState>>({
-    devis: { amount: '', validated: false },
-    acompte: { amount: '', validated: false },
-    sousTraitance: { amount: '', validated: false },
+    devis: { amount: '', date: getTodayDate(), validated: false },
+    acompte: { amount: '', date: getTodayDate(), validated: false },
+    sousTraitance: { amount: '', date: getTodayDate(), validated: false },
   });
 
   const [avancements, setAvancements] = useState<AvancementState[]>([]);
   const [soldeValidated, setSoldeValidated] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [stHorsFacture, setStHorsFacture] = useState(false);
+  const [margePotentielle, setMargePotentielle] = useState('');
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const focusedFieldRef = useRef<string | null>(null);
   const isUpdatingFromParent = useRef(false);
+  const isLocalUpdate = useRef(false);
 
-  // Initialize from props - only update if values actually changed (not just reference)
+  // Keep ref in sync
+  focusedFieldRef.current = focusedField;
+
+  // Initialize from props - ONLY when value changes (not on focus/blur)
   useEffect(() => {
     // Don't reinitialize if user is currently editing a field
-    if (focusedField) return;
+    if (focusedFieldRef.current) return;
 
-    // Only update if the actual values changed
-    const shouldUpdateDevis = value.devis !== parseAmount(fields.devis.amount);
-    const shouldUpdateAcompte = value.acompte !== parseAmount(fields.acompte.amount);
-    const shouldUpdateST = value.sousTraitance !== parseAmount(fields.sousTraitance.amount);
-
-    if (shouldUpdateDevis || shouldUpdateAcompte || shouldUpdateST) {
-      isUpdatingFromParent.current = true;
-      setFields({
-        devis: {
-          amount: value.devis != null ? String(value.devis) : '',
-          validated: value.devis != null,
-        },
-        acompte: {
-          amount: value.acompte != null ? String(value.acompte) : '',
-          validated: value.acompte != null,
-        },
-        sousTraitance: {
-          amount: value.sousTraitance != null ? String(value.sousTraitance) : '',
-          validated: value.sousTraitance != null,
-        },
-      });
+    // Skip reinit if the value change came from our own onChange call
+    if (isLocalUpdate.current) {
+      isLocalUpdate.current = false;
+      return;
     }
 
-    // Update avancements if they changed
-    const currentAvancementsValues = avancements
-      .filter(av => av.validated)
-      .map(av => parseAmount(av.amount))
-      .filter((v): v is number => v != null);
-    const newAvancementsValues = value.avancements || [];
-    const avancementsChanged = JSON.stringify(currentAvancementsValues) !== JSON.stringify(newAvancementsValues);
+    isUpdatingFromParent.current = true;
+    setFields({
+      devis: {
+        amount: value.devis != null ? String(value.devis) : '',
+        date: value.devisDate || getTodayDate(),
+        validated: value.devis != null,
+      },
+      acompte: {
+        amount: value.acompte != null ? String(value.acompte) : '',
+        date: value.acompteDate || getTodayDate(),
+        validated: value.acompte != null,
+      },
+      sousTraitance: {
+        amount: value.sousTraitance != null ? String(value.sousTraitance) : '',
+        date: getTodayDate(),
+        validated: value.sousTraitance != null,
+      },
+    });
 
-    if (avancementsChanged) {
-      if (value.avancements && value.avancements.length > 0) {
-        setAvancements(
-          value.avancements.map((amount, idx) => ({
-            id: `av-${idx}`,
-            amount: String(amount),
-            validated: true,
-          }))
-        );
-      } else {
-        setAvancements([]);
-      }
+    if (value.avancements && value.avancements.length > 0) {
+      setAvancements(
+        value.avancements.map((amount, idx) => ({
+          id: `av-${idx}`,
+          amount: String(amount),
+          date: value.avancementsDate?.[idx] || getTodayDate(),
+          validated: true,
+        }))
+      );
+    } else {
+      setAvancements([]);
     }
 
     setSoldeValidated(value.solde != null && value.solde > 0);
     setStHorsFacture(value.stHorsFacture || false);
+    setMargePotentielle(value.margePotentielle != null ? String(value.margePotentielle) : '');
 
-    // Reset flag after state updates
     setTimeout(() => {
       isUpdatingFromParent.current = false;
     }, 0);
-  }, [value, focusedField]); // Update when value changes, but not if editing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]); // ONLY re-init when parent value changes
 
   // Auto-update parent when internal state changes
   useEffect(() => {
     // Don't update while user is typing or while updating from parent
     if (focusedField || isUpdatingFromParent.current) return;
 
-    const data: BillingFormData = { stHorsFacture };
+    const parsedMarge = parseAmount(margePotentielle);
+    const data: BillingFormData = { stHorsFacture, margePotentielle: parsedMarge };
 
-    // Simple fields
-    (['devis', 'acompte', 'sousTraitance'] as SimpleFieldName[]).forEach((key) => {
-      if (fields[key].validated && !fields[key].error && fields[key].amount.trim()) {
-        const parsed = parseAmount(fields[key].amount);
-        if (parsed != null) {
-          data[key] = parsed;
-        }
+    // Simple fields with dates
+    if (fields.devis.validated && !fields.devis.error && fields.devis.amount.trim()) {
+      const parsed = parseAmount(fields.devis.amount);
+      if (parsed != null) {
+        data.devis = parsed;
+        data.devisDate = fields.devis.date;
       }
-    });
+    }
+
+    if (fields.acompte.validated && !fields.acompte.error && fields.acompte.amount.trim()) {
+      const parsed = parseAmount(fields.acompte.amount);
+      if (parsed != null) {
+        data.acompte = parsed;
+        data.acompteDate = fields.acompte.date;
+      }
+    }
+
+    if (fields.sousTraitance.validated && !fields.sousTraitance.error && fields.sousTraitance.amount.trim()) {
+      const parsed = parseAmount(fields.sousTraitance.amount);
+      if (parsed != null) {
+        data.sousTraitance = parsed;
+      }
+    }
 
     // Avancements
     const validAvancements = avancements
@@ -128,8 +156,13 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
       .map((av) => parseAmount(av.amount))
       .filter((v): v is number => v != null);
 
+    const validAvancementsDates = avancements
+      .filter((av) => av.validated && !av.error && av.amount.trim())
+      .map((av) => av.date);
+
     if (validAvancements.length > 0) {
       data.avancements = validAvancements;
+      data.avancementsDate = validAvancementsDates;
     }
 
     // Solde
@@ -140,11 +173,13 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
       const soldeCalcule = devisAmount - acompteAmount - avancementsTotal;
       if (soldeCalcule > 0) {
         data.solde = soldeCalcule;
+        data.soldeDate = getTodayDate(); // Use today for solde date (auto-calculated)
       }
     }
 
+    isLocalUpdate.current = true;
     onChange(data);
-  }, [fields, avancements, soldeValidated, stHorsFacture, focusedField, onChange]);
+  }, [fields, avancements, soldeValidated, stHorsFacture, margePotentielle, focusedField, onChange]);
 
   const parseAmount = (str: string): number | undefined => {
     const cleaned = str.trim().replace(/\s/g, '').replace(',', '.');
@@ -185,19 +220,35 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
   };
 
   const updateData = (overrideStHorsFacture?: boolean) => {
+    const parsedMarge = parseAmount(margePotentielle);
     const data: BillingFormData = {
-      stHorsFacture: overrideStHorsFacture !== undefined ? overrideStHorsFacture : stHorsFacture
+      stHorsFacture: overrideStHorsFacture !== undefined ? overrideStHorsFacture : stHorsFacture,
+      margePotentielle: parsedMarge,
     };
 
-    // Simple fields
-    (['devis', 'acompte', 'sousTraitance'] as SimpleFieldName[]).forEach((key) => {
-      if (fields[key].validated && !fields[key].error && fields[key].amount.trim()) {
-        const parsed = parseAmount(fields[key].amount);
-        if (parsed != null) {
-          data[key] = parsed;
-        }
+    // Simple fields with dates
+    if (fields.devis.validated && !fields.devis.error && fields.devis.amount.trim()) {
+      const parsed = parseAmount(fields.devis.amount);
+      if (parsed != null) {
+        data.devis = parsed;
+        data.devisDate = fields.devis.date;
       }
-    });
+    }
+
+    if (fields.acompte.validated && !fields.acompte.error && fields.acompte.amount.trim()) {
+      const parsed = parseAmount(fields.acompte.amount);
+      if (parsed != null) {
+        data.acompte = parsed;
+        data.acompteDate = fields.acompte.date;
+      }
+    }
+
+    if (fields.sousTraitance.validated && !fields.sousTraitance.error && fields.sousTraitance.amount.trim()) {
+      const parsed = parseAmount(fields.sousTraitance.amount);
+      if (parsed != null) {
+        data.sousTraitance = parsed;
+      }
+    }
 
     // Avancements
     const validAvancements = avancements
@@ -205,8 +256,13 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
       .map((av) => parseAmount(av.amount))
       .filter((v): v is number => v != null);
 
+    const validAvancementsDates = avancements
+      .filter((av) => av.validated && !av.error && av.amount.trim())
+      .map((av) => av.date);
+
     if (validAvancements.length > 0) {
       data.avancements = validAvancements;
+      data.avancementsDate = validAvancementsDates;
     }
 
     // Solde
@@ -217,9 +273,11 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
       const soldeCalcule = devisAmount - acompteAmount - avancementsTotal;
       if (soldeCalcule > 0) {
         data.solde = soldeCalcule;
+        data.soldeDate = getTodayDate();
       }
     }
 
+    isLocalUpdate.current = true;
     onChange(data);
   };
 
@@ -231,12 +289,19 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
     }));
   };
 
+  const handleDateChange = (field: SimpleFieldName, date: string) => {
+    setFields((prev) => ({
+      ...prev,
+      [field]: { ...prev[field], date },
+    }));
+  };
+
   const handleBlur = (field: SimpleFieldName) => {
     const amount = fields[field].amount.trim();
     if (amount === '') {
       setFields((prev) => ({
         ...prev,
-        [field]: { amount: '', validated: false, error: undefined },
+        [field]: { ...prev[field], amount: '', validated: false, error: undefined },
       }));
     } else {
       const error = validateField(field, amount);
@@ -253,18 +318,17 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
     const devisAmount = parseAmount(fields.devis.amount);
     if (devisAmount != null) {
       const acompte = Math.round(devisAmount * 0.3);
-      handleInputChange('acompte', String(acompte));
-      setFocusedField('acompte');
-      setTimeout(() => {
-        inputRefs.current.acompte?.focus();
-      }, 0);
+      setFields((prev) => ({
+        ...prev,
+        acompte: { ...prev.acompte, amount: String(acompte), validated: true, error: undefined },
+      }));
     }
   };
 
   const addAvancement = () => {
     setAvancements((prev) => [
       ...prev,
-      { id: `av-${Date.now()}`, amount: '', validated: false },
+      { id: `av-${Date.now()}`, amount: '', date: getTodayDate(), validated: false },
     ]);
   };
 
@@ -336,10 +400,14 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
   const totalST = fields.sousTraitance.validated ? parseAmount(fields.sousTraitance.amount) || 0 : 0;
   const marge = stHorsFacture ? totalFacture : totalFacture - totalST;
 
+  // Marge potentielle is only visible when no billing step is engaged
+  const hasBillingProgress = fields.acompte.validated || avancements.some(av => av.validated) || soldeValidated;
+
   const renderField = (field: SimpleFieldName, label: string) => {
     const isFocused = focusedField === field;
-    const { amount, validated, error } = fields[field];
+    const { amount, date, validated, error } = fields[field];
     const showThirtyButton = field === 'acompte' && fields.devis.validated && !fields.devis.error && !validated;
+    const showDate = field !== 'sousTraitance'; // Don't show date for sousTraitance
 
     const getInputStyle = () => {
       if (error) return 'bg-red-500/10 border-2 border-red-500 text-[var(--text-primary)]';
@@ -349,229 +417,255 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
     };
 
     return (
-      <div>
-        <div className="flex items-center gap-4 p-4">
-          <div className="text-sm font-bold uppercase tracking-wider flex-shrink-0 text-[var(--text-primary)]" style={{ width: '140px' }}>
-            {label}
-          </div>
-          <div className="flex-1 relative">
-            <input
-              ref={(el) => { inputRefs.current[field] = el; }}
-              type="text"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => handleInputChange(field, e.target.value)}
-              onBlur={() => handleBlur(field)}
-              onFocus={() => setFocusedField(field)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleBlur(field);
-                }
-              }}
-              disabled={disabled}
-              placeholder="0"
-              className={`w-full px-4 py-3 rounded-lg text-base font-medium transition-all ${getInputStyle()} ${
-                showThirtyButton ? 'pr-16' : ''
-              }`}
-            />
-            {showThirtyButton && (
-              <button
-                type="button"
-                onClick={handle30Percent}
-                className="absolute right-12 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs font-bold rounded-md bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/30 transition-colors"
-              >
-                30%
-              </button>
-            )}
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-sm pointer-events-none">€</span>
-          </div>
+      <div className="flex items-center gap-2 px-3 py-2">
+        <div className="text-xs font-bold uppercase tracking-wider flex-shrink-0 text-[var(--text-muted)] w-20">
+          {label}
         </div>
+        <div className="flex-1 relative">
+          <input
+            ref={(el) => { inputRefs.current[field] = el; }}
+            type="text"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => handleInputChange(field, e.target.value)}
+            onBlur={() => handleBlur(field)}
+            onFocus={() => setFocusedField(field)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleBlur(field);
+              }
+            }}
+            disabled={disabled}
+            placeholder="0"
+            className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-all ${getInputStyle()} ${
+              showThirtyButton ? 'pr-14' : ''
+            }`}
+          />
+          {showThirtyButton && (
+            <button
+              type="button"
+              onClick={handle30Percent}
+              className="absolute right-10 top-1/2 -translate-y-1/2 px-2 py-0.5 text-[10px] font-bold rounded bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/30 transition-colors"
+            >
+              30%
+            </button>
+          )}
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-xs pointer-events-none">€</span>
+        </div>
+
+        {/* Date picker compact */}
+        {showDate && (
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => handleDateChange(field, e.target.value)}
+            disabled={disabled}
+            className="flex-shrink-0 w-28 px-2 py-1.5 rounded-lg text-xs border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:border-[var(--accent-cyan)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors"
+          />
+        )}
+        
         {error && (
-          <div className="px-4 pb-2">
-            <p className="text-xs text-red-500 ml-[156px] flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              {error}
-            </p>
-          </div>
+          <span className="text-[10px] text-red-500 flex-shrink-0">⚠</span>
         )}
       </div>
     );
   };
 
   return (
-    <div className="space-y-1">
-      <h3 className="text-sm font-semibold text-[var(--text-muted)] mb-3 flex items-center gap-2">
-        💰 Statut de facturation
+    <div className="space-y-2">
+      <h3 className="text-xs font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
+        <span>💰</span> Statut de facturation
       </h3>
 
-      <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden divide-y divide-[var(--border-subtle)]">
-        {renderField('devis', 'DEVIS')}
-        {renderField('acompte', 'ACOMPTE')}
-
-        {/* Avancements */}
-        {avancements.map((av, idx) => (
-          <div key={av.id}>
-            <div className="flex items-center gap-4 p-4">
-              <div className="text-sm font-bold uppercase tracking-wider flex-shrink-0 text-[var(--text-muted)]" style={{ width: '140px' }}>
-                AVANCEMENT {idx + 1}
-              </div>
-              <div className="flex-1 relative">
-                <input
-                  ref={(el) => { inputRefs.current[av.id] = el; }}
-                  type="text"
-                  inputMode="decimal"
-                  value={av.amount}
-                  onChange={(e) => handleAvancementChange(av.id, e.target.value)}
-                  onBlur={() => handleAvancementBlur(av.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAvancementBlur(av.id);
-                    }
-                  }}
-                  placeholder="0"
-                  className={`w-full px-4 py-3 rounded-lg text-base font-medium transition-all ${
-                    av.validated ? 'bg-[#22c55e]/10 border-2 border-[#22c55e]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
-                  }`}
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-sm pointer-events-none">€</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => removeAvancement(av.id)}
-                className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18"/>
-                  <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
+      {/* Marge potentielle Yam — visible uniquement quand aucun paiement engagé */}
+      {!hasBillingProgress && (
+        <div className="bg-[var(--accent-violet)]/5 rounded-lg border border-[var(--accent-violet)]/20 overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2">
+            <div className="text-xs font-bold uppercase tracking-wider flex-shrink-0 text-[var(--accent-violet)] w-20">
+              MARGE
             </div>
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={margePotentielle}
+                onChange={(e) => setMargePotentielle(e.target.value)}
+                onFocus={() => setFocusedField('margePotentielle')}
+                onBlur={() => setFocusedField(null)}
+                disabled={disabled}
+                placeholder="Rentrée potentielle"
+                className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  margePotentielle.trim()
+                    ? 'bg-[var(--accent-violet)]/10 border-2 border-[var(--accent-violet)] text-[var(--text-primary)]'
+                    : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[var(--accent-violet)]'
+                }`}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-xs pointer-events-none">€</span>
+            </div>
+          </div>
+        </div>
+      )}
+      {hasBillingProgress && margePotentielle.trim() && (
+        <div className="px-3 py-1.5 rounded-lg bg-[var(--accent-violet)]/5 border border-[var(--accent-violet)]/10 flex items-center justify-between">
+          <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Rentrée potentielle initiale</span>
+          <span className="text-xs text-[var(--accent-violet)] font-medium">{margePotentielle} €</span>
+        </div>
+      )}
+
+      <div className="bg-[var(--bg-card)] rounded-lg border border-[var(--border-subtle)] overflow-hidden">
+        {renderField('devis', 'DEVIS')}
+        <div className="border-t border-[var(--border-subtle)]">
+          {renderField('acompte', 'ACOMPTE')}
+        </div>
+
+        {/* Avancements - compact */}
+        {avancements.map((av, idx) => (
+          <div key={av.id} className="border-t border-[var(--border-subtle)] flex items-center gap-2 px-3 py-2">
+            <div className="text-xs font-bold uppercase tracking-wider flex-shrink-0 text-[var(--text-muted)] w-20">
+              AVA. {idx + 1}
+            </div>
+            <div className="flex-1 relative">
+              <input
+                ref={(el) => { inputRefs.current[av.id] = el; }}
+                type="text"
+                inputMode="decimal"
+                value={av.amount}
+                onChange={(e) => handleAvancementChange(av.id, e.target.value)}
+                onBlur={() => handleAvancementBlur(av.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAvancementBlur(av.id);
+                  }
+                }}
+                placeholder="0"
+                className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  av.validated ? 'bg-[#22c55e]/10 border-2 border-[#22c55e]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
+                }`}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-xs pointer-events-none">€</span>
+            </div>
+            <input
+              type="date"
+              value={av.date}
+              onChange={(e) => {
+                const newDate = e.target.value;
+                setAvancements((prev) =>
+                  prev.map((a) => (a.id === av.id ? { ...a, date: newDate } : a))
+                );
+              }}
+              className="flex-shrink-0 w-28 px-2 py-1.5 rounded-lg text-xs border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-primary)]"
+            />
+            <button
+              type="button"
+              onClick={() => removeAvancement(av.id)}
+              className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
           </div>
         ))}
 
-        {/* Bouton ajouter avancement */}
+        {/* Bouton ajouter avancement - compact */}
         {fields.devis.validated && (
-          <div className="p-3">
+          <div className="border-t border-[var(--border-subtle)] px-3 py-2">
             <button
               type="button"
               onClick={addAvancement}
-              className="w-full py-2 rounded-lg border-2 border-dashed border-[var(--border-subtle)] text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/5 transition-colors"
+              className="w-full py-1.5 rounded-lg border border-dashed border-[var(--border-subtle)] text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent-cyan)] transition-colors"
             >
-              + Ajouter un avancement
+              + Avancement
             </button>
           </div>
         )}
 
-        {/* Solde calculé */}
-        <div className={soldeCalcule <= 0 ? 'opacity-40' : ''}>
-          <div className="flex items-center gap-4 p-4">
-            <div className="text-sm font-bold uppercase tracking-wider flex-shrink-0 text-[var(--text-primary)]" style={{ width: '140px' }}>
-              SOLDE
-            </div>
-            <div className="flex-1 relative">
-              <div className={`w-full px-4 py-3 rounded-lg text-base font-medium transition-all ${
-                soldeValidated ? 'bg-[#22c55e]/10 border-2 border-[#22c55e]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
-              }`}>
-                {soldeCalcule > 0 ? soldeCalcule.toFixed(0) : '0'}
-              </div>
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-sm pointer-events-none">€</span>
-            </div>
-            <button
-              type="button"
-              onClick={handleToggleSolde}
-              disabled={soldeCalcule <= 0}
-              className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                soldeValidated
-                  ? 'bg-[#22c55e] text-white shadow-md hover:scale-105'
-                  : soldeCalcule > 0
-                  ? 'bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/30'
-                  : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
-              }`}
-            >
-              {soldeValidated ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                </svg>
-              )}
-            </button>
+        {/* Solde calculé - compact */}
+        <div className={`border-t border-[var(--border-subtle)] flex items-center gap-2 px-3 py-2 ${soldeCalcule <= 0 ? 'opacity-40' : ''}`}>
+          <div className="text-xs font-bold uppercase tracking-wider flex-shrink-0 text-[var(--text-muted)] w-20">
+            SOLDE
           </div>
-          {soldeCalcule > 0 && !soldeValidated && (
-            <div className="px-4 pb-2">
-              <p className="text-xs text-[var(--text-muted)] ml-[156px]">Auto-calculé • Cliquez pour valider</p>
+          <div className="flex-1 relative">
+            <div className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              soldeValidated ? 'bg-[#22c55e]/10 border-2 border-[#22c55e]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
+            }`}>
+              {soldeCalcule > 0 ? soldeCalcule.toFixed(0) : '0'}
             </div>
-          )}
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-xs pointer-events-none">€</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleToggleSolde}
+            disabled={soldeCalcule <= 0}
+            className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+              soldeValidated
+                ? 'bg-[#22c55e] text-white'
+                : soldeCalcule > 0
+                ? 'bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/30'
+                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
+            }`}
+          >
+            {soldeValidated ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+              </svg>
+            )}
+          </button>
         </div>
 
-        {renderField('sousTraitance', 'S-T')}
+        {/* S-T - compact */}
+        <div className="border-t border-[var(--border-subtle)]">
+          {renderField('sousTraitance', 'S-T')}
+        </div>
 
-        {/* Toggle ST compact */}
+        {/* Toggle ST - inline compact */}
         {fields.sousTraitance.validated && (
-          <div className="px-4 py-3 bg-[var(--bg-secondary)]/20 flex items-center justify-between">
-            <span className="text-xs text-[var(--text-muted)]">Mode S-T</span>
+          <div className="border-t border-[var(--border-subtle)] px-3 py-2 flex items-center justify-end gap-2">
+            <span className="text-[10px] text-[var(--text-muted)]">Mode</span>
             <button
               type="button"
-              onClick={() => {
-                setStHorsFacture(!stHorsFacture);
-                // updateData will be called automatically by useEffect
-              }}
-              className="flex items-center gap-2 text-xs font-medium"
+              onClick={() => setStHorsFacture(!stHorsFacture)}
+              className="flex items-center gap-1.5 text-[10px] font-medium"
             >
-              <div className={`w-8 h-5 rounded-full transition-colors relative ${
+              <div className={`w-6 h-3.5 rounded-full transition-colors relative ${
                 stHorsFacture ? 'bg-[var(--accent-lime)]' : 'bg-red-500'
               }`}>
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                  stHorsFacture ? 'translate-x-3.5' : 'translate-x-0.5'
+                <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow transition-transform ${
+                  stHorsFacture ? 'translate-x-3' : 'translate-x-0.5'
                 }`} />
               </div>
               <span className={stHorsFacture ? 'text-[var(--accent-lime)]' : 'text-red-500'}>
-                {stHorsFacture ? 'Hors marge' : 'Déduit'}
+                {stHorsFacture ? 'Hors' : 'Déduit'}
               </span>
             </button>
           </div>
         )}
       </div>
 
-      {/* Marge */}
+      {/* Marge - compact */}
       {devisAmount > 0 && (
-        <>
-          {totalFacture > devisAmount ? (
-            <div className="mt-4 p-4 rounded-xl bg-red-500/10 border-2 border-red-500">
-              <div className="flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <span className="text-sm font-bold text-red-500">TOTAL FACTURÉ DÉPASSE LE DEVIS</span>
-              </div>
-              <p className="text-xs text-red-500 mt-2">
-                Facturé : {totalFacture}€ / Devis : {devisAmount}€ (Excédent : {(totalFacture - devisAmount).toFixed(0)}€)
-              </p>
+        totalFacture > devisAmount ? (
+          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/50">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-red-500">⚠ DÉPASSEMENT</span>
+              <span className="text-xs text-red-500">+{(totalFacture - devisAmount).toFixed(0)}€</span>
             </div>
-          ) : (
-            <div className="mt-4 p-4 rounded-xl bg-[#22c55e]/10 border-2 border-[#22c55e]/30">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-bold uppercase tracking-wider text-[#22c55e]">MARGE</span>
-                <span className="text-lg font-bold text-[#22c55e]">{marge.toFixed(0)} €</span>
-              </div>
-              {totalFacture > 0 && (
-                <p className="text-xs text-[var(--text-muted)] mt-2">
-                  Facturé : {totalFacture}€ / {devisAmount}€ ({((totalFacture / devisAmount) * 100).toFixed(0)}%)
-                </p>
-              )}
+          </div>
+        ) : (
+          <div className="p-3 rounded-lg bg-[#22c55e]/10 border border-[#22c55e]/30">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#22c55e]">MARGE</span>
+              <span className="text-base font-bold text-[#22c55e]">{marge.toFixed(0)} €</span>
             </div>
-          )}
-        </>
+          </div>
+        )
       )}
     </div>
   );

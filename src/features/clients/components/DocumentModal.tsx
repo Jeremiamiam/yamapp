@@ -67,7 +67,7 @@ function BriefTemplatedView({ data }: { data: BriefTemplate }) {
         </section>
       )}
       <section>
-        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--accent-cyan)] mb-2">Livrables</h3>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--accent-cyan)] mb-2">Produits</h3>
         <ul className="list-disc list-inside space-y-1 text-sm">{data.deliverables.map((d, i) => <li key={i}>{d}</li>)}</ul>
       </section>
       {data.constraints && (

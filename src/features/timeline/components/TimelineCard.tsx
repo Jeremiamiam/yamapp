@@ -73,6 +73,8 @@ interface TimelineCardProps {
   compact?: boolean;
   /** Permet le drag HTML5 vers le backlog */
   allowDragToBacklog?: boolean;
+  /** Callback pour supprimer une todo (marquer comme "géré") */
+  onDeleteTodo?: (todoId: string) => void;
 }
 
 const DRAG_THRESHOLD_PX = 5;
@@ -92,6 +94,7 @@ function TimelineCardInner({
   justLanded = false,
   compact = false,
   allowDragToBacklog = false,
+  onDeleteTodo,
 }: TimelineCardProps) {
   const isCall = item.type === 'call';
   const isCompleted = item.status === 'completed';
@@ -236,10 +239,26 @@ function TimelineCardInner({
             <span className="text-[11px] font-semibold font-mono text-zinc-800 tabular-nums flex-shrink-0 ml-1">{item.time}</span>
           </div>
           {/* Contenu : tout ferré à gauche, label seul (pas de client pour les todos) */}
-          <div className="px-2 py-1.5 flex flex-col items-stretch gap-0.5 text-left">
-            <span className="text-xs font-semibold text-zinc-900 truncate leading-tight">
+          <div className="px-2 py-1.5 flex items-center gap-1.5 text-left">
+            <span className="text-xs font-semibold text-zinc-900 truncate leading-tight flex-1 min-w-0">
               {item.label}
             </span>
+            {/* Bouton "c'est géré" */}
+            {onDeleteTodo && !isGhost && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteTodo(item.id);
+                }}
+                className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center bg-black/10 hover:bg-black/20 text-zinc-800 hover:text-zinc-900 transition-colors cursor-pointer"
+                title="C'est géré !"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       );
@@ -278,6 +297,22 @@ function TimelineCardInner({
             <path d="M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v0z" />
           </svg>
           <span className="text-xs font-medium text-zinc-900 flex-1 min-w-0 truncate">{item.label}</span>
+          {/* Bouton "c'est géré" */}
+          {onDeleteTodo && !isGhost && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteTodo(item.id);
+              }}
+              className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-black/10 hover:bg-black/20 text-zinc-800 hover:text-zinc-900 transition-colors cursor-pointer"
+              title="C'est géré !"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
     );
@@ -294,12 +329,18 @@ function TimelineCardInner({
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
 
-  // MODE COMPACT (2 SEMAINES) — Tout à gauche, client en entier, livrable indiqué, pas de picto
+  // MODE COMPACT (2 SEMAINES) — Tout à gauche, client en entier, produit indiqué, pas de picto
+  const isProspect = item.clientStatus === 'prospect';
+  
   if (compact) {
     const style = {
       bg: `linear-gradient(145deg, ${hexToRgba('#18181b', 1)}, ${hexToRgba('#09090b', 1)})`,
-      border: `1.5px solid ${hexToRgba(assigneeColor, 0.55)}`,
-      hoverBorder: `1.5px solid ${assigneeColor}`,
+      border: isProspect 
+        ? `1.5px dashed ${hexToRgba(assigneeColor, 0.55)}`
+        : `1.5px solid ${hexToRgba(assigneeColor, 0.55)}`,
+      hoverBorder: isProspect
+        ? `1.5px dashed ${assigneeColor}`
+        : `1.5px solid ${assigneeColor}`,
       accent: assigneeColor,
     };
 
@@ -320,11 +361,11 @@ function TimelineCardInner({
         onClick={isGhost ? undefined : handleCardClick}
         onMouseEnter={isGhost ? undefined : (e) => {
           const el = e.currentTarget;
-          el.style.borderColor = assigneeColor;
+          el.style.border = style.hoverBorder;
         }}
         onMouseLeave={isGhost ? undefined : (e) => {
           const el = e.currentTarget;
-          el.style.borderColor = hexToRgba(assigneeColor, 0.55);
+          el.style.border = style.border;
         }}
       >
         {/* Barre : nom client à gauche, heure à droite (zone de drag) */}
@@ -337,7 +378,7 @@ function TimelineCardInner({
           <span className="text-[11px] font-semibold font-mono text-zinc-400 tabular-nums flex-shrink-0">{item.time}</span>
         </div>
 
-        {/* Contenu compact : livrable uniquement (client déjà dans la barre) */}
+        {/* Contenu compact : produit uniquement (client déjà dans la barre) */}
         <div className="px-2 py-1.5 text-left min-w-0">
           <span className="text-[11px] text-zinc-500 truncate block">
             {item.label}
@@ -348,12 +389,16 @@ function TimelineCardInner({
   }
 
   // STYLE 2026: Contour accentué par la couleur assignation (pas de pastille)
+  // Pointillés pour les prospects
   const style = {
     bg: `linear-gradient(145deg, ${hexToRgba('#18181b', 1)}, ${hexToRgba('#09090b', 1)})`,
-    // Contour accentué = couleur assignation (visible, pas de pastille)
-    border: `1.5px solid ${hexToRgba(assigneeColor, 0.55)}`,
+    border: isProspect 
+      ? `1.5px dashed ${hexToRgba(assigneeColor, 0.55)}`
+      : `1.5px solid ${hexToRgba(assigneeColor, 0.55)}`,
     hoverGlow: `0 0 20px ${hexToRgba(assigneeColor, 0.2)}`,
-    hoverBorder: `1.5px solid ${assigneeColor}`,
+    hoverBorder: isProspect
+      ? `1.5px dashed ${assigneeColor}`
+      : `1.5px solid ${assigneeColor}`,
     accent: assigneeColor,
   };
 
@@ -376,12 +421,12 @@ function TimelineCardInner({
       onClick={isGhost ? undefined : handleCardClick}
       onMouseEnter={isGhost ? undefined : (e) => {
         const el = e.currentTarget;
-        el.style.borderColor = assigneeColor;
+        el.style.border = style.hoverBorder;
         el.style.boxShadow = style.hoverGlow;
       }}
       onMouseLeave={isGhost ? undefined : (e) => {
         const el = e.currentTarget;
-        el.style.borderColor = hexToRgba(assigneeColor, 0.55);
+        el.style.border = style.border;
         el.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
       }}
     >
@@ -399,7 +444,7 @@ function TimelineCardInner({
         </span>
       </div>
 
-      {/* Contenu principal : livrable / call uniquement (client déjà dans la barre) */}
+      {/* Contenu principal : produit / call uniquement (client déjà dans la barre) */}
       <div className="px-3 py-2.5">
         <div className="flex items-center gap-2 min-w-0">
           {isCall ? (

@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Modal, FormField, Input, Textarea, Select, Button } from '@/components/ui';
+import { Modal, FormField, Input, Textarea, Button, ClientAutocomplete } from '@/components/ui';
 import { useAppStore } from '@/lib/store';
 import { CallSchema, type CallFormData } from '@/lib/validation';
 import { Call, CallType } from '@/types';
 import { formatDateForInput, formatTimeForInput } from '@/lib/date-utils';
+import { createClient } from '@/lib/supabase/client';
 
 const Phone = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -21,23 +22,34 @@ const getDefaultDate = () => {
   return formatDateForInput(date);
 };
 
-const durationOptions = [
-  { value: '15', label: '15 min' },
-  { value: '30', label: '30 min' },
-  { value: '45', label: '45 min' },
-  { value: '60', label: '1h' },
-  { value: '90', label: '1h30' },
-  { value: '120', label: '2h' },
-];
-
 export function CallForm() {
-  const { activeModal, closeModal, addCall, updateCall, deleteCall, team, clients, openModal } = useAppStore();
+  const { activeModal, closeModal, addCall, updateCall, deleteCall, team, getClientById, navigateToClient } = useAppStore();
+  const [currentUserTeamId, setCurrentUserTeamId] = useState<string | null>(null);
+
+  // Récupérer le team_member_id de l'utilisateur courant
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (user) {
+        const { data: teamRow } = await supabase
+          .from('team')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+        if (teamRow?.id) {
+          setCurrentUserTeamId(teamRow.id);
+        }
+      }
+    });
+  }, []);
   const isOpen = activeModal?.type === 'call';
   const mode = isOpen ? activeModal.mode : 'create';
   const modalClientId = isOpen ? activeModal.clientId : undefined;
   const existingCall = isOpen && activeModal.mode === 'edit' ? activeModal.call : undefined;
   const presetCallType = isOpen && mode === 'create' ? activeModal.presetCallType : undefined;
   const showClientSelector = isOpen && mode === 'create' && modalClientId === undefined;
+
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
   const {
     register,
@@ -61,9 +73,15 @@ export function CallForm() {
     },
   });
 
-  const toBacklog = watch('toBacklog');
-  const callType = watch('callType');
   const selectedClientId = watch('selectedClientId');
+  
+  // Récupérer le client pour afficher son nom
+  const effectiveClientId = existingCall?.clientId ?? modalClientId;
+  const client = effectiveClientId ? getClientById(effectiveClientId) : null;
+  
+  // En mode création, c'est toujours backlog (pas de date)
+  // En mode édition, on affiche la date si elle existe
+  const isScheduled = mode === 'edit' && existingCall?.scheduledAt != null;
 
   useEffect(() => {
     if (isOpen) {
@@ -81,6 +99,7 @@ export function CallForm() {
           assigneeId: existingCall.assigneeId || '',
           notes: existingCall.notes ?? '',
         });
+        setSelectedTeamId(existingCall.assigneeId || null);
       } else {
         reset({
           title: presetCallType === 'presentation' ? 'Présentation client' : '',
@@ -90,25 +109,29 @@ export function CallForm() {
           scheduledDate: getDefaultDate(),
           scheduledTime: '10:00',
           duration: 30,
-          assigneeId: '',
+          assigneeId: currentUserTeamId || '',
           notes: '',
         });
+        // Pré-sélectionner l'utilisateur courant
+        setSelectedTeamId(currentUserTeamId);
       }
     }
-  }, [isOpen, existingCall, presetCallType, modalClientId, reset]);
+  }, [isOpen, existingCall, presetCallType, modalClientId, reset, currentUserTeamId]);
 
   const onSubmit = (data: CallFormData) => {
-    const scheduledAt = data.toBacklog
-      ? undefined
-      : new Date(`${data.scheduledDate}T${data.scheduledTime || '10:00'}`);
+    // En création, c'est toujours backlog (pas de date)
+    // En édition, on garde la date existante
+    const scheduledAt = mode === 'edit' && existingCall?.scheduledAt 
+      ? existingCall.scheduledAt 
+      : undefined;
     const effectiveClientId = modalClientId ?? (data.selectedClientId || undefined);
     const callData: Omit<Call, 'id' | 'createdAt'> = {
       clientId: effectiveClientId,
       title: data.title.trim(),
       callType: data.callType as CallType,
       scheduledAt,
-      duration: data.duration,
-      assigneeId: data.assigneeId || undefined,
+      duration: 30, // Durée fixe par défaut
+      assigneeId: selectedTeamId || undefined,
       notes: data.notes?.trim() || undefined,
     };
     if (mode === 'edit' && existingCall) {
@@ -126,17 +149,17 @@ export function CallForm() {
     }
   };
 
-  const teamOptions = [
-    { value: '', label: 'Non assigné' },
-    ...team.map((m) => ({ value: m.id, label: `${m.name} (${m.role})` })),
-  ];
+  const toggleTeamMember = (id: string) => {
+    setSelectedTeamId(prev => prev === id ? null : id);
+  };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={closeModal}
-      title={mode === 'edit' ? (existingCall?.callType === 'presentation' ? 'Modifier la présentation' : "Modifier l'appel") : (presetCallType === 'presentation' ? 'Nouvelle présentation' : 'Nouvel appel')}
-      subtitle={presetCallType === 'presentation' || callType === 'presentation' ? 'Présentation client' : 'Appel'}
+      onSubmit={handleSubmit(onSubmit)}
+      title={mode === 'edit' ? "Modifier l'appel" : 'Nouvel appel'}
+      subtitle="Appel"
       icon={<Phone />}
       iconBg="bg-[var(--accent-coral)]/10"
       iconColor="text-[var(--accent-coral)]"
@@ -159,42 +182,32 @@ export function CallForm() {
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        {showClientSelector && (
+        {/* Client selector en création OU lien vers client en édition */}
+        {showClientSelector ? (
           <FormField label="Client">
-            <div className="flex items-center gap-2">
-              <Select
-                value={selectedClientId}
-                onChange={(e) => setValue('selectedClientId', e.target.value)}
-                options={[
-                  { value: '', label: 'Sans client' },
-                  ...clients.map((c) => ({ value: c.id, label: c.name })),
-                ]}
-                className="flex-1 min-w-0"
-              />
-              <button
-                type="button"
-                onClick={() => openModal({ type: 'client', mode: 'create' })}
-                className="flex-shrink-0 px-2 py-1.5 rounded-lg text-xs font-medium text-[var(--accent-cyan)] bg-[var(--accent-cyan)]/10 hover:bg-[var(--accent-cyan)]/20 transition-colors whitespace-nowrap"
-              >
-                + Client
-              </button>
-            </div>
-          </FormField>
-        )}
-        {presetCallType == null && (
-          <FormField label="Type (icône sur la timeline)">
-            <Select
-              value={callType}
-              onChange={(e) => setValue('callType', e.target.value as 'call' | 'presentation')}
-              options={[
-                { value: 'call', label: '📞 Appel' },
-                { value: 'presentation', label: '🖥️ Présentation client' },
-              ]}
+            <ClientAutocomplete
+              value={selectedClientId ?? ''}
+              onChange={(clientId) => setValue('selectedClientId', clientId)}
+              placeholder="Tapez le nom du client..."
             />
           </FormField>
-        )}
+        ) : client ? (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-[var(--text-muted)]">Client :</span>
+            <button
+              type="button"
+              onClick={() => {
+                closeModal();
+                navigateToClient(client.id);
+              }}
+              className="text-sm font-medium text-[var(--accent-cyan)] hover:underline cursor-pointer"
+            >
+              {client.name}
+            </button>
+          </div>
+        ) : null}
 
-        <FormField label={presetCallType === 'presentation' ? 'Titre de la présentation' : "Titre de l'appel"} required error={errors.title?.message}>
+        <FormField label="Titre de l'appel" required error={errors.title?.message}>
           <Input
             {...register('title')}
             placeholder="Ex: Call kick-off, Point hebdo, Présentation V2..."
@@ -202,38 +215,57 @@ export function CallForm() {
           />
         </FormField>
 
-        <FormField label="Planification" error={errors.scheduledDate?.message}>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" {...register('toBacklog')} className="rounded border-[var(--border-subtle)] text-[var(--accent-coral)] focus:ring-[var(--accent-coral)]" />
-            <span className="text-sm text-[var(--text-primary)]">À planifier plus tard (backlog)</span>
-          </label>
-        </FormField>
-
-        {!toBacklog && (
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Date" required error={errors.scheduledDate?.message}>
-              <Input type="date" {...register('scheduledDate')} />
-            </FormField>
-            <FormField label="Heure">
-              <Input type="time" {...register('scheduledTime')} />
-            </FormField>
+        {/* Affichage de la planification (lecture seule) */}
+        <div className="px-4 py-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-[var(--text-muted)]">Planification</span>
+            {isScheduled && existingCall?.scheduledAt ? (
+              <span className="text-sm font-medium text-[var(--text-primary)]">
+                {new Date(existingCall.scheduledAt).toLocaleDateString('fr-FR', {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            ) : (
+              <span className="text-sm text-[var(--text-muted)] italic">Pas encore planifié</span>
+            )}
           </div>
-        )}
+          {mode === 'create' && (
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              Glissez depuis "À planifier" vers la timeline pour définir une date
+            </p>
+          )}
+        </div>
 
-        <FormField label="Durée">
-          <Select
-            value={String(watch('duration'))}
-            onChange={(e) => setValue('duration', Number(e.target.value))}
-            options={durationOptions}
-          />
-        </FormField>
-
+        {/* Team member chips */}
         <FormField label="Assigné à">
-          <Select
-            value={watch('assigneeId')}
-            onChange={(e) => setValue('assigneeId', e.target.value)}
-            options={teamOptions}
-          />
+          <div className="flex flex-wrap gap-2">
+            {team.map((member) => {
+              const isSelected = selectedTeamId === member.id;
+              return (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => toggleTeamMember(member.id)}
+                  className="inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold transition-all cursor-pointer border-2 hover:opacity-80"
+                  style={{
+                    backgroundColor: isSelected ? member.color : 'transparent',
+                    color: isSelected ? '#000' : member.color,
+                    borderColor: member.color,
+                  }}
+                  title={member.name}
+                >
+                  {member.initials}
+                </button>
+              );
+            })}
+            {team.length === 0 && (
+              <p className="text-sm text-[var(--text-muted)]">Aucun membre d'équipe disponible</p>
+            )}
+          </div>
         </FormField>
 
         <FormField label="Notes">

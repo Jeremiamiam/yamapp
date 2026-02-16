@@ -65,6 +65,7 @@ interface DeliverableRow {
   client_id?: string | null;
   name: string;
   due_date?: string | null;
+  in_backlog?: boolean | null;
   type: string;
   status: string;
   assignee_id?: string | null;
@@ -82,6 +83,7 @@ interface DeliverableRow {
   balance_amount?: number | null;
   total_invoiced?: number | null;
   st_hors_facture?: boolean | null;
+  marge_potentielle?: number | null;
   created_at: string;
 }
 
@@ -175,6 +177,7 @@ export function mapDeliverableRow(row: DeliverableRow): Deliverable {
     clientId: row.client_id ?? undefined,
     name: row.name,
     dueDate: row.due_date ? new Date(row.due_date) : undefined,
+    inBacklog: row.in_backlog === true,
     type: row.type as Deliverable['type'],
     status: row.status as Deliverable['status'],
     assigneeId: row.assignee_id ?? undefined,
@@ -192,6 +195,7 @@ export function mapDeliverableRow(row: DeliverableRow): Deliverable {
     balanceAmount: row.balance_amount != null ? Number(row.balance_amount) : undefined,
     totalInvoiced: row.total_invoiced != null ? Number(row.total_invoiced) : undefined,
     stHorsFacture: row.st_hors_facture === true,
+    margePotentielle: row.marge_potentielle != null ? Number(row.marge_potentielle) : undefined,
     createdAt: new Date(row.created_at),
   };
 }
@@ -260,6 +264,7 @@ export function toSupabaseDeliverable(data: Partial<Deliverable>) {
     client_id: data.clientId ?? null,
     name: data.name,
     due_date: data.dueDate ? data.dueDate.toISOString() : null,
+    in_backlog: data.inBacklog === true,
     type: data.type,
     status: data.status,
     assignee_id: data.assigneeId ?? null,
@@ -280,6 +285,7 @@ export function toSupabaseDeliverable(data: Partial<Deliverable>) {
     balance_amount: data.balanceAmount ?? null,
     total_invoiced: data.totalInvoiced ?? null,
     st_hors_facture: data.stHorsFacture === true,
+    marge_potentielle: data.margePotentielle ?? null,
   };
 }
 

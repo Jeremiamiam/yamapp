@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Modal, FormField, Input, Textarea, Select, Button, BillingForm, BillingTimeline } from '@/components/ui';
+import { Modal, FormField, Input, Textarea, Select, Button, BillingForm, ClientAutocomplete } from '@/components/ui';
 import { useAppStore } from '@/lib/store';
 import { useUserRole } from '@/hooks/useUserRole';
 import { DeliverableSchema, type DeliverableFormData } from '@/lib/validation';
@@ -45,29 +45,40 @@ export function DeliverableForm() {
     updateDeliverable,
     deleteDeliverable,
     team,
-    clients,
-    openModal,
-    updateDeliverableBillingStatus,
-    loadBillingHistory,
-    getBillingHistory,
+    getClientById,
+    navigateToClient,
+    deliverables,
   } = useAppStore();
   const isOpen = activeModal?.type === 'deliverable';
   const mode = isOpen ? activeModal.mode : 'create';
   const modalClientId = isOpen ? activeModal.clientId : undefined;
-  const existingDeliverable = isOpen && activeModal.mode === 'edit' ? activeModal.deliverable : undefined;
+  const modalDeliverable = isOpen && activeModal.mode === 'edit' ? activeModal.deliverable : undefined;
   const showClientSelector = isOpen && mode === 'create' && modalClientId === undefined;
+  
+  // Récupérer le deliverable LIVE depuis le store (pour avoir les updates en temps réel)
+  const existingDeliverable = modalDeliverable 
+    ? deliverables.find(d => d.id === modalDeliverable.id) ?? modalDeliverable
+    : undefined;
+  
+  // Récupérer le client pour afficher son nom
+  const effectiveClientId = existingDeliverable?.clientId ?? modalClientId;
+  const client = effectiveClientId ? getClientById(effectiveClientId) : null;
 
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
   const [freelances, setFreelances] = useState<FreelanceEntry[]>([]);
   const [billingData, setBillingData] = useState<{
     devis?: number;
+    devisDate?: string;
     acompte?: number;
+    acompteDate?: string;
     avancements?: number[];
+    avancementsDate?: string[];
     solde?: number;
+    soldeDate?: string;
     sousTraitance?: number;
     stHorsFacture?: boolean;
+    margePotentielle?: number;
   }>({});
-  const billingHistory = existingDeliverable ? getBillingHistory(existingDeliverable.id) : [];
 
   const {
     register,
@@ -97,8 +108,9 @@ export function DeliverableForm() {
     },
   });
 
-  const toBacklog = watch('toBacklog');
-  const isPotentiel = watch('isPotentiel');
+  // En mode création, c'est toujours backlog (pas de date)
+  // En mode édition, on affiche la date si elle existe
+  const isScheduled = mode === 'edit' && existingDeliverable?.dueDate != null;
 
   useEffect(() => {
     if (isOpen) {
@@ -136,9 +148,8 @@ export function DeliverableForm() {
           solde: existingDeliverable.balanceAmount,
           sousTraitance: existingDeliverable.coutSousTraitance,
           stHorsFacture: existingDeliverable.stHorsFacture || false,
+          margePotentielle: existingDeliverable.margePotentielle,
         });
-        // Load billing history
-        loadBillingHistory(existingDeliverable.id);
       } else {
         reset({
           name: '',
@@ -163,10 +174,14 @@ export function DeliverableForm() {
         setBillingData({});
       }
     }
-  }, [isOpen, existingDeliverable, modalClientId, reset, loadBillingHistory]);
+  }, [isOpen, existingDeliverable, modalClientId, reset]);
 
   const onSubmit = (data: DeliverableFormData) => {
-    const dueDate = data.toBacklog ? undefined : new Date(`${data.dueDate}T${data.dueTime || '18:00'}`);
+    // En création, c'est toujours backlog (pas de date)
+    // En édition, on garde la date existante
+    const dueDate = mode === 'edit' && existingDeliverable?.dueDate 
+      ? existingDeliverable.dueDate 
+      : undefined;
     const effectiveClientId = modalClientId ?? (data.selectedClientId || undefined);
 
     // Calculate total freelance cost
@@ -190,11 +205,12 @@ export function DeliverableForm() {
       clientId: effectiveClientId,
       name: data.name.trim(),
       dueDate,
+      inBacklog: mode === 'create' ? data.toBacklog : existingDeliverable?.inBacklog,
       type: 'creative' as DeliverableType, // Fixed type
       status: 'pending' as DeliverableStatus, // Always pending on create, can be changed inline later
       assigneeId: selectedTeamIds[0] || undefined, // First selected team member
       category: 'other',
-      isPotentiel: data.isPotentiel === true,
+      isPotentiel: (billingData.margePotentielle ?? 0) > 0 && getBillingStatus() === 'pending',
       prixFacturé: totalInvoiced > 0 ? totalInvoiced : undefined,
       coutSousTraitance: billingData.sousTraitance,
       stHorsFacture: billingData.stHorsFacture || false,
@@ -207,6 +223,7 @@ export function DeliverableForm() {
       progressAmounts: billingData.avancements,
       balanceAmount: billingData.solde,
       totalInvoiced: totalInvoiced > 0 ? totalInvoiced : undefined,
+      margePotentielle: billingData.margePotentielle,
     };
 
     if (mode === 'edit' && existingDeliverable) {
@@ -251,8 +268,9 @@ export function DeliverableForm() {
     <Modal
       isOpen={isOpen}
       onClose={closeModal}
-      title={mode === 'edit' ? 'Modifier le livrable' : 'Nouveau livrable'}
-      subtitle="Livrable"
+      onSubmit={handleSubmit(onSubmit)}
+      title={mode === 'edit' ? 'Modifier le produit' : 'Nouveau produit'}
+      subtitle="Produit"
       icon={<Package />}
       iconBg="bg-[var(--accent-violet)]/10"
       iconColor="text-[var(--accent-violet)]"
@@ -277,61 +295,97 @@ export function DeliverableForm() {
       <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* LEFT COLUMN - General Info */}
         <div className="space-y-5">
-        {showClientSelector && (
+        {/* Client selector en création OU lien vers client en édition */}
+        {showClientSelector ? (
           <FormField label="Client">
-            <div className="flex items-center gap-2">
-              <Select
-                value={watch('selectedClientId')}
-                onChange={(e) => setValue('selectedClientId', e.target.value)}
-                options={[
-                  { value: '', label: 'Sans client' },
-                  ...clients.map((c) => ({ value: c.id, label: c.name })),
-                ]}
-                className="flex-1 min-w-0"
-              />
-              <button
-                type="button"
-                onClick={() => openModal({ type: 'client', mode: 'create' })}
-                className="flex-shrink-0 px-2 py-1.5 rounded-lg text-xs font-medium text-[var(--accent-cyan)] bg-[var(--accent-cyan)]/10 hover:bg-[var(--accent-cyan)]/20 transition-colors whitespace-nowrap"
-              >
-                + Client
-              </button>
-            </div>
+            <ClientAutocomplete
+              value={watch('selectedClientId') ?? ''}
+              onChange={(clientId) => setValue('selectedClientId', clientId)}
+              placeholder="Tapez le nom du client..."
+            />
           </FormField>
-        )}
+        ) : client ? (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-[var(--text-muted)]">Client :</span>
+            <button
+              type="button"
+              onClick={() => {
+                closeModal();
+                navigateToClient(client.id);
+              }}
+              className="text-sm font-medium text-[var(--accent-cyan)] hover:underline"
+            >
+              {client.name}
+            </button>
+          </div>
+        ) : null}
 
-        <FormField label="Nom du livrable" required error={errors.name?.message}>
+        <FormField label="Nom du produit" required error={errors.name?.message}>
           <Input {...register('name')} placeholder="Ex: Logo final V2, Charte graphique, Site web..." autoFocus />
         </FormField>
 
-        {/* Toggle switch backlog */}
-        <button
-          type="button"
-          onClick={() => setValue('toBacklog', !toBacklog)}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30 hover:bg-[var(--bg-tertiary)]/50 transition-colors cursor-pointer"
-        >
-          <span className="text-sm font-medium text-[var(--text-primary)]">À planifier plus tard (backlog)</span>
-          <div
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              toBacklog ? 'bg-[var(--accent-violet)]' : 'bg-[var(--bg-tertiary)]'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${
-                toBacklog ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
+        {/* Planification : soit toggle backlog, soit affichage date */}
+        {isScheduled && existingDeliverable?.dueDate ? (
+          // PLANIFIÉ : afficher la date avec option de retirer
+          <div className="flex items-center justify-between px-4 py-3 rounded-lg border border-[var(--accent-lime)]/40 bg-[var(--accent-lime)]/10">
+            <div className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--accent-lime)]">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-[var(--accent-lime)]">Planifié</span>
+                <span className="text-xs text-[var(--text-primary)]">
+                  {new Date(existingDeliverable.dueDate).toLocaleDateString('fr-FR', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => updateDeliverable(existingDeliverable.id, { dueDate: undefined, inBacklog: true })}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+            >
+              Retirer
+            </button>
           </div>
-        </button>
-
-        {!toBacklog && (
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Date de rendu" required error={errors.dueDate?.message}>
-              <Input type="date" {...register('dueDate')} />
-            </FormField>
-            <FormField label="Heure">
-              <Input type="time" {...register('dueTime')} />
-            </FormField>
+        ) : (
+          // NON PLANIFIÉ : toggle backlog
+          <div className="flex items-center justify-between px-4 py-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-medium text-[var(--text-primary)]">À planifier</span>
+              <span className="text-[10px] text-[var(--text-muted)]">Afficher dans le backlog</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (existingDeliverable) {
+                  updateDeliverable(existingDeliverable.id, { inBacklog: !existingDeliverable.inBacklog });
+                } else {
+                  setValue('toBacklog', !watch('toBacklog'));
+                }
+              }}
+              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${
+                (existingDeliverable?.inBacklog || (!existingDeliverable && watch('toBacklog')))
+                  ? 'bg-[var(--accent-violet)]'
+                  : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  (existingDeliverable?.inBacklog || (!existingDeliverable && watch('toBacklog')))
+                    ? 'translate-x-5'
+                    : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
         )}
 
@@ -345,15 +399,11 @@ export function DeliverableForm() {
                   key={member.id}
                   type="button"
                   onClick={() => toggleTeamMember(member.id)}
-                  className={`inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold transition-all cursor-pointer border-2 ${
-                    isSelected
-                      ? 'ring-2 ring-[var(--accent-lime)] ring-offset-2 ring-offset-[var(--bg-primary)]'
-                      : 'opacity-70 hover:opacity-100 border-transparent'
-                  }`}
+                  className="inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold transition-all cursor-pointer border-2 hover:opacity-80"
                   style={{
-                    backgroundColor: member.color,
-                    color: '#000',
-                    borderColor: isSelected ? member.color : 'transparent',
+                    backgroundColor: isSelected ? member.color : 'transparent',
+                    color: isSelected ? '#000' : member.color,
+                    borderColor: member.color,
                   }}
                   title={member.name}
                 >
@@ -367,36 +417,6 @@ export function DeliverableForm() {
           </div>
         </FormField>
 
-        {/* Status compta toggle */}
-        <FormField label="Statut compta">
-          <div className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/20">
-            <button
-              type="button"
-              onClick={() => setValue('isPotentiel', false)}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-                !isPotentiel
-                  ? 'bg-[#22c55e] text-white shadow-md'
-                  : 'bg-transparent text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/50'
-              }`}
-            >
-              ✓ Validé
-            </button>
-            <button
-              type="button"
-              onClick={() => setValue('isPotentiel', true)}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-                isPotentiel
-                  ? 'bg-amber-500 text-white shadow-md'
-                  : 'bg-transparent text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/50'
-              }`}
-            >
-              ⧗ Potentiel
-            </button>
-          </div>
-          <p className="text-xs text-[var(--text-muted)] mt-2">
-            {isPotentiel ? 'Pipeline — compte dans Potentiel Compta' : 'Validé — compte dans Total validé / Marge'}
-          </p>
-        </FormField>
 
         <FormField label="Notes">
           <Textarea {...register('notes')} placeholder="Détails, suivi..." rows={3} className="resize-y" />
@@ -406,29 +426,11 @@ export function DeliverableForm() {
         {/* RIGHT COLUMN - Money & Billing */}
         <div className="space-y-5">
         {isAdmin && (
-          <>
-            {/* New Billing Form */}
-            <BillingForm
-              key={existingDeliverable?.id || 'new'}
-              value={billingData}
-              onChange={setBillingData}
-            />
-
-            {/* Billing history - only in edit mode */}
-            {mode === 'edit' && existingDeliverable && billingHistory.length > 0 && (
-              <div className="space-y-3 p-4 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/20">
-                <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                  📊 Historique de facturation
-                </h3>
-                <BillingTimeline
-                  history={billingHistory}
-                  deliverableId={existingDeliverable.id}
-                  canEdit={true}
-                  canDelete={true}
-                />
-              </div>
-            )}
-          </>
+          <BillingForm
+            key={existingDeliverable?.id || 'new'}
+            value={billingData}
+            onChange={setBillingData}
+          />
         )}
         </div>
       </form>

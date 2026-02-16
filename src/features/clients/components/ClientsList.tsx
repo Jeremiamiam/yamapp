@@ -44,15 +44,17 @@ export function ClientsList() {
   const getClientTotals = (clientId: string) => {
     const clientDeliverables = deliverables.filter(d => d.clientId === clientId);
 
+    // Rentrées = deliverables where billing has progressed (acompte/avancement/solde)
     const totalFacture = clientDeliverables
-      .filter(d => d.billingStatus === 'balance' && !d.isPotentiel)
+      .filter(d => d.billingStatus !== 'pending')
       .reduce((sum, d) => sum + (d.totalInvoiced || d.prixFacturé || 0), 0);
 
-    const totalPotentiel = clientDeliverables
-      .filter(d => d.isPotentiel)
-      .reduce((sum, d) => sum + (d.totalInvoiced || d.prixFacturé || 0), 0);
+    // Marge potentielle Yam = margePotentielle from deliverables with no billing progress
+    const totalMargePotentielle = clientDeliverables
+      .filter(d => d.billingStatus === 'pending' && (d.margePotentielle ?? 0) > 0)
+      .reduce((sum, d) => sum + (d.margePotentielle ?? 0), 0);
 
-    return { totalFacture, totalPotentiel };
+    return { totalFacture, totalPotentiel: totalMargePotentielle };
   };
 
   const formatAmount = (amount: number) => {
@@ -66,7 +68,6 @@ export function ClientsList() {
 
   function renderCard(client: Client) {
     const { totalFacture, totalPotentiel } = getClientTotals(client.id);
-    const hasAmounts = totalFacture > 0 || totalPotentiel > 0;
 
     return (
       <div
@@ -74,10 +75,23 @@ export function ClientsList() {
         onClick={() => navigateToClient(client.id)}
         className="group bg-[var(--bg-card)] rounded-lg border border-[var(--border-subtle)] hover:border-[var(--accent-cyan)] hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden"
       >
-        <div className="p-4 flex items-center justify-between gap-3">
-          <h3 className="font-display font-semibold text-base text-[var(--text-primary)] group-hover:text-[var(--accent-cyan)] transition-colors truncate flex-1">
+        <div className="p-3 flex items-center gap-3">
+          {/* Nom du client */}
+          <h3 className="font-display font-semibold text-base text-[var(--text-primary)] group-hover:text-[var(--accent-cyan)] transition-colors truncate flex-1 min-w-0">
             {client.name}
           </h3>
+
+          {/* Montants - même ligne */}
+          <div className="flex items-center gap-3 flex-shrink-0 text-xs">
+            {totalFacture > 0 && (
+              <span className="font-semibold text-[var(--accent-lime)]">{formatAmount(totalFacture)}</span>
+            )}
+            {totalPotentiel > 0 && (
+              <span className="font-semibold text-[var(--accent-violet)]">{formatAmount(totalPotentiel)}</span>
+            )}
+          </div>
+
+          {/* Bouton edit */}
           <button
             type="button"
             onClick={(e) => {
@@ -90,24 +104,6 @@ export function ClientsList() {
             <MoreVertical />
           </button>
         </div>
-
-        {/* Montants */}
-        {hasAmounts && (
-          <div className="px-4 pb-3 flex items-center gap-4 text-xs">
-            {totalFacture > 0 && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-[var(--text-muted)]">Facturé:</span>
-                <span className="font-semibold text-[var(--accent-lime)]">{formatAmount(totalFacture)}</span>
-              </div>
-            )}
-            {totalPotentiel > 0 && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-[var(--text-muted)]">Potentiel:</span>
-                <span className="font-semibold text-[var(--accent-amber)]">{formatAmount(totalPotentiel)}</span>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     );
   }
@@ -122,14 +118,24 @@ export function ClientsList() {
             {clientsColumn.length} client{clientsColumn.length > 1 ? 's' : ''} • {prospectsColumn.length} prospect{prospectsColumn.length > 1 ? 's' : ''}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => openClientModal()}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--accent-cyan)] text-[var(--bg-primary)] font-medium hover:scale-105 active:scale-95 transition-transform shadow-lg"
-        >
-          <Plus />
-          <span>Nouveau client</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => openClientModal('client')}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--accent-cyan)] text-[var(--bg-primary)] font-medium hover:scale-105 active:scale-95 transition-transform shadow-lg"
+          >
+            <Plus />
+            <span>Client</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => openClientModal('prospect')}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-amber-500 text-amber-500 font-medium hover:bg-amber-500/10 hover:scale-105 active:scale-95 transition-all"
+          >
+            <Plus />
+            <span>Prospect</span>
+          </button>
+        </div>
       </div>
 
       {/* Colonnes */}

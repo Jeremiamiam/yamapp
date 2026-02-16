@@ -23,12 +23,14 @@ export function ClientForm() {
   const isOpen = activeModal?.type === 'client';
   const mode = isOpen ? activeModal.mode : 'create';
   const existingClient = isOpen && activeModal.mode === 'edit' ? activeModal.client : undefined;
+  const presetStatus = isOpen ? activeModal.presetStatus : undefined;
 
   const [formData, setFormData] = useState<FormData>({
     name: '',
     status: 'prospect'
   });
   const [errors, setErrors] = useState<Partial<FormData>>({});
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -38,7 +40,7 @@ export function ClientForm() {
           status: existingClient.status
         });
       } else {
-        setFormData({ name: '', status: 'prospect' });
+        setFormData({ name: '', status: presetStatus ?? 'client' });
       }
       setErrors({});
     }
@@ -51,15 +53,23 @@ export function ClientForm() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
 
     if (mode === 'edit' && existingClient) {
       updateClient(existingClient.id, { name: formData.name.trim(), status: formData.status });
+      closeModal();
     } else {
-      addClient({ name: formData.name.trim(), status: formData.status });
+      const result = await addClient({ name: formData.name.trim(), status: formData.status });
+      
+      if (result?.isExisting) {
+        // Client existe déjà, afficher un message
+        setFeedback(`"${result.client.name}" existe déjà`);
+        setTimeout(() => setFeedback(null), 3000);
+        return; // Ne pas fermer la modale
+      }
+      closeModal();
     }
-    closeModal();
   };
 
   const handleDelete = () => {
@@ -74,8 +84,9 @@ export function ClientForm() {
     <Modal
       isOpen={isOpen}
       onClose={closeModal}
-      title={mode === 'edit' ? 'Modifier le client' : 'Nouveau client'}
-      subtitle="Client / Prospect"
+      onSubmit={handleSubmit}
+      title={mode === 'edit' ? 'Modifier le client' : presetStatus === 'prospect' ? 'Nouveau prospect' : 'Nouveau client'}
+      subtitle={mode === 'edit' ? 'Client / Prospect' : presetStatus === 'prospect' ? 'Prospect' : 'Client'}
       icon={<Building />}
       iconBg="bg-[var(--accent-cyan)]/10"
       iconColor="text-[var(--accent-cyan)]"
@@ -98,47 +109,58 @@ export function ClientForm() {
       }
     >
       <div className="space-y-5">
+        {/* Message de feedback */}
+        {feedback && (
+          <div className="px-4 py-3 rounded-lg bg-[var(--accent-amber)]/20 border border-[var(--accent-amber)]/40 text-sm text-[var(--accent-amber)]">
+            {feedback}
+          </div>
+        )}
+        
         <FormField label="Nom (entreprise ou contact)" required error={errors.name}>
           <Input
             value={formData.name}
             onChange={e => {
               setFormData(prev => ({ ...prev, name: e.target.value }));
               if (errors.name) setErrors(prev => ({ ...prev, name: undefined }));
+              if (feedback) setFeedback(null); // Clear feedback when typing
             }}
             placeholder="Ex: Acme Corp, Marie Dupont..."
             autoFocus
           />
         </FormField>
-        <FormField label="Statut">
-          <div
-            role="group"
-            aria-label="Statut du client"
-            className="flex rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-secondary)]/60 p-0.5"
-          >
-            <button
-              type="button"
-              onClick={() => setFormData(prev => ({ ...prev, status: 'prospect' }))}
-              className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-md transition-all ${
-                formData.status === 'prospect'
-                  ? 'bg-[var(--accent-lime)] text-[var(--bg-primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
+        {/* Toggle statut visible uniquement en édition */}
+        {mode === 'edit' && (
+          <FormField label="Statut">
+            <div
+              role="group"
+              aria-label="Statut du client"
+              className="flex rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-secondary)]/60 p-0.5"
             >
-              Prospect
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormData(prev => ({ ...prev, status: 'client' }))}
-              className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-md transition-all ${
-                formData.status === 'client'
-                  ? 'bg-[var(--accent-lime)] text-[var(--bg-primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Client
-            </button>
-          </div>
-        </FormField>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, status: 'prospect' }))}
+                className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-md transition-all ${
+                  formData.status === 'prospect'
+                    ? 'bg-amber-500 text-white'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                Prospect
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, status: 'client' }))}
+                className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-md transition-all ${
+                  formData.status === 'client'
+                    ? 'bg-[var(--accent-cyan)] text-[var(--bg-primary)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                Client
+              </button>
+            </div>
+          </FormField>
+        )}
       </div>
     </Modal>
   );

@@ -119,10 +119,10 @@ export function ActivitySection({ clientId }: ActivitySectionProps) {
             <button
               onClick={() => openDeliverableModal(clientId)}
               className="px-3 py-2 sm:py-1.5 rounded-lg bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 transition-colors text-xs font-semibold flex items-center gap-1.5 touch-manipulation min-h-[44px] sm:min-h-0"
-              title="Livrable (logo, prez, site…)"
+              title="Produit (logo, prez, site…)"
             >
               <Plus />
-              Livrable
+              Produit
             </button>
             <button
               onClick={() => openCallModal(clientId, undefined, 'call')}
@@ -153,7 +153,7 @@ export function ActivitySection({ clientId }: ActivitySectionProps) {
                 onClick={() => openDeliverableModal(clientId)}
                 className="px-4 py-2 rounded-lg bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 transition-colors text-sm font-medium"
               >
-                + Livrable
+                + Produit
               </button>
               <button
                 onClick={() => openCallModal(clientId, undefined, 'call')}

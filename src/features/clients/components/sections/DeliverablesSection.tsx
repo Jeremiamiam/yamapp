@@ -49,7 +49,7 @@ export function DeliverablesSection({ clientId }: DeliverablesSectionProps) {
       <div className="px-4 sm:px-5 py-4 border-b border-[var(--border-subtle)] flex items-center gap-2">
         <Package />
         <h2 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
-          Livrables
+          Produits
         </h2>
         <span className="text-xs text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded-full">
           {deliverables.length}
@@ -57,7 +57,7 @@ export function DeliverablesSection({ clientId }: DeliverablesSectionProps) {
         <button
           onClick={() => openDeliverableModal(clientId)}
           className="ml-auto p-1.5 rounded-lg bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/20 transition-colors"
-          title="Ajouter un livrable"
+          title="Ajouter un produit"
         >
           <Plus />
         </button>
@@ -68,7 +68,7 @@ export function DeliverablesSection({ clientId }: DeliverablesSectionProps) {
             onClick={() => openDeliverableModal(clientId)}
             className="w-full px-5 py-8 text-center text-[var(--text-muted)] text-sm hover:bg-[var(--bg-secondary)] hover:text-[var(--accent-violet)] transition-colors"
           >
-            + Ajouter un livrable
+            + Ajouter un produit
           </button>
         ) : (
           sortedDeliverables.map((d, index) => {
@@ -101,6 +101,9 @@ export function DeliverablesSection({ clientId }: DeliverablesSectionProps) {
                   )}
                   {d.coutSousTraitance != null && d.coutSousTraitance > 0 && (
                     <span className="text-[#ef4444]" title="Sous-traitance">− {formatEur(d.coutSousTraitance)}</span>
+                  )}
+                  {d.margePotentielle != null && d.margePotentielle > 0 && (
+                    <span className="text-[var(--accent-violet)]" title="Rentrée potentielle">{formatEur(d.margePotentielle)}</span>
                   )}
                   {!hasPrix && d.cost != null && <span className="text-[var(--accent-lime)]">{formatEur(d.cost)}</span>}
                   {d.deliveredAt != null && (

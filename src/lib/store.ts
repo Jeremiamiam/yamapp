@@ -37,8 +37,10 @@ type ModalType =
   | { type: 'document'; mode: 'create' | 'edit'; clientId: string; document?: ClientDocument }
   | { type: 'deliverable'; mode: 'create' | 'edit'; clientId?: string; deliverable?: Deliverable }
   | { type: 'call'; mode: 'create' | 'edit'; clientId?: string; call?: Call; presetCallType?: CallType }
-  | { type: 'client'; mode: 'create' | 'edit'; client?: Client }
+  | { type: 'client'; mode: 'create' | 'edit'; client?: Client; presetStatus?: ClientStatus }
   | null;
+
+type AppRole = 'admin' | 'member' | null;
 
 interface AppState {
   // Data
@@ -51,6 +53,10 @@ interface AppState {
   comptaMonthly: { month: string; year: number; entrées: number; sorties: number; soldeCumulé: number }[];
   isLoading: boolean;
   loadingError: string | null;
+
+  // User
+  currentUserRole: AppRole;
+  setUserRole: (role: AppRole) => void;
 
   loadData: () => Promise<void>;
 
@@ -89,7 +95,7 @@ interface AppState {
   deleteContact: (clientId: string, contactId: string) => Promise<void>;
 
   // CRUD Actions - Clients (async Supabase)
-  addClient: (data: Pick<Client, 'name' | 'status'>) => Promise<void>;
+  addClient: (data: Pick<Client, 'name' | 'status'>) => Promise<Client | undefined>;
   updateClient: (id: string, data: Partial<Pick<Client, 'name' | 'status'>>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
 
@@ -179,11 +185,120 @@ export const useAppStore = create<AppState>((set, get) => ({
   comptaMonthly: [],
   isLoading: false,
   loadingError: null,
+  currentUserRole: null,
+
+  setUserRole: (role) => set({ currentUserRole: role }),
 
   loadData: async () => {
-    set({ isLoading: true, loadingError: null });
+    const CACHE_KEY = 'yam_dashboard_cache';
+    const CACHE_TIMESTAMP_KEY = 'yam_dashboard_cache_ts';
+    const CACHE_MAX_AGE = 5 * 60 * 1000; // 5 minutes
+
+    // Helper pour reconvertir les strings ISO en Date
+    const rehydrateDates = (data: Record<string, unknown>) => {
+      // Deliverables
+      const deliverables = (data.deliverables as Deliverable[] || []).map(d => ({
+        ...d,
+        dueDate: d.dueDate ? new Date(d.dueDate) : null,
+        createdAt: d.createdAt ? new Date(d.createdAt) : new Date(),
+      })) as Deliverable[];
+      
+      // Calls
+      const calls = (data.calls as Call[] || []).map(c => ({
+        ...c,
+        scheduledAt: c.scheduledAt ? new Date(c.scheduledAt) : null,
+        createdAt: c.createdAt ? new Date(c.createdAt) : new Date(),
+      })) as Call[];
+      
+      // DayTodos
+      const dayTodos = (data.dayTodos as DayTodo[] || []).map(t => ({
+        ...t,
+        forDate: t.forDate ? new Date(t.forDate) : new Date(),
+        scheduledAt: t.scheduledAt ? new Date(t.scheduledAt) : null,
+        createdAt: t.createdAt ? new Date(t.createdAt) : new Date(),
+      })) as DayTodo[];
+      
+      // Clients (avec documents qui ont des dates)
+      const clients = (data.clients as Client[] || []).map(client => ({
+        ...client,
+        createdAt: client.createdAt ? new Date(client.createdAt) : new Date(),
+        updatedAt: client.updatedAt ? new Date(client.updatedAt) : new Date(),
+        documents: (client.documents || []).map(doc => ({
+          ...doc,
+          createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date(),
+          updatedAt: doc.updatedAt ? new Date(doc.updatedAt) : new Date(),
+        })),
+      })) as Client[];
+      
+      return { deliverables, calls, dayTodos, clients };
+    };
+
+    // 1. Essayer de charger depuis le cache d'abord (affichage instantané)
+    try {
+      const cachedData = localStorage.getItem(CACHE_KEY);
+      const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+      
+      if (cachedData && cachedTimestamp) {
+        const cacheAge = Date.now() - parseInt(cachedTimestamp, 10);
+        const parsed = JSON.parse(cachedData);
+        const rehydrated = rehydrateDates(parsed);
+        
+        // Charger le cache immédiatement (pas de loading spinner)
+        set({
+          team: parsed.team || [],
+          clients: rehydrated.clients,
+          deliverables: rehydrated.deliverables,
+          calls: rehydrated.calls,
+          dayTodos: rehydrated.dayTodos,
+          comptaMonthly: parsed.comptaMonthly || [],
+          currentUserRole: parsed.currentUserRole,
+          isLoading: false,
+          loadingError: null,
+        });
+        
+        // Si le cache est récent, pas besoin de recharger
+        if (cacheAge < CACHE_MAX_AGE) {
+          return;
+        }
+        // Sinon, on continue pour revalider en background (sans spinner)
+      } else {
+        // Pas de cache, afficher le loading
+        set({ isLoading: true, loadingError: null });
+      }
+    } catch {
+      // Erreur de parsing du cache, on charge normalement
+      set({ isLoading: true, loadingError: null });
+    }
+
+    // 2. Charger les données fraîches depuis Supabase
     try {
       const supabase = createClient();
+
+      // Récupérer le rôle de l'utilisateur en même temps que les données
+      const { data: { user } } = await supabase.auth.getUser();
+      let userRole: AppRole = null;
+
+      if (user) {
+        // 1. Essayer user_roles
+        const { data: roleRow } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (roleRow?.role) {
+          userRole = roleRow.role as 'admin' | 'member';
+        } else {
+          // 2. Fallback : team.app_role
+          const { data: teamRow } = await supabase
+            .from('team')
+            .select('app_role')
+            .eq('auth_user_id', user.id)
+            .maybeSingle();
+          userRole = teamRow?.app_role === 'admin' ? 'admin' : 'member';
+        }
+      }
+
       const [teamRes, clientsRes, contactsRes, linksRes, docsRes, delivRes, callsRes, comptaRes, todosRes] = await Promise.all([
         supabase.from('team').select('id,name,initials,role,color,email'),
         supabase.from('clients').select('*'),
@@ -236,6 +351,23 @@ export const useAppStore = create<AppState>((set, get) => ({
         soldeCumulé: Number(m.solde_cumule),
       }));
 
+      // Sauvegarder en cache pour le prochain refresh
+      try {
+        const cacheData = {
+          team,
+          clients,
+          deliverables,
+          calls,
+          dayTodos,
+          comptaMonthly,
+          currentUserRole: userRole,
+        };
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+        localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+      } catch {
+        // Erreur de sauvegarde du cache (quota dépassé, etc.), on ignore
+      }
+
       set({
         team,
         clients,
@@ -243,6 +375,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         calls,
         dayTodos,
         comptaMonthly,
+        currentUserRole: userRole,
         isLoading: false,
         loadingError: null,
       });
@@ -448,8 +581,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  addClient: async (data: { name: string; status: ClientStatus }) => {
+  addClient: async (data: { name: string; status: ClientStatus }): Promise<{ client: Client; isExisting: boolean } | undefined> => {
     try {
+      const trimmedName = data.name.trim().toLowerCase();
+      
+      // Vérifier si un client avec ce nom existe déjà (insensible à la casse)
+      const existingClient = get().clients.find(
+        (c) => c.name.trim().toLowerCase() === trimmedName
+      );
+      
+      if (existingClient) {
+        // Client existe déjà, on le retourne avec un flag
+        return { client: existingClient, isExisting: true };
+      }
+      
       const id = `client-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       const supabase = createClient();
       const { error } = await supabase.from('clients').insert({
@@ -470,8 +615,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         updatedAt: new Date(),
       };
       set((state) => ({ clients: [...state.clients, client] }));
+      return { client, isExisting: false };
     } catch (e) {
       handleError(new AppError(getErrorMessage(e), 'CLIENT_ADD_FAILED', "Impossible d'ajouter le client"));
+      return undefined;
     }
   },
 
@@ -592,7 +739,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const deliv: Deliverable = { ...deliverableData, id, createdAt: now };
       set((state) => ({ deliverables: [...state.deliverables, deliv] }));
     } catch (e) {
-      handleError(new AppError(getErrorMessage(e), 'DELIV_ADD_FAILED', "Impossible d'ajouter le livrable"));
+      handleError(new AppError(getErrorMessage(e), 'DELIV_ADD_FAILED', "Impossible d'ajouter le produit"));
     }
   },
 
@@ -612,11 +759,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
       const { error } = await supabase.from('deliverables').update(dbPayload).eq('id', id);
       if (error) throw error;
+
+      // Auto-promote prospect → client when billing progresses
+      const billingProgressed = data.billingStatus && data.billingStatus !== 'pending' && prev.billingStatus === 'pending';
+      if (billingProgressed && prev.clientId) {
+        const client = get().clients.find((c) => c.id === prev.clientId);
+        if (client && client.status === 'prospect') {
+          get().updateClient(prev.clientId, { status: 'client' });
+        }
+      }
     } catch (e) {
       set((state) => ({
         deliverables: state.deliverables.map((d) => (d.id === id ? prev : d)),
       }));
-      handleError(new AppError(getErrorMessage(e), 'DELIV_UPDATE_FAILED', "Impossible de modifier le livrable"));
+      handleError(new AppError(getErrorMessage(e), 'DELIV_UPDATE_FAILED', "Impossible de modifier le produit"));
     }
   },
 
@@ -627,7 +783,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (error) throw error;
       set((state) => ({ deliverables: state.deliverables.filter((d) => d.id !== id) }));
     } catch (e) {
-      handleError(new AppError(getErrorMessage(e), 'DELIV_DELETE_FAILED', "Impossible de supprimer le livrable"));
+      handleError(new AppError(getErrorMessage(e), 'DELIV_DELETE_FAILED', "Impossible de supprimer le produit"));
     }
   },
 
@@ -703,6 +859,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       // Reload history for this deliverable
       await get().loadBillingHistory(id);
+
+      // Auto-promote prospect → client when billing progresses
+      if (newStatus !== 'pending' && prev.billingStatus === 'pending' && prev.clientId) {
+        const client = get().clients.find((c) => c.id === prev.clientId);
+        if (client && client.status === 'prospect') {
+          get().updateClient(prev.clientId, { status: 'client' });
+        }
+      }
     } catch (e) {
       const message = e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e);
       console.error('updateDeliverableBillingStatus error:', e);
@@ -940,7 +1104,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   getTeamMemberById: (id) => get().team.find(m => m.id === id),
   getDeliverablesByClientId: (clientId) => get().deliverables.filter(d => d.clientId === clientId),
   getCallsByClientId: (clientId) => get().calls.filter(c => c.clientId === clientId),
-  getBacklogDeliverables: () => get().deliverables.filter(d => d.dueDate == null),
+  getBacklogDeliverables: () => get().deliverables.filter(d => d.inBacklog === true),
   getBacklogCalls: () => get().calls.filter(c => c.scheduledAt == null),
   getIncompleteDayTodos: () => get().dayTodos.filter(t => !t.done),
 

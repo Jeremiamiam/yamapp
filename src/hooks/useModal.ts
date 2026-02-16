@@ -1,5 +1,5 @@
 import { useAppStore } from '@/lib/store';
-import type { Contact, ClientDocument, Deliverable, Call } from '@/types';
+import type { Contact, ClientDocument, Deliverable, Call, ClientStatus } from '@/types';
 import type { CallType } from '@/types';
 
 /**
@@ -44,8 +44,8 @@ export function useModal() {
         presetCallType,
       }),
 
-    openClientModal: () =>
-      openModal({ type: 'client', mode: 'create' }),
+    openClientModal: (presetStatus?: ClientStatus) =>
+      openModal({ type: 'client', mode: 'create', presetStatus }),
 
     closeModal,
   };

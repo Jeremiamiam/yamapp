@@ -18,7 +18,7 @@ const PHONE = (
 const DRAG_TYPE = 'application/x-yam-backlog-item';
 
 export function BacklogSidebar() {
-  const { getBacklogDeliverables, getBacklogCalls, getClientById, navigateToClient, updateDeliverable, updateCall } = useAppStore();
+  const { getBacklogDeliverables, getBacklogCalls, getClientById, navigateToClient, updateDeliverable, updateCall, currentView, navigateToTimeline } = useAppStore();
   const { openDeliverableModal, openCallModal } = useModal();
   const [isDragOver, setIsDragOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,6 +31,11 @@ export function BacklogSidebar() {
     e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type, id }));
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', '');
+    
+    // Si on n'est pas sur la timeline, y aller automatiquement
+    if (currentView !== 'timeline') {
+      navigateToTimeline();
+    }
   };
 
   const handleDragEnd = () => {
@@ -56,9 +61,9 @@ export function BacklogSidebar() {
       const isOver = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
       
       if (isOver) {
-        // Remettre l'item dans le backlog en supprimant sa date
+        // Remettre l'item dans le backlog
         if (type === 'deliverable') {
-          await updateDeliverable(id, { dueDate: undefined });
+          await updateDeliverable(id, { dueDate: undefined, inBacklog: true });
         } else if (type === 'call') {
           await updateCall(id, { scheduledAt: undefined });
         }
@@ -79,21 +84,44 @@ export function BacklogSidebar() {
     <div 
       ref={containerRef}
       data-backlog-drop-zone
-      className={`flex flex-col h-full min-h-0 rounded-2xl border bg-[var(--bg-card)]/95 backdrop-blur-sm shadow-[0_8px_30px_rgba(0,0,0,0.25)] overflow-hidden transition-all duration-200 ${
+      className={`flex flex-col h-full min-h-0 overflow-hidden transition-all duration-200 ${
         isDragOver 
-          ? 'border-[var(--accent-violet)] ring-2 ring-[var(--accent-violet)]/30 scale-[1.02]' 
-          : 'border-[var(--border-subtle)]'
+          ? 'ring-2 ring-[var(--accent-violet)]/30 ring-inset' 
+          : ''
       }`}
     >
       {/* Header */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-[var(--border-subtle)]/80">
+      <div className="flex-shrink-0 px-3 py-3 flex items-center justify-between gap-2">
         <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-          {isDragOver ? '↓ Déposer ici' : `À planifier ${total > 0 ? `(${total})` : ''}`}
+          {isDragOver ? '↓ Déposer ici' : `À planifier`}
         </p>
+        {total > 0 && !isDragOver && (
+          <span className="text-[10px] text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded-full">
+            {total}
+          </span>
+        )}
+        <div className="flex items-center gap-1 ml-auto">
+          <button
+            type="button"
+            onClick={() => openDeliverableModal(undefined, undefined)}
+            className="w-6 h-6 flex items-center justify-center rounded-md text-[var(--accent-violet)] bg-[var(--accent-violet)]/10 hover:bg-[var(--accent-violet)]/20 transition-colors cursor-pointer"
+            title="Nouveau produit"
+          >
+            {PACKAGE}
+          </button>
+          <button
+            type="button"
+            onClick={() => openCallModal(undefined, undefined)}
+            className="w-6 h-6 flex items-center justify-center rounded-md text-[var(--accent-coral)] bg-[var(--accent-coral)]/10 hover:bg-[var(--accent-coral)]/20 transition-colors cursor-pointer"
+            title="Nouvel appel"
+          >
+            {PHONE}
+          </button>
+        </div>
       </div>
 
-      {/* Liste — style aligné sur les cards todo (contour, fond, rounded) */}
-      <div className="flex-1 overflow-y-auto min-h-0 p-3 flex flex-col gap-1.5">
+      {/* Liste */}
+      <div className="flex-1 overflow-y-auto min-h-0 px-3 pb-3 flex flex-col gap-1.5">
         {total === 0 ? (
           <p className="text-xs text-[var(--text-muted)] px-2 py-6 text-center leading-relaxed">
             Aucun élément à planifier.
@@ -108,10 +136,10 @@ export function BacklogSidebar() {
                   draggable
                   onDragStart={e => handleDragStart(e, 'deliverable', d.id)}
                   onDragEnd={handleDragEnd}
-                  onClick={() => d.clientId ? navigateToClient(d.clientId) : openDeliverableModal(d.clientId, d)}
+                  onClick={() => openDeliverableModal(d.clientId, d)}
                   className="flex items-start gap-2 p-2 rounded-lg bg-[var(--bg-card)]/80 border border-[var(--border-subtle)]/60 hover:border-[var(--accent-violet)]/40 transition-all cursor-grab active:cursor-grabbing"
                 >
-                  <span className="text-[var(--accent-violet)] flex-shrink-0 mt-0.5" title="Livrable">
+                  <span className="text-[var(--accent-violet)] flex-shrink-0 mt-0.5" title="Produit">
                     {PACKAGE}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -133,7 +161,7 @@ export function BacklogSidebar() {
                   draggable
                   onDragStart={e => handleDragStart(e, 'call', c.id)}
                   onDragEnd={handleDragEnd}
-                  onClick={() => c.clientId ? navigateToClient(c.clientId) : openCallModal(c.clientId, c)}
+                  onClick={() => openCallModal(c.clientId, c)}
                   className="flex items-start gap-2 p-2 rounded-lg bg-[var(--bg-card)]/80 border border-[var(--border-subtle)]/60 hover:border-[var(--accent-coral)]/40 transition-all cursor-grab active:cursor-grabbing"
                 >
                   <span className="text-[var(--accent-coral)] flex-shrink-0 mt-0.5" title="Appel">
