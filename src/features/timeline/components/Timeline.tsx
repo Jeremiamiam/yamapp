@@ -109,6 +109,25 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
     setCardsAnimationKey(prev => prev + 1);
   }, [filters.teamMemberId]);
 
+  // Raccourcis clavier : flèches haut/bas pour toggle 1 semaine / 2 semaines
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignorer si on est dans un input/textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setCompactWeeks(!compactWeeks);
+        try {
+          localStorage.setItem('yam-timeline-compact', (!compactWeeks).toString());
+        } catch (_) {}
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [compactWeeks, setCompactWeeks]);
+
   const setJustLanded = useCallback((id: string) => {
     setLastDroppedId(id);
     const t = setTimeout(() => setLastDroppedId(null), 320);
