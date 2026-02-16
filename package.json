@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "precheck": "npm run typecheck && npm run lint",
     "seed:supabase": "node scripts/seed-supabase.mjs"
   },
   "dependencies": {
