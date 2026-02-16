@@ -69,7 +69,7 @@ export function Timeline({ className }: TimelineProps) {
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
   type DragItem = TimelineCardItem & { hour?: number; minutes?: number };
-  const [dragState, setDragState] = useState<{ item: DragItem; type: 'deliverable' | 'call'; x: number; y: number } | null>(null);
+  const [dragState, setDragState] = useState<{ item: DragItem; type: 'deliverable' | 'call' | 'todo'; x: number; y: number } | null>(null);
   const [backlogDragPos, setBacklogDragPos] = useState<{ x: number; y: number } | null>(null);
   const [lastDroppedId, setLastDroppedId] = useState<string | null>(null);
   const skipClickAfterDragRef = useRef<string | null>(null);
@@ -225,7 +225,7 @@ export function Timeline({ className }: TimelineProps) {
     [getDropTarget, hourHeight]
   );
 
-  const onDragStart = useCallback((item: DragItem, type: 'deliverable' | 'call', x: number, y: number) => {
+  const onDragStart = useCallback((item: DragItem, type: 'deliverable' | 'call' | 'todo', x: number, y: number) => {
     setDragState({ item, type, x, y });
   }, []);
   const onDragMove = useCallback((x: number, y: number) => {
