@@ -70,8 +70,8 @@ export function DocumentsSection({ clientId }: DocumentsSectionProps) {
   if (!client) return null;
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
-      <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center gap-2">
+    <div className="bg-[var(--bg-card)] rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
+      <div className="px-4 sm:px-5 py-4 border-b border-[var(--border-subtle)] flex items-center gap-2">
         <FileText />
         <h2 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
           Documents

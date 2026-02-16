@@ -103,40 +103,44 @@ export function ActivitySection({ clientId }: ActivitySectionProps) {
   if (!client) return null;
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
-      <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center gap-2">
-        <Activity />
-        <h2 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
-          Timeline
-        </h2>
-        <span className="text-xs text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded-full">
-          {activityTimeline.length}
-        </span>
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={() => openDeliverableModal(clientId)}
-            className="px-3 py-1.5 rounded-lg bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 transition-colors text-xs font-semibold flex items-center gap-1.5"
-            title="Livrable (logo, prez, site…)"
-          >
-            <Plus />
-            Livrable
-          </button>
-          <button
-            onClick={() => openCallModal(clientId, undefined, 'call')}
-            className="px-3 py-1.5 rounded-lg bg-[var(--accent-coral)]/10 text-[var(--accent-coral)] hover:bg-[var(--accent-coral)]/20 transition-colors text-xs font-semibold flex items-center gap-1.5"
-            title="Appel téléphonique / visio"
-          >
-            <Plus />
-            Appel
-          </button>
-          <button
-            onClick={() => openCallModal(clientId, undefined, 'presentation')}
-            className="px-3 py-1.5 rounded-lg bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/20 transition-colors text-xs font-semibold flex items-center gap-1.5"
-            title="Présentation en physique"
-          >
-            <Plus />
-            Présentation
-          </button>
+    <div className="bg-[var(--bg-card)] rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
+      <div className="px-4 sm:px-5 py-4 border-b border-[var(--border-subtle)]">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Activity />
+            <h2 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
+              Timeline
+            </h2>
+            <span className="text-xs text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded-full">
+              {activityTimeline.length}
+            </span>
+          </div>
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => openDeliverableModal(clientId)}
+              className="px-3 py-2 sm:py-1.5 rounded-lg bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 transition-colors text-xs font-semibold flex items-center gap-1.5 touch-manipulation min-h-[44px] sm:min-h-0"
+              title="Livrable (logo, prez, site…)"
+            >
+              <Plus />
+              Livrable
+            </button>
+            <button
+              onClick={() => openCallModal(clientId, undefined, 'call')}
+              className="px-3 py-2 sm:py-1.5 rounded-lg bg-[var(--accent-coral)]/10 text-[var(--accent-coral)] hover:bg-[var(--accent-coral)]/20 transition-colors text-xs font-semibold flex items-center gap-1.5 touch-manipulation min-h-[44px] sm:min-h-0"
+              title="Appel téléphonique / visio"
+            >
+              <Plus />
+              Appel
+            </button>
+            <button
+              onClick={() => openCallModal(clientId, undefined, 'presentation')}
+              className="px-3 py-2 sm:py-1.5 rounded-lg bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/20 transition-colors text-xs font-semibold flex items-center gap-1.5 touch-manipulation min-h-[44px] sm:min-h-0"
+              title="Présentation en physique"
+            >
+              <Plus />
+              Présentation
+            </button>
+          </div>
         </div>
       </div>
 
@@ -184,13 +188,13 @@ export function ActivitySection({ clientId }: ActivitySectionProps) {
             return (
               <div
                 key={item.id}
-                className={`px-5 py-4 transition-colors animate-fade-in-up flex items-center gap-4 cursor-pointer group ${
+                className={`px-4 sm:px-5 py-3 sm:py-4 transition-colors animate-fade-in-up flex items-center gap-3 sm:gap-4 cursor-pointer group ${
                   past ? 'opacity-50' : 'hover:bg-[var(--bg-secondary)]'
                 } ${today ? 'bg-[var(--accent-lime)]/5' : ''}`}
                 style={{ animationDelay: `${index * 0.03}s` }}
                 onClick={handleItemClick}
               >
-                <div className="flex-shrink-0 w-20 text-right">
+                <div className="flex-shrink-0 w-14 sm:w-20 text-right">
                   <p className={`text-xs font-medium ${today ? 'text-[var(--accent-lime)]' : 'text-[var(--text-muted)]'}`}>
                     {today ? "Aujourd'hui" : formatDateShort(item.date)}
                   </p>
@@ -199,7 +203,7 @@ export function ActivitySection({ clientId }: ActivitySectionProps) {
                   </p>
                 </div>
 
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center flex-shrink-0">
                   <div
                     className={`w-3 h-3 rounded-full flex-shrink-0 ${
                       isCall
