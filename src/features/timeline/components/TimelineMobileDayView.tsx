@@ -13,8 +13,8 @@ const MIN_HOUR_HEIGHT = 28;
 const START_HOUR = 8;
 const END_HOUR = 19;
 const LUNCH_START_HOUR = 12;
-const GRID_PADDING_TOP = 4;
-const BOTTOM_SPACER = 8;
+const GRID_PADDING_TOP = 2;
+const BOTTOM_SPACER = 2;
 const SWIPE_THRESHOLD = 60;
 
 const ChevronLeft = () => (

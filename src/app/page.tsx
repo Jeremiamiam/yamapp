@@ -172,8 +172,8 @@ export default function Home() {
           <GlobalSidebar height={sidebarHeight} />
         )}
 
-        {/* Contenu principal — padding-bottom sur mobile pour la bottom nav */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-[56px] md:pb-0">
+        {/* Contenu principal — padding-bottom = hauteur bottom nav pour que 8h-19h reste visible */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden content-pb-for-nav md:pb-0">
           {renderView(currentView)}
         </div>
 
