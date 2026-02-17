@@ -265,7 +265,7 @@ h1, h2, h3 {
 
 /* Safe area pour bottom nav (notch, home indicator) */
 .safe-area-pb {
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 4px);
 }
 
 /* Gradient mesh background */

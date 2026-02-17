@@ -163,7 +163,7 @@ export default function Home() {
   };
 
   return (
-    <div className="h-screen flex flex-col gradient-mesh relative">
+    <div className="min-h-[100dvh] h-screen flex flex-col gradient-mesh relative">
       <div className="noise-overlay" />
       <Header />
       <div ref={mainContentRef} className="flex-1 flex min-h-0">
@@ -173,7 +173,7 @@ export default function Home() {
         )}
 
         {/* Contenu principal — padding-bottom sur mobile pour la bottom nav */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-[72px] md:pb-0">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-[56px] md:pb-0">
           {renderView(currentView)}
         </div>
 

@@ -90,9 +90,10 @@ export function Header() {
   }
 
   return (
-    <header className="flex-shrink-0 px-4 sm:px-6 md:px-8 py-2 md:py-3 sm:py-4 border-b border-[var(--border-subtle)] relative z-10 bg-[var(--bg-primary)]/80 backdrop-blur-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-6">
-        <div className="flex-shrink-0 md:flex-shrink-0 flex-1 md:flex-initial flex justify-center md:justify-start">
+    <header className="flex-shrink-0 px-3 sm:px-6 md:px-8 py-2 md:py-3 border-b border-[var(--border-subtle)] relative z-10 bg-[var(--bg-primary)]/80 backdrop-blur-sm">
+      <div className="flex items-center justify-between gap-3 sm:gap-6">
+        {/* Logo à gauche */}
+        <div className="flex-shrink-0">
           <h1 className="text-base md:text-lg font-bold tracking-tight leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
             <span className="text-[var(--text-primary)] block">dashboard</span>
             <span className="text-[var(--text-primary)]">yam</span>
@@ -107,10 +108,10 @@ export function Header() {
           )}
         </div>
         
-        {/* View switcher + user — masqués sur smartphone (nav en bas) */}
-        <div className="flex-shrink-0 flex items-center gap-3 sm:gap-4 hidden md:flex">
-          {/* View Switcher — à droite avant l'utilisateur */}
-          <div className="flex p-1 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-subtle)]">
+        {/* À droite : view switcher (desktop) + user + settings (toujours) */}
+        <div className="flex-shrink-0 flex items-center gap-2 sm:gap-3 md:gap-4">
+          {/* View switcher — desktop uniquement */}
+          <div className="hidden md:flex p-1 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-subtle)]">
             <button
               onClick={navigateToTimeline}
               aria-label="Vue Calendrier"
@@ -150,18 +151,18 @@ export function Header() {
               </button>
             )}
           </div>
-          {/* Utilisateur connecté + zone compte */}
+          {/* User + settings — visible sur toutes les tailles */}
           {userDisplayName && (
-            <span className="text-sm font-medium text-[var(--text-primary)]" title="Connecté">
+            <span className="text-xs md:text-sm font-medium text-[var(--text-primary)] truncate max-w-[100px] md:max-w-none" title="Connecté">
               {userDisplayName}
             </span>
           )}
-          <div className="flex items-center gap-1 pl-3 border-l border-[var(--border-subtle)]">
+          <div className="flex items-center gap-0.5 md:gap-1 pl-2 md:pl-3 border-l border-[var(--border-subtle)]">
             {isAdmin && (
               <button
                 type="button"
                 onClick={() => router.push('/settings')}
-                className="p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                className="p-1.5 md:p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors touch-manipulation min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center"
                 title="Paramètres et gestion des rôles"
                 aria-label="Paramètres"
               >
@@ -171,7 +172,7 @@ export function Header() {
             <button
               type="button"
               onClick={handleLogout}
-              className="p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+              className="p-1.5 md:p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors touch-manipulation min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center"
               title="Se déconnecter"
               aria-label="Se déconnecter"
             >

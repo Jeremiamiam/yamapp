@@ -66,7 +66,7 @@ export function MobileBottomNav({ onOpenTodo, onOpenBacklog, canAccessCompta }: 
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-center justify-center flex-1 py-2 gap-1 min-h-[56px] touch-manipulation transition-colors ${
+      className={`flex flex-col items-center justify-center flex-1 py-1.5 gap-0.5 min-h-[48px] touch-manipulation transition-colors ${
         active ? 'text-[var(--accent-cyan)]' : 'text-[var(--text-muted)] active:text-[var(--text-primary)]'
       }`}
       aria-label={label}
@@ -112,20 +112,20 @@ export function MobileBottomNav({ onOpenTodo, onOpenBacklog, canAccessCompta }: 
         <button
           type="button"
           onClick={onOpenTodo}
-          className="flex flex-col items-center justify-center p-2 rounded-xl min-h-[44px] min-w-[44px] text-[var(--accent-lime)] hover:bg-[var(--accent-lime)]/10 active:scale-95 transition-all touch-manipulation"
+          className="flex flex-col items-center justify-center p-1.5 rounded-xl min-h-[44px] min-w-[44px] text-[var(--accent-lime)] hover:bg-[var(--accent-lime)]/10 active:scale-95 transition-all touch-manipulation"
           aria-label="Todo du jour"
         >
           <TodoIcon />
-          <span className="text-[9px] font-semibold">Todo</span>
+          <span className="text-[8px] font-semibold leading-tight">Todo</span>
         </button>
         <button
           type="button"
           onClick={onOpenBacklog}
-          className="flex flex-col items-center justify-center p-2 rounded-xl min-h-[44px] min-w-[44px] text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/10 active:scale-95 transition-all touch-manipulation"
+          className="flex flex-col items-center justify-center p-1.5 rounded-xl min-h-[44px] min-w-[44px] text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/10 active:scale-95 transition-all touch-manipulation"
           aria-label="À planifier"
         >
           <BacklogIcon />
-          <span className="text-[9px] font-semibold">Backlog</span>
+          <span className="text-[8px] font-semibold leading-tight">Backlog</span>
         </button>
       </div>
     </nav>
