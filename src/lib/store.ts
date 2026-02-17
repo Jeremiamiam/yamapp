@@ -21,7 +21,7 @@ import {
   toSupabaseDayTodo,
 } from './supabase-mappers';
 
-type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta' | 'admin';
+type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta' | 'admin' | 'production';
 
 // Filter types
 type ClientStatusFilter = 'all' | 'prospect' | 'client';
@@ -80,6 +80,7 @@ interface AppState {
   navigateToClients: () => void;
   navigateToCompta: () => void;
   navigateToAdmin: () => void;
+  navigateToProduction: () => void;
   navigateBack: () => void;
   restoreViewFromStorage: () => void;
   openDocument: (doc: ClientDocument) => void;
@@ -446,6 +447,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedClientId: null
     });
   },
+  navigateToProduction: () => {
+    const current = get().currentView;
+    persistView('production');
+    set({
+      currentView: 'production',
+      previousView: current,
+      selectedClientId: null
+    });
+  },
   navigateBack: () => {
     const { previousView } = get();
     const targetView = previousView === 'client-detail' ? 'clients' : (previousView || 'timeline');
@@ -460,7 +470,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('yam-current-view');
-        if (saved && ['timeline', 'clients', 'compta', 'admin'].includes(saved)) {
+        if (saved && ['timeline', 'production', 'clients', 'compta', 'admin'].includes(saved)) {
           // Ne pas restaurer 'client-detail' car pas de selectedClientId
           set({ currentView: saved as ViewType });
         }

@@ -40,7 +40,7 @@ export const DeliverableSchema = z.object({
   dueDate: z.string().optional(),
   dueTime: z.string().optional(),
   type: z.enum(['creative', 'document', 'other']),
-  status: z.enum(['pending', 'in-progress', 'completed']),
+  status: z.enum(['to_quote', 'pending', 'in-progress', 'completed']),
   assigneeId: z.string().optional(),
   category: z.enum(['print', 'digital', 'other']),
   isPotentiel: z.boolean(),

@@ -20,6 +20,14 @@ const GridIcon = () => (
   </svg>
 );
 
+const KanbanIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="5" height="18" rx="1"/>
+    <rect x="10" y="3" width="5" height="12" rx="1"/>
+    <rect x="17" y="3" width="5" height="8" rx="1"/>
+  </svg>
+);
+
 const ChartIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="20" x2="18" y2="10" />
@@ -50,7 +58,7 @@ interface MobileBottomNavProps {
 }
 
 export function MobileBottomNav({ onOpenTodo, onOpenBacklog, canAccessCompta }: MobileBottomNavProps) {
-  const { currentView, navigateToTimeline, navigateToClients, navigateToCompta } = useAppStore();
+  const { currentView, navigateToTimeline, navigateToProduction, navigateToClients, navigateToCompta } = useAppStore();
 
   const NavTab = ({
     onClick,
@@ -90,6 +98,12 @@ export function MobileBottomNav({ onOpenTodo, onOpenBacklog, canAccessCompta }: 
           active={currentView === 'timeline'}
           icon={<CalendarIcon />}
           label="Calendrier"
+        />
+        <NavTab
+          onClick={navigateToProduction}
+          active={currentView === 'production'}
+          icon={<KanbanIcon />}
+          label="Prod"
         />
         <NavTab
           onClick={navigateToClients}

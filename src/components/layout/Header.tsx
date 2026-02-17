@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { TimelineFilters } from '@/features/timeline/components/TimelineFilters';
 import { createClient } from '@/lib/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
+import { Deliverable, Call } from '@/types';
 
 // Icons
 const ChartIcon = () => (
@@ -34,6 +35,14 @@ const GridIcon = () => (
   </svg>
 );
 
+const KanbanIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="5" height="18" rx="1"/>
+    <rect x="10" y="3" width="5" height="12" rx="1"/>
+    <rect x="17" y="3" width="5" height="8" rx="1"/>
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -59,12 +68,110 @@ function displayName(email: string | undefined, fullName: string | undefined): s
   return 'Compte';
 }
 
+// Formatte le temps restant en "dans X min" ou "dans X h"
+function formatTimeUntil(date: Date): string {
+  const now = new Date();
+  const diffMs = date.getTime() - now.getTime();
+  if (diffMs < 0) return 'maintenant';
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 60) return `dans ${diffMin} min`;
+  const diffHours = Math.floor(diffMin / 60);
+  const remainingMin = diffMin % 60;
+  if (remainingMin === 0) return `dans ${diffHours}h`;
+  return `dans ${diffHours}h${remainingMin.toString().padStart(2, '0')}`;
+}
+
+// Formatte l'heure "14:30"
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h');
+}
+
 export function Header() {
   const router = useRouter();
   const { isAdmin } = useUserRole();
   const [userDisplayName, setUserDisplayName] = useState<string>('');
-  const { currentView, navigateToTimeline, navigateToClients, navigateToCompta } = useAppStore();
+  const [now, setNow] = useState(() => new Date());
+  const [protoShowEvent, setProtoShowEvent] = useState(false); // Proto toggle pour simuler un event
+  const { currentView, navigateToTimeline, navigateToClients, navigateToCompta, navigateToProduction, deliverables, calls, getClientById, getTeamMemberById, team } = useAppStore();
   const canAccessCompta = isAdmin;
+
+  // Rafraîchir "now" toutes les 30 secondes pour mettre à jour le countdown
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Trouver le prochain événement (deliverable ou call) AUJOURD'HUI uniquement
+  const nextEvent = useMemo(() => {
+    const nowTime = now.getTime();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todayEnd = todayStart + 24 * 60 * 60 * 1000; // Fin de journée
+    
+    // Collecter tous les événements avec date AUJOURD'HUI et dans le futur
+    const events: { type: 'deliverable' | 'call'; date: Date; clientId?: string; label: string; assigneeId?: string }[] = [];
+    
+    deliverables.forEach((d: Deliverable) => {
+      if (d.dueDate && d.clientId) {
+        const dateTime = d.dueDate.getTime();
+        // Seulement si c'est aujourd'hui ET dans le futur
+        if (dateTime > nowTime && dateTime < todayEnd) {
+          events.push({
+            type: 'deliverable',
+            date: d.dueDate,
+            clientId: d.clientId,
+            label: d.name,
+            assigneeId: d.assigneeId,
+          });
+        }
+      }
+    });
+    
+    calls.forEach((c: Call) => {
+      if (c.scheduledAt && c.clientId) {
+        const dateTime = c.scheduledAt.getTime();
+        // Seulement si c'est aujourd'hui ET dans le futur
+        if (dateTime > nowTime && dateTime < todayEnd) {
+          events.push({
+            type: 'call',
+            date: c.scheduledAt,
+            clientId: c.clientId,
+            label: c.title,
+            assigneeId: c.assigneeId,
+          });
+        }
+      }
+    });
+    
+    // Proto : simuler un événement si toggle activé
+    if (events.length === 0) {
+      if (protoShowEvent) {
+        // Simuler un call dans 45 min
+        const fakeDate = new Date(now.getTime() + 45 * 60 * 1000);
+        return {
+          type: 'call' as const,
+          date: fakeDate,
+          clientId: 'proto',
+          label: 'Point hebdo',
+          clientName: 'Acme Corp',
+           assignee: team?.length > 0 ? team[0] : undefined,
+        };
+      }
+      return null;
+    }
+    
+    // Trier par date et prendre le premier
+    events.sort((a, b) => a.date.getTime() - b.date.getTime());
+    const next = events[0];
+    
+    const client = next.clientId ? getClientById(next.clientId) : null;
+    const assignee = next.assigneeId ? getTeamMemberById(next.assigneeId) : undefined;
+    
+    return {
+      ...next,
+      clientName: client?.name || 'Sans client',
+      assignee,
+    };
+  }, [deliverables, calls, getClientById, getTeamMemberById, now, protoShowEvent, team]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -101,11 +208,74 @@ export function Header() {
           </h1>
         </div>
         
-        {/* Filters équipe — masqués sur smartphone (< 768px) */}
-        <div className="flex-1 min-w-0 hidden md:block">
-          {currentView === 'timeline' && (
+        {/* Zone centrale : Filtres équipe + Prochain événement (flex-1 pour prendre tout l'espace) */}
+        <div className="flex-1 min-w-0 hidden md:flex items-center gap-4">
+          {/* Filters équipe — toujours visible, grisé si pas sur timeline */}
+          <div className={`flex-shrink-0 transition-opacity ${currentView !== 'timeline' ? 'opacity-40 pointer-events-none' : ''}`}>
             <TimelineFilters />
-          )}
+          </div>
+
+          {/* Prochain événement — prend le reste de l'espace */}
+          <div className="flex-1 min-w-0 hidden lg:flex items-center justify-center gap-3 px-4 py-1.5 rounded-lg bg-[var(--bg-secondary)]/60 border border-[var(--border-subtle)]">
+            {nextEvent ? (
+              <>
+                {/* Label "Prochain call" ou "Prochain produit" avec marquee */}
+                <div className="flex-shrink-0 overflow-hidden w-24">
+                  <span 
+                    className={`inline-block text-[10px] font-medium uppercase tracking-wider whitespace-nowrap animate-marquee ${nextEvent.type === 'call' ? 'text-[var(--accent-cyan)]' : 'text-[var(--accent-violet)]'}`}
+                  >
+                    {nextEvent.type === 'call' ? 'Prochain call • Prochain call • Prochain call • ' : 'Prochain produit • Prochain produit • Prochain produit • '}
+                  </span>
+                </div>
+                <span className="flex-shrink-0 w-px h-4 bg-[var(--border-subtle)]" />
+                {/* Client + Label */}
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-[10px] text-[var(--text-muted)] truncate">
+                    {nextEvent.clientName}
+                  </span>
+                  <span className="text-xs font-medium text-[var(--text-primary)] truncate">
+                    {nextEvent.label}
+                  </span>
+                </div>
+                {/* Heure + countdown */}
+                <div className="flex flex-col items-end flex-shrink-0">
+                  <span className="text-[10px] font-mono text-[var(--text-muted)]">
+                    {formatTime(nextEvent.date)}
+                  </span>
+                  <span className="text-[10px] font-medium text-[var(--accent-lime)]">
+                    {formatTimeUntil(nextEvent.date)}
+                  </span>
+                </div>
+                {/* Assignee avatar */}
+                {nextEvent.assignee && (
+                  <div
+                    className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                    style={{ backgroundColor: nextEvent.assignee.color }}
+                    title={nextEvent.assignee.name}
+                  >
+                    {nextEvent.assignee.initials}
+                  </div>
+                )}
+              </>
+            ) : (
+              <span className="text-[11px] text-[var(--text-muted)]">
+                Pas d'autre événement prévu aujourd'hui
+              </span>
+            )}
+            {/* Proto toggle */}
+            <button
+              type="button"
+              onClick={() => setProtoShowEvent(!protoShowEvent)}
+              title={protoShowEvent ? "Masquer event proto" : "Afficher event proto"}
+              className={`flex-shrink-0 w-4 h-4 rounded text-[8px] font-bold transition-all cursor-pointer ${
+                protoShowEvent
+                  ? 'bg-[var(--accent-coral)] text-white'
+                  : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--accent-coral)]'
+              }`}
+            >
+              P
+            </button>
+          </div>
         </div>
         
         {/* À droite : view switcher (desktop) + user + settings (toujours) */}
@@ -123,6 +293,18 @@ export function Header() {
             >
               <CalendarIcon />
               <span className="hidden sm:inline">Calendrier</span>
+            </button>
+            <button
+              onClick={navigateToProduction}
+              aria-label="Vue Production"
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-md text-xs font-medium transition-all touch-manipulation min-h-[44px] sm:min-h-0 ${
+                currentView === 'production'
+                  ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] shadow-sm'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <KanbanIcon />
+              <span className="hidden sm:inline">Production</span>
             </button>
             <button
               onClick={navigateToClients}

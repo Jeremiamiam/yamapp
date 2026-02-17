@@ -9,6 +9,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { DeliverableSchema, type DeliverableFormData } from '@/lib/validation';
 import { DeliverableType, DeliverableStatus, Deliverable } from '@/types';
 import { formatDateForInput, formatTimeForInput } from '@/lib/date-utils';
+import { computeStatusCascade } from '@/lib/production-rules';
 
 const Package = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -67,6 +68,13 @@ export function DeliverableForm() {
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
   const [freelances, setFreelances] = useState<FreelanceEntry[]>([]);
   const [isEditingName, setIsEditingName] = useState(false);
+
+  // Verrou : actif par défaut si produit terminé
+  const isCompleted = existingDeliverable?.status === 'completed';
+  const [isLocked, setIsLocked] = useState(false);
+  useEffect(() => {
+    setIsLocked(isCompleted);
+  }, [isCompleted, isOpen]);
   const [billingData, setBillingData] = useState<{
     devis?: number;
     devisDate?: string;
@@ -144,12 +152,16 @@ export function DeliverableForm() {
         } else {
           setFreelances([]);
         }
-        // Initialize billing data
+        // Initialize billing data avec dates
         setBillingData({
           devis: existingDeliverable.quoteAmount,
+          devisDate: existingDeliverable.quoteDate,
           acompte: existingDeliverable.depositAmount,
+          acompteDate: existingDeliverable.depositDate,
           avancements: existingDeliverable.progressAmounts || [],
+          avancementsDate: existingDeliverable.progressDates || [],
           solde: existingDeliverable.balanceAmount,
+          soldeDate: existingDeliverable.balanceDate,
           sousTraitance: existingDeliverable.coutSousTraitance,
           stHorsFacture: existingDeliverable.stHorsFacture || false,
           margePotentielle: existingDeliverable.margePotentielle,
@@ -205,28 +217,44 @@ export function DeliverableForm() {
     const avancementsTotal = (billingData.avancements || []).reduce((sum, v) => sum + v, 0);
     const totalInvoiced = (billingData.acompte || 0) + avancementsTotal + (billingData.solde || 0);
 
+    const computedBillingStatus = getBillingStatus();
+    const prixFinal = totalInvoiced > 0 ? totalInvoiced : undefined;
+
+    // Cascade automatique du statut production en fonction de la facturation
+    const currentStatus = existingDeliverable?.status ?? 'to_quote';
+    const cascade = computeStatusCascade(currentStatus, computedBillingStatus as 'pending' | 'deposit' | 'progress' | 'balance', prixFinal);
+    const finalStatus = cascade.status ?? currentStatus;
+
+    // Terminé = dé-planifié automatiquement
+    const effectiveDueDate = finalStatus === 'completed' ? undefined : dueDate;
+    const effectiveInBacklog = finalStatus === 'completed' ? false : (mode === 'create' ? data.toBacklog : existingDeliverable?.inBacklog);
+
     const deliverableData: Omit<Deliverable, 'id' | 'createdAt'> = {
       clientId: effectiveClientId,
       name: data.name.trim(),
-      dueDate,
-      inBacklog: mode === 'create' ? data.toBacklog : existingDeliverable?.inBacklog,
-      type: 'creative' as DeliverableType, // Fixed type
-      status: 'pending' as DeliverableStatus, // Always pending on create, can be changed inline later
-      assigneeId: selectedTeamIds[0] || undefined, // First selected team member
+      dueDate: effectiveDueDate,
+      inBacklog: effectiveInBacklog,
+      type: 'creative' as DeliverableType,
+      status: mode === 'create' ? 'to_quote' as DeliverableStatus : finalStatus,
+      assigneeId: selectedTeamIds[0] || undefined,
       category: 'other',
-      isPotentiel: (billingData.margePotentielle ?? 0) > 0 && getBillingStatus() === 'pending',
-      prixFacturé: totalInvoiced > 0 ? totalInvoiced : undefined,
+      isPotentiel: (billingData.margePotentielle ?? 0) > 0 && computedBillingStatus === 'pending',
+      prixFacturé: prixFinal,
       coutSousTraitance: billingData.sousTraitance,
       stHorsFacture: billingData.stHorsFacture || false,
       deliveredAt: undefined,
       externalContractor: undefined,
       notes: data.notes?.trim() || undefined,
-      billingStatus: getBillingStatus(),
+      billingStatus: computedBillingStatus,
       quoteAmount: billingData.devis,
+      quoteDate: billingData.devisDate,
       depositAmount: billingData.acompte,
+      depositDate: billingData.acompteDate,
       progressAmounts: billingData.avancements,
+      progressDates: billingData.avancementsDate,
       balanceAmount: billingData.solde,
-      totalInvoiced: totalInvoiced > 0 ? totalInvoiced : undefined,
+      balanceDate: billingData.soldeDate,
+      totalInvoiced: prixFinal,
       margePotentielle: billingData.margePotentielle,
     };
 
@@ -272,30 +300,127 @@ export function DeliverableForm() {
     <Modal
       isOpen={isOpen}
       onClose={closeModal}
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={!isLocked ? handleSubmit(onSubmit) : undefined}
       title={mode === 'edit' ? 'Modifier le produit' : 'Nouveau produit'}
       subtitle="Produit"
       icon={<Package />}
-      iconBg="bg-[var(--accent-violet)]/10"
-      iconColor="text-[var(--accent-violet)]"
+      iconBg={isCompleted ? 'bg-[#22c55e]/10' : 'bg-[var(--accent-violet)]/10'}
+      iconColor={isCompleted ? 'text-[#22c55e]' : 'text-[var(--accent-violet)]'}
       size="xl"
       footer={
-        <>
-          {mode === 'edit' && (
-            <Button variant="danger" onClick={handleDelete}>
-              Supprimer
+        isLocked ? (
+          /* Mode verrouillé — footer minimal */
+          <>
+            <div className="flex-1" />
+            <Button variant="secondary" onClick={closeModal}>
+              Fermer
             </Button>
-          )}
-          <div className="flex-1" />
-          <Button variant="secondary" onClick={closeModal}>
-            Annuler
-          </Button>
-          <Button onClick={handleSubmit(onSubmit)}>
-            {mode === 'edit' ? 'Enregistrer' : 'Créer'}
-          </Button>
-        </>
+          </>
+        ) : (
+          /* Mode édition */
+          <>
+            {mode === 'edit' && (
+              <Button variant="danger" onClick={handleDelete}>
+                Supprimer
+              </Button>
+            )}
+            <div className="flex-1" />
+            <Button variant="secondary" onClick={() => isCompleted ? setIsLocked(true) : closeModal()}>
+              {isCompleted ? 'Annuler' : 'Annuler'}
+            </Button>
+            <Button onClick={handleSubmit(onSubmit)}>
+              {mode === 'edit' ? 'Enregistrer' : 'Créer'}
+            </Button>
+          </>
+        )
       }
     >
+      {/* MODE VERROUILLÉ — vue résumé sobre */}
+      {isCompleted && isLocked ? (
+        <div className="space-y-5">
+          {/* Nom + client */}
+          <div>
+            {client && (
+              <button type="button" onClick={() => { closeModal(); navigateToClient(client.id); }}
+                className="text-xs text-[var(--text-muted)] hover:text-[var(--accent-cyan)] transition-colors mb-1 cursor-pointer">
+                {client.name}
+              </button>
+            )}
+            <h2 className="text-xl font-semibold text-[var(--text-primary)]">{existingDeliverable?.name}</h2>
+          </div>
+
+          {/* Résumé facturation avec dates */}
+          {(() => {
+            const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: '2-digit' }) : null;
+            return (
+              <div className="rounded-xl border border-[#22c55e]/20 bg-[#22c55e]/5 divide-y divide-[#22c55e]/10">
+                {billingData.devis != null && (
+                  <div className="flex items-center justify-between px-4 py-2.5 text-sm gap-4">
+                    <span className="text-[var(--text-muted)] w-24 flex-shrink-0">Devis</span>
+                    {fmt(billingData.devisDate) && <span className="text-[11px] text-[var(--text-muted)]/60 flex-1">{fmt(billingData.devisDate)}</span>}
+                    <span className="font-medium text-[var(--text-primary)]">{billingData.devis.toLocaleString('fr-FR')} €</span>
+                  </div>
+                )}
+                {billingData.acompte != null && (
+                  <div className="flex items-center justify-between px-4 py-2.5 text-sm gap-4">
+                    <span className="text-[var(--text-muted)] w-24 flex-shrink-0">Acompte</span>
+                    {fmt(billingData.acompteDate) && <span className="text-[11px] text-[var(--text-muted)]/60 flex-1">{fmt(billingData.acompteDate)}</span>}
+                    <span className="font-medium text-[var(--text-primary)]">{billingData.acompte.toLocaleString('fr-FR')} €</span>
+                  </div>
+                )}
+                {(billingData.avancements || []).map((v, i) => (
+                  <div key={i} className="flex items-center justify-between px-4 py-2.5 text-sm gap-4">
+                    <span className="text-[var(--text-muted)] w-24 flex-shrink-0">Avancement {i + 1}</span>
+                    {fmt(billingData.avancementsDate?.[i]) && <span className="text-[11px] text-[var(--text-muted)]/60 flex-1">{fmt(billingData.avancementsDate?.[i])}</span>}
+                    <span className="font-medium text-[var(--text-primary)]">{v.toLocaleString('fr-FR')} €</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between px-4 py-3 gap-4">
+                  <div className="flex items-center gap-1.5 w-24 flex-shrink-0">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    <span className="text-sm font-bold text-[#22c55e]">Soldé</span>
+                  </div>
+                  {fmt(billingData.soldeDate) && <span className="text-[11px] text-[var(--text-muted)]/60 flex-1">{fmt(billingData.soldeDate)}</span>}
+                  <span className="text-sm font-bold text-[#22c55e]">{existingDeliverable?.prixFacturé?.toLocaleString('fr-FR')} €</span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Notes si présentes */}
+          {existingDeliverable?.notes && (
+            <p className="text-sm text-[var(--text-muted)] leading-relaxed">{existingDeliverable.notes}</p>
+          )}
+
+          {/* Bouton modifier discret */}
+          <button type="button" onClick={() => setIsLocked(false)}
+            className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer group">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50 group-hover:opacity-100">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+            </svg>
+            Modifier ce produit terminé
+          </button>
+        </div>
+      ) : (
+
+      /* MODE ÉDITION — formulaire complet */
+      <>
+      {isCompleted && (
+        <div className="flex items-center justify-between px-4 py-2 -mx-6 -mt-2 mb-4 border-b border-amber-500/20 bg-amber-500/5">
+          <div className="flex items-center gap-2">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+            </svg>
+            <span className="text-xs text-amber-500 font-medium">Mode édition — produit terminé</span>
+          </div>
+          <button type="button" onClick={() => setIsLocked(true)}
+            className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
+            Annuler
+          </button>
+        </div>
+      )}
       <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* LEFT COLUMN - General Info */}
         <div className="space-y-5">
@@ -468,10 +593,13 @@ export function DeliverableForm() {
             key={existingDeliverable?.id || 'new'}
             value={billingData}
             onChange={setBillingData}
+            disabled={isLocked}
           />
         )}
         </div>
       </form>
+      </>
+      )}
     </Modal>
   );
 }

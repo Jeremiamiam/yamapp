@@ -10,6 +10,12 @@ export const STATUS_STYLES: Record<
   DeliverableStatus,
   { bg: string; text: string; border?: string; label: string }
 > = {
+  to_quote: {
+    bg: 'bg-[var(--accent-coral)]/10',
+    text: 'text-[var(--accent-coral)]',
+    border: 'border-[var(--accent-coral)]/30',
+    label: 'À deviser',
+  },
   pending: {
     bg: 'bg-[var(--accent-cyan)]/10',
     text: 'text-[var(--accent-cyan)]',
@@ -20,7 +26,7 @@ export const STATUS_STYLES: Record<
     bg: 'bg-[var(--accent-violet)]/10',
     text: 'text-[var(--accent-violet)]',
     border: 'border-[var(--accent-violet)]/30',
-    label: 'En cours',
+    label: 'En attente',
   },
   completed: {
     bg: 'bg-[var(--accent-lime)]/10',

@@ -12,10 +12,11 @@ import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { ModalManager } from '@/components/ModalManager';
 import { ClientDetail, ClientsList, DocumentModal } from '@/features/clients/components';
 import { ComptaView } from '@/features/compta/components';
+import { ProductionView } from '@/features/production/components/ProductionView';
 import { DayTodoDrawer } from '@/features/timeline/components/DayTodoDrawer';
 
 // Ordre des vues pour la navigation clavier (sans client-detail qui est une vue modale)
-const VIEW_ORDER = ['timeline', 'clients', 'compta'] as const;
+const VIEW_ORDER = ['timeline', 'production', 'clients', 'compta'] as const;
 type MainView = typeof VIEW_ORDER[number];
 
 export default function Home() {
@@ -24,6 +25,7 @@ export default function Home() {
   const currentView = useAppStore((state) => state.currentView);
   const navigateToTimeline = useAppStore((state) => state.navigateToTimeline);
   const navigateToClients = useAppStore((state) => state.navigateToClients);
+  const navigateToProduction = useAppStore((state) => state.navigateToProduction);
   const navigateToCompta = useAppStore((state) => state.navigateToCompta);
   const isLoading = useAppStore((state) => state.isLoading);
   const loadingError = useAppStore((state) => state.loadingError);
@@ -89,9 +91,10 @@ export default function Home() {
     
     const newView = accessibleViews[newIndex];
     if (newView === 'timeline') navigateToTimeline();
+    else if (newView === 'production') navigateToProduction();
     else if (newView === 'clients') navigateToClients();
     else if (newView === 'compta') navigateToCompta();
-  }, [currentView, role, navigateToTimeline, navigateToClients, navigateToCompta]);
+  }, [currentView, role, navigateToTimeline, navigateToProduction, navigateToClients, navigateToCompta]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -153,6 +156,8 @@ export default function Home() {
         );
       case 'clients':
         return <ClientsList />;
+      case 'production':
+        return <ProductionView />;
       case 'compta':
         return <ComptaView />;
       case 'client-detail':

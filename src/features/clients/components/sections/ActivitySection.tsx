@@ -48,7 +48,7 @@ type ActivityItem = {
   type: 'deliverable' | 'call';
   title: string;
   date: Date;
-  status?: 'pending' | 'in-progress' | 'completed';
+  status?: 'to_quote' | 'pending' | 'in-progress' | 'completed';
   assigneeId?: string;
   duration?: number;
   originalDeliverable?: Deliverable;

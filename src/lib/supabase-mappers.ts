@@ -78,9 +78,13 @@ interface DeliverableRow {
   is_potentiel?: boolean | null;
   billing_status: string;
   quote_amount?: number | null;
+  quote_date?: string | null;
   deposit_amount?: number | null;
+  deposit_date?: string | null;
   progress_amount?: number | null;
+  progress_dates?: string[] | null;
   balance_amount?: number | null;
+  balance_date?: string | null;
   total_invoiced?: number | null;
   st_hors_facture?: boolean | null;
   marge_potentielle?: number | null;
@@ -190,9 +194,13 @@ export function mapDeliverableRow(row: DeliverableRow): Deliverable {
     isPotentiel: row.is_potentiel === true,
     billingStatus: (row.billing_status as BillingStatus) || 'pending',
     quoteAmount: row.quote_amount != null ? Number(row.quote_amount) : undefined,
+    quoteDate: row.quote_date ?? undefined,
     depositAmount: row.deposit_amount != null ? Number(row.deposit_amount) : undefined,
+    depositDate: row.deposit_date ?? undefined,
     progressAmounts: row.progress_amount != null ? [Number(row.progress_amount)] : undefined,
+    progressDates: Array.isArray(row.progress_dates) ? row.progress_dates : undefined,
     balanceAmount: row.balance_amount != null ? Number(row.balance_amount) : undefined,
+    balanceDate: row.balance_date ?? undefined,
     totalInvoiced: row.total_invoiced != null ? Number(row.total_invoiced) : undefined,
     stHorsFacture: row.st_hors_facture === true,
     margePotentielle: row.marge_potentielle != null ? Number(row.marge_potentielle) : undefined,
@@ -277,12 +285,16 @@ export function toSupabaseDeliverable(data: Partial<Deliverable>) {
     is_potentiel: data.isPotentiel === true,
     billing_status: data.billingStatus ?? null,
     quote_amount: data.quoteAmount ?? null,
+    quote_date: data.quoteDate ?? null,
     deposit_amount: data.depositAmount ?? null,
+    deposit_date: data.depositDate ?? null,
     // Convert array to single value (take sum for backward compatibility)
     progress_amount: data.progressAmounts && data.progressAmounts.length > 0
       ? data.progressAmounts.reduce((sum, v) => sum + v, 0)
       : null,
+    progress_dates: data.progressDates ?? null,
     balance_amount: data.balanceAmount ?? null,
+    balance_date: data.balanceDate ?? null,
     total_invoiced: data.totalInvoiced ?? null,
     st_hors_facture: data.stHorsFacture === true,
     marge_potentielle: data.margePotentielle ?? null,

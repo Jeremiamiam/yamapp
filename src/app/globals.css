@@ -263,6 +263,15 @@ h1, h2, h3 {
   background-size: 40px 40px;
 }
 
+/* Animation marquee */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-33.33%); }
+}
+.animate-marquee {
+  animation: marquee 4s linear infinite;
+}
+
 /* Safe area pour bottom nav (notch, home indicator) */
 .safe-area-pb {
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 4px);
@@ -277,6 +286,17 @@ h1, h2, h3 {
   .content-pb-for-nav {
     padding-bottom: 0;
   }
+}
+
+/* Backlog flash animation (drop from Production) */
+@keyframes backlog-flash {
+  0% { transform: scale(1.05); opacity: 0.6; }
+  30% { transform: scale(1); opacity: 1; }
+  60% { background-color: var(--accent-violet); opacity: 0.15; }
+  100% { background-color: transparent; opacity: 1; }
+}
+.animate-backlog-flash {
+  animation: backlog-flash 1.2s ease-out forwards;
 }
 
 /* Gradient mesh background */

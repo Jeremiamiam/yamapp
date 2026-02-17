@@ -54,6 +54,7 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
 
   const [avancements, setAvancements] = useState<AvancementState[]>([]);
   const [soldeValidated, setSoldeValidated] = useState(false);
+  const [soldeDate, setSoldeDate] = useState(getTodayDate());
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [stHorsFacture, setStHorsFacture] = useState(false);
   const [margePotentielle, setMargePotentielle] = useState('');
@@ -109,6 +110,7 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
     }
 
     setSoldeValidated(value.solde != null && value.solde > 0);
+    setSoldeDate(value.soldeDate || getTodayDate());
     setStHorsFacture(value.stHorsFacture || false);
     setMargePotentielle(value.margePotentielle != null ? String(value.margePotentielle) : '');
 
@@ -173,13 +175,13 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
       const soldeCalcule = devisAmount - acompteAmount - avancementsTotal;
       if (soldeCalcule > 0) {
         data.solde = soldeCalcule;
-        data.soldeDate = getTodayDate(); // Use today for solde date (auto-calculated)
+        data.soldeDate = soldeDate;
       }
     }
 
     isLocalUpdate.current = true;
     onChange(data);
-  }, [fields, avancements, soldeValidated, stHorsFacture, margePotentielle, focusedField, onChange]);
+  }, [fields, avancements, soldeValidated, soldeDate, stHorsFacture, margePotentielle, focusedField, onChange]);
 
   const parseAmount = (str: string): number | undefined => {
     const cleaned = str.trim().replace(/\s/g, '').replace(',', '.');
@@ -273,7 +275,7 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
       const soldeCalcule = devisAmount - acompteAmount - avancementsTotal;
       if (soldeCalcule > 0) {
         data.solde = soldeCalcule;
-        data.soldeDate = getTodayDate();
+        data.soldeDate = soldeDate;
       }
     }
 
@@ -386,6 +388,10 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
   const handleToggleSolde = () => {
     const newValidated = !soldeValidated;
     setSoldeValidated(newValidated);
+    if (newValidated) {
+      // Initialise la date à aujourd'hui si on vient juste de solder
+      setSoldeDate(getTodayDate());
+    }
     // updateData will be called automatically by useEffect
   };
 
@@ -583,41 +589,55 @@ export function BillingForm({ value, onChange, disabled = false }: BillingFormPr
           </div>
         )}
 
-        {/* Solde calculé - compact */}
-        <div className={`border-t border-[var(--border-subtle)] flex items-center gap-2 px-3 py-2 ${soldeCalcule <= 0 ? 'opacity-40' : ''}`}>
-          <div className="text-xs font-bold uppercase tracking-wider flex-shrink-0 text-[var(--text-muted)] w-20">
-            SOLDE
-          </div>
-          <div className="flex-1 relative">
-            <div className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-              soldeValidated ? 'bg-[#22c55e]/10 border-2 border-[#22c55e]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
-            }`}>
-              {soldeCalcule > 0 ? soldeCalcule.toFixed(0) : '0'}
+        {/* Solde — état toggle */}
+        <div className="border-t border-[var(--border-subtle)]">
+          {soldeValidated ? (
+            // État SOLDÉ
+            <div className="bg-[#22c55e]/10">
+              <div className="flex items-center gap-2 px-3 py-2">
+                <div className="flex items-center gap-1.5 flex-1">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3" className="flex-shrink-0">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#22c55e]">Soldé</span>
+                  <span className="text-sm font-semibold text-[#22c55e] ml-auto">{soldeCalcule > 0 ? soldeCalcule.toFixed(0) : '0'} €</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleSolde}
+                  className="text-[10px] text-[var(--text-muted)] hover:text-red-400 transition-colors flex-shrink-0 cursor-pointer"
+                >
+                  Annuler
+                </button>
+              </div>
+              {/* Date du solde — éditable */}
+              <div className="flex items-center gap-2 px-3 pb-2">
+                <span className="text-[10px] text-[#22c55e]/60 uppercase tracking-wider w-16 flex-shrink-0">Date</span>
+                <input
+                  type="date"
+                  value={soldeDate}
+                  onChange={(e) => setSoldeDate(e.target.value)}
+                  className="text-[11px] text-[#22c55e]/80 bg-transparent border border-[#22c55e]/20 rounded px-2 py-0.5 focus:outline-none focus:border-[#22c55e]/50 cursor-pointer"
+                />
+              </div>
             </div>
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-xs pointer-events-none">€</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleToggleSolde}
-            disabled={soldeCalcule <= 0}
-            className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-              soldeValidated
-                ? 'bg-[#22c55e] text-white'
-                : soldeCalcule > 0
-                ? 'bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/30'
-                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed'
-            }`}
-          >
-            {soldeValidated ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-              </svg>
-            )}
-          </button>
+          ) : (
+            // État NON SOLDÉ — bouton d'action
+            <div className="px-3 py-2">
+              <button
+                type="button"
+                onClick={handleToggleSolde}
+                disabled={soldeCalcule <= 0}
+                className={`w-full py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all ${
+                  soldeCalcule > 0
+                    ? 'bg-[var(--bg-secondary)] border border-dashed border-[var(--accent-cyan)]/50 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/10 hover:border-[var(--accent-cyan)] cursor-pointer'
+                    : 'bg-[var(--bg-tertiary)]/50 border border-dashed border-[var(--border-subtle)] text-[var(--text-muted)]/40 cursor-not-allowed'
+                }`}
+              >
+                {soldeCalcule > 0 ? `Solder · ${soldeCalcule.toFixed(0)} €` : 'Solde · 0 €'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* S-T - compact */}

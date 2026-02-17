@@ -7,7 +7,7 @@ export type DeliverableType = 'creative' | 'document' | 'other';
 /** Catégorie pour afficher / filtrer : print (ex. cartes de visite), digital (ex. site), autre */
 export type DeliverableCategory = 'print' | 'digital' | 'other';
 
-export type DeliverableStatus = 'pending' | 'in-progress' | 'completed';
+export type DeliverableStatus = 'to_quote' | 'pending' | 'in-progress' | 'completed';
 
 export type BillingStatus =
   | 'pending'       // En attente de facturation
@@ -115,9 +115,13 @@ export interface Deliverable {
   // Facturation
   billingStatus: BillingStatus;
   quoteAmount?: number;       // Montant total devisé
+  quoteDate?: string;         // Date devis (YYYY-MM-DD)
   depositAmount?: number;     // Montant acompte
+  depositDate?: string;       // Date acompte (YYYY-MM-DD)
   progressAmounts?: number[]; // Montants des avancements (peut y en avoir plusieurs)
+  progressDates?: string[];   // Dates des avancements
   balanceAmount?: number;     // Montant solde
+  balanceDate?: string;       // Date solde (YYYY-MM-DD)
   totalInvoiced?: number;     // Total facturé (auto-calculé)
   /** Marge potentielle Yam — note libre indépendante du calcul facturation — € */
   margePotentielle?: number;

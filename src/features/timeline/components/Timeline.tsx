@@ -90,6 +90,9 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
 
   const compactWeeks = useAppStore((s) => s.compactWeeks);
   const setCompactWeeks = useAppStore((s) => s.setCompactWeeks);
+  
+  // Mode liste compacte (sans grille horaire, cards empilées)
+  const [stackedView, setStackedView] = useState(false);
 
   // Animation staggered pour les cards au mount
   const [cardsAnimationKey, setCardsAnimationKey] = useState(0);
@@ -544,7 +547,7 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
               {/* Toggle I / II dans le header de la colonne horaires — layout vertical */}
               <div 
                 style={{ height: MONTH_ROW_HEIGHT + HEADER_HEIGHT }} 
-                className="border-b border-[var(--border-subtle)] flex-shrink-0 flex items-center justify-center"
+                className="border-b border-[var(--border-subtle)] flex-shrink-0 flex flex-col items-center justify-center gap-1"
               >
                 <button
                   type="button"
@@ -572,31 +575,49 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
                     II
                   </span>
                 </button>
+                {/* Toggle stacked view (proto) */}
+                <button
+                  type="button"
+                  onClick={() => setStackedView(!stackedView)}
+                  title={stackedView ? "Vue grille horaire" : "Vue liste compacte"}
+                  className={`w-5 h-5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                    stackedView
+                      ? 'bg-[var(--accent-violet)] text-white'
+                      : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--accent-violet)]'
+                  }`}
+                >
+                  ≡
+                </button>
               </div>
-              <div className="relative flex-shrink-0" style={{ height: totalHeight + GRID_PADDING_TOP }}>
-                {/* Bande 12h–14h : pause déjeuner */}
-                {LUNCH_START_HOUR >= START_HOUR && LUNCH_START_HOUR + 1 < END_HOUR && (
-                  <div
-                    className="absolute left-0 right-0 border-y-2 border-[var(--accent-lime)]/20 bg-[var(--accent-lime)]/5 pointer-events-none"
-                    style={{
-                      top: GRID_PADDING_TOP + (LUNCH_START_HOUR - START_HOUR) * hourHeight,
-                      height: hourHeight * 2,
-                      boxShadow: 'inset 0 0 20px rgba(132, 204, 22, 0.08)'
-                    }}
-                  />
+              <div className="relative flex-shrink-0" style={{ height: stackedView ? 'auto' : totalHeight + GRID_PADDING_TOP }}>
+                {/* Colonne horaires (seulement en mode grille) */}
+                {!stackedView && (
+                  <>
+                    {/* Bande 12h–14h : pause déjeuner */}
+                    {LUNCH_START_HOUR >= START_HOUR && LUNCH_START_HOUR + 1 < END_HOUR && (
+                      <div
+                        className="absolute left-0 right-0 border-y-2 border-[var(--accent-lime)]/20 bg-[var(--accent-lime)]/5 pointer-events-none"
+                        style={{
+                          top: GRID_PADDING_TOP + (LUNCH_START_HOUR - START_HOUR) * hourHeight,
+                          height: hourHeight * 2,
+                          boxShadow: 'inset 0 0 20px rgba(132, 204, 22, 0.08)'
+                        }}
+                      />
+                    )}
+                    {hours.map((hour, i) => (
+                      <div
+                        key={hour}
+                        className="absolute left-0 right-0 text-xs text-[var(--text-muted)] font-mono text-right pr-3 flex items-center justify-end"
+                        style={{
+                          top: GRID_PADDING_TOP + i * hourHeight - 10,
+                          height: 20
+                        }}
+                      >
+                        {hour.toString().padStart(2, '0')} h
+                      </div>
+                    ))}
+                  </>
                 )}
-                {hours.map((hour, i) => (
-                  <div
-                    key={hour}
-                    className="absolute left-0 right-0 text-xs text-[var(--text-muted)] font-mono text-right pr-3 flex items-center justify-end"
-                    style={{
-                      top: GRID_PADDING_TOP + i * hourHeight - 10,
-                      height: 20
-                    }}
-                  >
-                    {hour.toString().padStart(2, '0')} h
-                  </div>
-                ))}
               </div>
               <div aria-hidden className="flex-shrink-0 bg-[var(--bg-primary)]/95" style={{ height: BOTTOM_SPACER }} />
             </div>
@@ -703,55 +724,70 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
                     )}
                   </div>
 
-                  {/* Day content — grille 8h–19h + spacer en bas (lignes prolongées) */}
-                  <div className="relative" style={{ height: totalHeight + GRID_PADDING_TOP + BOTTOM_SPACER }}>
-                    {/* Bande 12h–14h : pause déjeuner */}
-                    {LUNCH_START_HOUR >= START_HOUR && LUNCH_START_HOUR + 1 < END_HOUR && !d.isWeekend && (
-                      <div
-                        className="absolute left-0 right-0 border-y-2 border-[var(--accent-lime)]/20 bg-[var(--accent-lime)]/5 pointer-events-none"
-                        style={{
-                          top: GRID_PADDING_TOP + (LUNCH_START_HOUR - START_HOUR) * hourHeight,
-                          height: hourHeight * 2,
-                          boxShadow: 'inset 0 0 20px rgba(132, 204, 22, 0.08)'
-                        }}
-                      />
-                    )}
-                    {/* Lignes horaires (8h → 19h) + ligne de fermeture sous 19h */}
-                    {hours.map((hour, i) => (
-                      <div
-                        key={hour}
-                        className="absolute left-0 right-0 border-t border-[var(--border-subtle)]"
-                        style={{ top: GRID_PADDING_TOP + i * hourHeight }}
-                      />
-                    ))}
-                    <div
-                      className="absolute left-0 right-0 border-t border-[var(--border-subtle)]"
-                      style={{ top: GRID_PADDING_TOP + totalHeight }}
-                      aria-hidden
-                    />
-
-                    {/* Now line - only show if current time is within grid hours */}
-                    {today && (() => {
-                      const now = new Date();
-                      const currentHour = now.getHours();
-                      const isWithinGridHours = currentHour >= START_HOUR && currentHour <= END_HOUR;
-                      if (!isWithinGridHours) return null;
-                      return (
+                  {/* Day content — grille 8h–19h + spacer en bas (lignes prolongées) OU mode stacked */}
+                  <div 
+                    className="relative" 
+                    style={{ 
+                      height: stackedView 
+                        ? Math.max(items.length * 56 + GRID_PADDING_TOP + 20, 200) // 56px par card en stacked
+                        : totalHeight + GRID_PADDING_TOP + BOTTOM_SPACER 
+                    }}
+                  >
+                    {/* Grille horaire (seulement en mode normal) */}
+                    {!stackedView && (
+                      <>
+                        {/* Bande 12h–14h : pause déjeuner */}
+                        {LUNCH_START_HOUR >= START_HOUR && LUNCH_START_HOUR + 1 < END_HOUR && !d.isWeekend && (
+                          <div
+                            className="absolute left-0 right-0 border-y-2 border-[var(--accent-lime)]/20 bg-[var(--accent-lime)]/5 pointer-events-none"
+                            style={{
+                              top: GRID_PADDING_TOP + (LUNCH_START_HOUR - START_HOUR) * hourHeight,
+                              height: hourHeight * 2,
+                              boxShadow: 'inset 0 0 20px rgba(132, 204, 22, 0.08)'
+                            }}
+                          />
+                        )}
+                        {/* Lignes horaires (8h → 19h) + ligne de fermeture sous 19h */}
+                        {hours.map((hour, i) => (
+                          <div
+                            key={hour}
+                            className="absolute left-0 right-0 border-t border-[var(--border-subtle)]"
+                            style={{ top: GRID_PADDING_TOP + i * hourHeight }}
+                          />
+                        ))}
                         <div
-                          className="absolute left-0 right-0 z-10 flex items-center"
-                          style={{
-                            top: GRID_PADDING_TOP + ((currentHour - START_HOUR) + now.getMinutes() / 60) * hourHeight
-                          }}
-                        >
-                          <div className="w-2 h-2 rounded-full bg-[var(--accent-coral)] animate-pulse-glow" />
-                          <div className="flex-1 h-[2px] bg-[var(--accent-coral)]" />
-                        </div>
-                      );
-                    })()}
+                          className="absolute left-0 right-0 border-t border-[var(--border-subtle)]"
+                          style={{ top: GRID_PADDING_TOP + totalHeight }}
+                          aria-hidden
+                        />
+
+                        {/* Now line - only show if current time is within grid hours */}
+                        {today && (() => {
+                          const now = new Date();
+                          const currentHour = now.getHours();
+                          const isWithinGridHours = currentHour >= START_HOUR && currentHour <= END_HOUR;
+                          if (!isWithinGridHours) return null;
+                          return (
+                            <div
+                              className="absolute left-0 right-0 z-10 flex items-center"
+                              style={{
+                                top: GRID_PADDING_TOP + ((currentHour - START_HOUR) + now.getMinutes() / 60) * hourHeight
+                              }}
+                            >
+                              <div className="w-2 h-2 rounded-full bg-[var(--accent-coral)] animate-pulse-glow" />
+                              <div className="flex-1 h-[2px] bg-[var(--accent-coral)]" />
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
 
                     {/* Items */}
                     {!d.isWeekend && items.map((item, itemIndex) => {
-                      const top = GRID_PADDING_TOP + ((item.hour - START_HOUR) + item.minutes / 60) * hourHeight + 4;
+                      // En mode stacked : position basée sur l'index, en mode normal : basée sur l'heure
+                      const top = stackedView 
+                        ? GRID_PADDING_TOP + itemIndex * 56 // 56px par card
+                        : GRID_PADDING_TOP + ((item.hour - START_HOUR) + item.minutes / 60) * hourHeight + 4;
                       // Calcul du délai staggered : basé sur l'index du jour + index de l'item
                       const globalIndex = dayIndex * 3 + itemIndex; // Approximation pour stagger
                       const animationDelay = globalIndex * 20; // 20ms entre chaque card
@@ -776,11 +812,11 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
                           top={top}
                           index={itemIndex}
                           onClick={handleCardClick}
-                          getDropTarget={getDropTarget}
-                          onMove={handleCardMove}
-                          onDragStart={onDragStart}
-                          onDragMove={onDragMove}
-                          onDragEnd={onDragEnd}
+                          getDropTarget={stackedView ? undefined : getDropTarget}
+                          onMove={stackedView ? undefined : handleCardMove}
+                          onDragStart={stackedView ? undefined : onDragStart}
+                          onDragMove={stackedView ? undefined : onDragMove}
+                          onDragEnd={stackedView ? undefined : onDragEnd}
                           skipClickAfterDragRef={skipClickAfterDragRef}
                           isDragging={dragState?.item.id === item.id}
                           justLanded={lastDroppedId === item.id}

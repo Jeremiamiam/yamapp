@@ -42,6 +42,37 @@ export function BacklogSidebar() {
     window.dispatchEvent(new CustomEvent('backlog-drag-end'));
   };
 
+  // Handler HTML5 drag : drop depuis la vue Production → backlog
+  const handleHtml5DragOver = (e: React.DragEvent) => {
+    // Accepter le drop si ça vient de la vue Production (ou tout HTML5 drag)
+    if (e.dataTransfer.types.includes('application/x-yam-production')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      setIsDragOver(true);
+    }
+  };
+  const handleHtml5DragLeave = () => {
+    setIsDragOver(false);
+  };
+  const [backlogFlash, setBacklogFlash] = useState<string | null>(null);
+
+  const handleHtml5Drop = async (e: React.DragEvent) => {
+    setIsDragOver(false);
+    const raw = e.dataTransfer.getData('application/x-yam-production');
+    if (!raw) return;
+    e.preventDefault();
+    try {
+      const { id } = JSON.parse(raw);
+      if (id) {
+        // Ne touche PAS au status ni à dueDate — juste toggle inBacklog
+        await updateDeliverable(id, { inBacklog: true });
+        // Animation flash
+        setBacklogFlash(id);
+        setTimeout(() => setBacklogFlash(null), 1500);
+      }
+    } catch (_) {}
+  };
+
   // Écouter les événements custom de drag depuis la timeline (mouse-based drag)
   useEffect(() => {
     const handleTimelineDragMove = (e: CustomEvent<{ x: number; y: number }>) => {
@@ -84,6 +115,9 @@ export function BacklogSidebar() {
     <div 
       ref={containerRef}
       data-backlog-drop-zone
+      onDragOver={handleHtml5DragOver}
+      onDragLeave={handleHtml5DragLeave}
+      onDrop={handleHtml5Drop}
       className={`flex flex-col h-full min-h-0 overflow-hidden transition-all duration-200 ${
         isDragOver 
           ? 'ring-2 ring-[var(--accent-violet)]/30 ring-inset' 
@@ -130,6 +164,7 @@ export function BacklogSidebar() {
           <>
             {backlogDeliverables.map(d => {
               const client = getClientById(d.clientId ?? '');
+              const isNewlyAdded = backlogFlash === d.id;
               return (
                 <div
                   key={d.id}
@@ -137,7 +172,11 @@ export function BacklogSidebar() {
                   onDragStart={e => handleDragStart(e, 'deliverable', d.id)}
                   onDragEnd={handleDragEnd}
                   onClick={() => openDeliverableModal(d.clientId, d)}
-                  className="flex items-start gap-2 p-2 rounded-lg bg-[var(--bg-card)]/80 border border-[var(--border-subtle)]/60 hover:border-[var(--accent-violet)]/40 transition-all cursor-grab active:cursor-grabbing"
+                  className={`flex items-start gap-2 p-2 rounded-lg border transition-all cursor-grab active:cursor-grabbing ${
+                    isNewlyAdded 
+                      ? 'bg-[var(--accent-violet)]/20 border-[var(--accent-violet)]/60 animate-backlog-flash' 
+                      : 'bg-[var(--bg-card)]/80 border-[var(--border-subtle)]/60 hover:border-[var(--accent-violet)]/40'
+                  }`}
                 >
                   <span className="text-[var(--accent-violet)] flex-shrink-0 mt-0.5" title="Produit">
                     {PACKAGE}
