@@ -125,8 +125,8 @@ export function ClientDetail() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Barre contextuelle client */}
-      <div className="flex-shrink-0 px-4 sm:px-6 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]/30">
-        <div className="flex items-center gap-3">
+      <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]/50">
+        <div className="flex items-center gap-4">
           <button
             onClick={navigateBack}
             className="flex items-center gap-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors group"
@@ -137,15 +137,13 @@ export function ClientDetail() {
             <span className="text-xs font-medium">Retour</span>
           </button>
 
-          <div className="h-4 w-px bg-[var(--border-subtle)]" />
-
-          <h1 className="text-base font-display font-bold text-[var(--text-primary)] truncate">
+          <h1 className="text-xl font-semibold text-[var(--text-primary)] truncate">
             {client.name}
           </h1>
           
           <span
             className={`
-              flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
+              flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
               ${isProspect
                 ? 'bg-[var(--accent-amber)]/20 text-[var(--accent-amber)]'
                 : 'bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)]'

@@ -66,6 +66,7 @@ export function DeliverableForm() {
 
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
   const [freelances, setFreelances] = useState<FreelanceEntry[]>([]);
+  const [isEditingName, setIsEditingName] = useState(false);
   const [billingData, setBillingData] = useState<{
     devis?: number;
     devisDate?: string;
@@ -114,6 +115,9 @@ export function DeliverableForm() {
 
   useEffect(() => {
     if (isOpen) {
+      // Reset editing state when modal opens
+      setIsEditingName(mode === 'create');
+      
       if (existingDeliverable) {
         const noDate = existingDeliverable.dueDate == null;
         reset({
@@ -321,7 +325,41 @@ export function DeliverableForm() {
         ) : null}
 
         <FormField label="Nom du produit" required error={errors.name?.message}>
-          <Input {...register('name')} placeholder="Ex: Logo final V2, Charte graphique, Site web..." autoFocus />
+          {isEditingName ? (
+            <Input 
+              {...register('name')} 
+              placeholder="Ex: Logo final V2, Charte graphique, Site web..." 
+              autoFocus 
+              onBlur={() => {
+                if (mode === 'edit' && watch('name')?.trim()) {
+                  setIsEditingName(false);
+                }
+              }}
+            />
+          ) : (
+            <div 
+              className="flex items-center justify-between px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30 cursor-pointer hover:border-[var(--accent-cyan)]/50 transition-colors group"
+              onClick={() => setIsEditingName(true)}
+            >
+              <span className="text-[var(--text-primary)] font-medium truncate">
+                {watch('name') || 'Sans titre'}
+              </span>
+              <svg 
+                width="14" 
+                height="14" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                className="text-[var(--text-muted)] group-hover:text-[var(--accent-cyan)] transition-colors flex-shrink-0 ml-2"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </div>
+          )}
         </FormField>
 
         {/* Planification : soit toggle backlog, soit affichage date */}

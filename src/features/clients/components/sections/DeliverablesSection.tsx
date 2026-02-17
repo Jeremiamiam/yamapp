@@ -95,7 +95,21 @@ export function DeliverablesSection({ clientId }: DeliverablesSectionProps) {
                   {d.name}
                 </p>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-[var(--text-muted)]">
-                  <span>{d.dueDate != null ? formatDateShort(d.dueDate) : 'Non planifié'}</span>
+                  {d.dueDate != null ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[var(--accent-lime)]/15 text-[var(--accent-lime)] font-medium">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                      </svg>
+                      {formatDateShort(d.dueDate)}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[var(--text-muted)]/10 text-[var(--text-muted)] font-medium">
+                      Non planifié
+                    </span>
+                  )}
                   {d.prixFacturé != null && d.prixFacturé > 0 && (
                     <span className="text-[#22c55e]" title="Prix facturé">{formatEur(d.prixFacturé)}</span>
                   )}

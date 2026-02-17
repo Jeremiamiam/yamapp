@@ -50,6 +50,7 @@ export function CallForm() {
   const showClientSelector = isOpen && mode === 'create' && modalClientId === undefined;
 
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
 
   const {
     register,
@@ -85,6 +86,9 @@ export function CallForm() {
 
   useEffect(() => {
     if (isOpen) {
+      // Reset editing state when modal opens
+      setIsEditingTitle(mode === 'create');
+      
       if (existingCall) {
         const noDate = existingCall.scheduledAt == null;
         const scheduledAt = existingCall.scheduledAt;
@@ -116,7 +120,7 @@ export function CallForm() {
         setSelectedTeamId(currentUserTeamId);
       }
     }
-  }, [isOpen, existingCall, presetCallType, modalClientId, reset, currentUserTeamId]);
+  }, [isOpen, existingCall, presetCallType, modalClientId, reset, currentUserTeamId, mode]);
 
   const onSubmit = (data: CallFormData) => {
     // En création, c'est toujours backlog (pas de date)
@@ -208,11 +212,41 @@ export function CallForm() {
         ) : null}
 
         <FormField label="Titre de l'appel" required error={errors.title?.message}>
-          <Input
-            {...register('title')}
-            placeholder="Ex: Call kick-off, Point hebdo, Présentation V2..."
-            autoFocus
-          />
+          {isEditingTitle ? (
+            <Input
+              {...register('title')}
+              placeholder="Ex: Call kick-off, Point hebdo, Présentation V2..."
+              autoFocus
+              onBlur={() => {
+                if (mode === 'edit' && watch('title')?.trim()) {
+                  setIsEditingTitle(false);
+                }
+              }}
+            />
+          ) : (
+            <div 
+              className="flex items-center justify-between px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30 cursor-pointer hover:border-[var(--accent-cyan)]/50 transition-colors group"
+              onClick={() => setIsEditingTitle(true)}
+            >
+              <span className="text-[var(--text-primary)] font-medium truncate">
+                {watch('title') || 'Sans titre'}
+              </span>
+              <svg 
+                width="14" 
+                height="14" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                className="text-[var(--text-muted)] group-hover:text-[var(--accent-cyan)] transition-colors flex-shrink-0 ml-2"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </div>
+          )}
         </FormField>
 
         {/* Affichage de la planification (lecture seule) */}
