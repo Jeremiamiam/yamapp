@@ -51,7 +51,12 @@ export function TimelineMobileDayView() {
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    return () => ro.disconnect();
+    requestAnimationFrame(update);
+    const t = setTimeout(update, 100);
+    return () => {
+      ro.disconnect();
+      clearTimeout(t);
+    };
   }, []);
 
   const { filteredDeliverables, filteredCalls } = useFilteredTimeline();

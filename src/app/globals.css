@@ -268,9 +268,9 @@ h1, h2, h3 {
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 4px);
 }
 
-/* Réserve la hauteur pour la bottom nav mobile — calendrier 8h-19h visible sans chevauchement */
+/* Réserve la hauteur pour la bottom nav mobile — iPhone 13: safe-area ~34px, nav ~56px */
 .content-pb-for-nav {
-  padding-bottom: max(72px, calc(56px + env(safe-area-inset-bottom, 0px)));
+  padding-bottom: max(100px, calc(60px + env(safe-area-inset-bottom, 34px)));
 }
 
 @media (min-width: 768px) {
