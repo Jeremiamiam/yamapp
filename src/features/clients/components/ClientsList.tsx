@@ -7,13 +7,13 @@ import { Client } from '@/types';
 
 // Icons
 const Plus = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 5v14M5 12h14"/>
   </svg>
 );
 
 const MoreVertical = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="1"/>
     <circle cx="12" cy="5" r="1"/>
     <circle cx="12" cy="19" r="1"/>
@@ -73,16 +73,16 @@ export function ClientsList() {
       <div
         key={client.id}
         onClick={() => navigateToClient(client.id)}
-        className="group bg-[var(--bg-card)] rounded-lg border border-[var(--border-subtle)] hover:border-[var(--accent-cyan)] hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden"
+        className="group bg-[var(--bg-card)] rounded-md border border-[var(--border-subtle)] hover:border-[var(--accent-cyan)] hover:shadow-sm transition-all duration-150 cursor-pointer overflow-hidden"
       >
-        <div className="p-3 flex items-center gap-3">
+        <div className="px-3 py-2 flex items-center gap-2">
           {/* Nom du client */}
-          <h3 className="font-display font-semibold text-base text-[var(--text-primary)] group-hover:text-[var(--accent-cyan)] transition-colors truncate flex-1 min-w-0">
+          <h3 className="font-display font-medium text-sm text-[var(--text-primary)] group-hover:text-[var(--accent-cyan)] transition-colors truncate flex-1 min-w-0">
             {client.name}
           </h3>
 
           {/* Montants - même ligne */}
-          <div className="flex items-center gap-3 flex-shrink-0 text-xs">
+          <div className="flex items-center gap-2 flex-shrink-0 text-[11px]">
             {totalFacture > 0 && (
               <span className="font-semibold text-[var(--accent-lime)]">{formatAmount(totalFacture)}</span>
             )}
@@ -98,7 +98,7 @@ export function ClientsList() {
               e.stopPropagation();
               openModal({ type: 'client', mode: 'edit', client });
             }}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+            className="p-1 rounded text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
             title="Modifier"
           >
             <MoreVertical />
@@ -109,20 +109,15 @@ export function ClientsList() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 md:p-8">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6">
       {/* Header avec bouton d'ajout */}
-      <div className="max-w-6xl mx-auto mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-[var(--text-primary)] mb-1">Clients & Prospects</h1>
-          <p className="text-sm text-[var(--text-muted)]">
-            {clientsColumn.length} client{clientsColumn.length > 1 ? 's' : ''} • {prospectsColumn.length} prospect{prospectsColumn.length > 1 ? 's' : ''}
-          </p>
-        </div>
+      <div className="max-w-6xl mx-auto mb-4 flex items-center justify-between">
+        <h1 className="text-lg font-display font-bold text-[var(--text-primary)]">Clients & Prospects</h1>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => openClientModal('client')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--accent-cyan)] text-[var(--bg-primary)] font-medium hover:scale-105 active:scale-95 transition-transform shadow-lg"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--accent-cyan)] text-[var(--bg-primary)] text-sm font-medium hover:scale-105 active:scale-95 transition-transform shadow-md"
           >
             <Plus />
             <span>Client</span>
@@ -130,7 +125,7 @@ export function ClientsList() {
           <button
             type="button"
             onClick={() => openClientModal('prospect')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-amber-500 text-amber-500 font-medium hover:bg-amber-500/10 hover:scale-105 active:scale-95 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-500 text-amber-500 text-sm font-medium hover:bg-amber-500/10 hover:scale-105 active:scale-95 transition-all"
           >
             <Plus />
             <span>Prospect</span>
@@ -141,25 +136,25 @@ export function ClientsList() {
       {/* Colonnes */}
       <div className="flex flex-col lg:flex-row max-w-6xl mx-auto gap-0">
         {/* Colonne gauche : Clients */}
-        <div className="flex-1 flex flex-col gap-4 lg:pr-8 lg:border-r-2 border-[var(--border-subtle)]">
-          <h2 className="text-lg font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[var(--accent-cyan)]" />
+        <div className="flex-1 flex flex-col gap-2 lg:pr-6 lg:border-r border-[var(--border-subtle)]">
+          <h2 className="text-sm font-bold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-2 mb-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-cyan)]" />
             Clients
-            <span className="text-sm font-normal normal-case text-[var(--text-muted)]">({clientsColumn.length})</span>
+            <span className="font-normal text-[var(--text-muted)]/60">({clientsColumn.length})</span>
           </h2>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
             {clientsColumn.map(renderCard)}
           </div>
         </div>
 
         {/* Colonne droite : Prospects */}
-        <div className="flex-1 flex flex-col gap-4 lg:pl-8 mt-8 lg:mt-0">
-          <h2 className="text-lg font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[var(--accent-amber)]" />
+        <div className="flex-1 flex flex-col gap-2 lg:pl-6 mt-6 lg:mt-0">
+          <h2 className="text-sm font-bold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-2 mb-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-amber)]" />
             Prospects
-            <span className="text-sm font-normal normal-case text-[var(--text-muted)]">({prospectsColumn.length})</span>
+            <span className="font-normal text-[var(--text-muted)]/60">({prospectsColumn.length})</span>
           </h2>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
             {prospectsColumn.map(renderCard)}
           </div>
         </div>

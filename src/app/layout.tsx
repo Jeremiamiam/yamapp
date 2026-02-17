@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: "YAM Dashboard",
@@ -19,8 +26,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
-      <body className="antialiased">
+    <html lang="fr" className={inter.variable}>
+      <body className={`${inter.className} antialiased`}>
         {children}
       </body>
     </html>

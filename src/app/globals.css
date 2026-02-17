@@ -48,8 +48,8 @@
 @theme inline {
   --color-background: var(--bg-primary);
   --color-foreground: var(--text-primary);
-  --font-sans: 'Instrument Sans', system-ui, sans-serif;
-  --font-display: 'Syne', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 * {
@@ -64,9 +64,9 @@ html {
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   line-height: 1.6;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -80,9 +80,9 @@ html, body {
 
 /* Display font for headings */
 h1, h2, h3 {
-  font-family: 'Syne', system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 /* Focus states */
