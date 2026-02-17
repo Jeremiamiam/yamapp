@@ -257,8 +257,10 @@ export const useAppStore = create<AppState>((set, get) => ({
           loadingError: null,
         });
         
-        // Si le cache est récent, pas besoin de recharger
-        if (cacheAge < CACHE_MAX_AGE) {
+        // Si le cache est récent ET que le rôle est connu, pas besoin de recharger
+        // Si le rôle est null alors que l'utilisateur est connecté, on force un refresh
+        const cachedRole = parsed.currentUserRole;
+        if (cacheAge < CACHE_MAX_AGE && cachedRole !== null) {
           return;
         }
         // Sinon, on continue pour revalider en background (sans spinner)
@@ -1185,9 +1187,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (Object.keys(payload).length === 0) return;
       const { error } = await supabase.from('team').update(payload).eq('id', id);
       if (error) throw error;
-      set((state) => ({
-        team: state.team.map((m) => (m.id === id ? { ...m, ...data } : m)),
-      }));
+      set((state) => {
+        const updatedTeam = state.team.map((m) => (m.id === id ? { ...m, ...data } : m));
+        // Mettre à jour le cache localStorage pour que le refresh reflète les nouvelles valeurs
+        try {
+          const CACHE_KEY = 'yam_dashboard_cache';
+          const cached = localStorage.getItem(CACHE_KEY);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            parsed.team = updatedTeam;
+            localStorage.setItem(CACHE_KEY, JSON.stringify(parsed));
+          }
+        } catch { /* ignore */ }
+        return { team: updatedTeam };
+      });
     } catch (e) {
       handleError(new AppError(getErrorMessage(e), 'TEAM_MEMBER_UPDATE_FAILED', 'Impossible de modifier le membre'));
     }
