@@ -228,7 +228,7 @@ export function ProductionView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden p-4 md:p-6">
+    <div className="flex-1 flex flex-col overflow-hidden p-3 md:p-6">
       {/* Header */}
       <div className="flex-shrink-0 mb-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-6">
@@ -292,7 +292,7 @@ export function ProductionView() {
       )}
 
       {/* Kanban board */}
-      <div className="flex-1 flex gap-4 overflow-x-auto pb-4">
+      <div className="flex-1 flex gap-3 md:gap-4 overflow-x-auto pb-20 md:pb-4 snap-x snap-mandatory">
         {COLUMNS.map(column => {
           const items = columns[column.id];
           const isCompleted = column.id === 'completed';
@@ -317,14 +317,15 @@ export function ProductionView() {
           return (
             <div
               key={column.id}
-              className={`flex-shrink-0 flex flex-col rounded-xl bg-[var(--bg-secondary)]/30 border transition-all ${
-                isDragOver 
+              className={`snap-start flex-shrink-0 flex flex-col rounded-xl bg-[var(--bg-secondary)]/30 border transition-all ${
+                isCompleted ? 'w-[82vw] md:w-[200px]' : 'w-[82vw] md:w-[260px]'
+              } ${
+                isDragOver
                   ? isDropBlocked
                     ? 'border-red-500/60 bg-red-500/5'
-                    : 'border-[var(--accent-cyan)] bg-[var(--accent-cyan)]/5' 
+                    : 'border-[var(--accent-cyan)] bg-[var(--accent-cyan)]/5'
                   : 'border-[var(--border-subtle)]'
               }`}
-              style={{ width: isCompleted ? 200 : 260 }}
               onDragOver={(e) => handleDragOver(e, column.id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id)}
