@@ -33,7 +33,7 @@ export function DayTodoDrawer({ isOpen, onClose }: DayTodoDrawerProps) {
       <button
         type="button"
         onClick={onClose}
-        className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-fade-in-up"
+        className="fixed inset-0 z-[60] bg-black/70"
         aria-label="Fermer"
       />
 

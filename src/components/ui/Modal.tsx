@@ -80,7 +80,7 @@ export function Modal({
       onClick={onClose}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in-up" />
+      <div className="absolute inset-0 bg-black/70" />
       
       {/* Modal */}
       <div 

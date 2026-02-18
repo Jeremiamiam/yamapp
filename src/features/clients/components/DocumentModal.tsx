@@ -154,7 +154,7 @@ function DocumentModalContent({
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in-up" />
+      <div className="absolute inset-0 bg-black/70" />
       <div
         className={`relative w-full max-h-[85vh] bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl overflow-hidden animate-fade-in-up flex flex-col ${selectedDocument.type === 'report' ? 'max-w-4xl' : 'max-w-2xl'}`}
         onClick={e => e.stopPropagation()}
