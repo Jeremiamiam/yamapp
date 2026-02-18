@@ -326,7 +326,7 @@ function ProjetModal({ nomProjet, clientId, clientName, products, onClose, onOpe
 
   const addAvancement = () => {
     const n = avancements.length + 1;
-    setAvancements(prev => [...prev, { id: `av${Date.now()}`, label: `Avancement ${n}`, amount: '', date: '', encaissé: false }]);
+    setAvancements(prev => [...prev, { id: `av${Date.now()}`, label: `Avancement ${n}`, amount: '', pct: null, date: '', encaissé: false }]);
   };
   const updateAvancement = (id: string, field: keyof ProgressInvoice, val: string | boolean) => {
     setAvancements(prev => prev.map(a => a.id === id ? { ...a, [field]: val } : a));
