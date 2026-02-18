@@ -102,12 +102,15 @@ export function BacklogSidebar() {
       }
     };
 
-    window.addEventListener('timeline-drag-move', handleTimelineDragMove as any);
-    window.addEventListener('timeline-drag-end', handleTimelineDragEnd as any);
+    const onDragMove = (e: Event) => handleTimelineDragMove(e as CustomEvent);
+    const onDragEnd = (e: Event) => handleTimelineDragEnd(e as CustomEvent);
+
+    window.addEventListener('timeline-drag-move', onDragMove);
+    window.addEventListener('timeline-drag-end', onDragEnd);
 
     return () => {
-      window.removeEventListener('timeline-drag-move', handleTimelineDragMove as any);
-      window.removeEventListener('timeline-drag-end', handleTimelineDragEnd as any);
+      window.removeEventListener('timeline-drag-move', onDragMove);
+      window.removeEventListener('timeline-drag-end', onDragEnd);
     };
   }, [updateDeliverable, updateCall]);
 

@@ -63,26 +63,20 @@ export function BillingTimeline({ history, deliverableId, canEdit = true, canDel
   };
 
   const handleDeleteClick = (entryId: string) => {
-    console.log('🗑️ Delete button clicked - Entry ID:', entryId);
     setDeletingId(entryId);
   };
 
   const handleConfirmDelete = async () => {
     if (!deletingId) return;
-
-    console.log('✅ Delete confirmed, calling deleteBillingHistoryEntry...');
     try {
       await deleteBillingHistoryEntry(deletingId, deliverableId);
-      console.log('✅ Delete completed successfully');
       setDeletingId(null);
-    } catch (error) {
-      console.error('❌ Delete failed:', error);
+    } catch {
       setDeletingId(null);
     }
   };
 
   const handleCancelDelete = () => {
-    console.log('❌ Delete cancelled by user');
     setDeletingId(null);
   };
 
