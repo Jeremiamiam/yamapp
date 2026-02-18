@@ -3,6 +3,7 @@ import type { AppState } from '../types';
 import { handleError, AppError, getErrorMessage } from '@/lib/error-handler';
 import { createClient } from '@/lib/supabase/client';
 import { toSupabaseDayTodo, mapDayTodoRow } from '@/lib/supabase-mappers';
+import { invalidateDataCache } from '@/lib/cache';
 
 type TodosActionsKeys = 'addDayTodo' | 'updateDayTodo' | 'deleteDayTodo' | 'updateTeamMember';
 
@@ -29,6 +30,7 @@ export const createTodosActions: StateCreator<AppState, [], [], Pick<AppState, T
       if (error) throw error;
       const newTodo = mapDayTodoRow(data);
       set((state) => ({ dayTodos: [...state.dayTodos, newTodo] }));
+      invalidateDataCache();
     } catch (e) {
       handleError(new AppError(getErrorMessage(e), 'DAY_TODO_ADD_FAILED', "Impossible d'ajouter la todo"));
     }
@@ -56,6 +58,7 @@ export const createTodosActions: StateCreator<AppState, [], [], Pick<AppState, T
       if (error) throw error;
       const updated = mapDayTodoRow(row);
       set((state) => ({ dayTodos: state.dayTodos.map((t) => (t.id === id ? updated : t)) }));
+      invalidateDataCache();
     } catch (e) {
       handleError(new AppError(getErrorMessage(e), 'DAY_TODO_UPDATE_FAILED', 'Impossible de modifier la todo'));
     }
@@ -67,6 +70,7 @@ export const createTodosActions: StateCreator<AppState, [], [], Pick<AppState, T
       const { error } = await supabase.from('day_todos').delete().eq('id', id);
       if (error) throw error;
       set((state) => ({ dayTodos: state.dayTodos.filter((t) => t.id !== id) }));
+      invalidateDataCache();
     } catch (e) {
       handleError(new AppError(getErrorMessage(e), 'DAY_TODO_DELETE_FAILED', 'Impossible de supprimer la todo'));
     }
@@ -82,20 +86,10 @@ export const createTodosActions: StateCreator<AppState, [], [], Pick<AppState, T
       if (Object.keys(payload).length === 0) return;
       const { error } = await supabase.from('team').update(payload).eq('id', id);
       if (error) throw error;
-      set((state) => {
-        const updatedTeam = state.team.map((m) => (m.id === id ? { ...m, ...data } : m));
-        // Mettre à jour le cache localStorage pour que le refresh reflète les nouvelles valeurs
-        try {
-          const CACHE_KEY = 'yam_dashboard_cache';
-          const cached = localStorage.getItem(CACHE_KEY);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            parsed.team = updatedTeam;
-            localStorage.setItem(CACHE_KEY, JSON.stringify(parsed));
-          }
-        } catch { /* ignore */ }
-        return { team: updatedTeam };
-      });
+      set((state) => ({
+        team: state.team.map((m) => (m.id === id ? { ...m, ...data } : m)),
+      }));
+      invalidateDataCache();
     } catch (e) {
       handleError(new AppError(getErrorMessage(e), 'TEAM_MEMBER_UPDATE_FAILED', 'Impossible de modifier le membre'));
     }

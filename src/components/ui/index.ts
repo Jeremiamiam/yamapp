@@ -5,3 +5,4 @@ export { BillingStatusToggle } from './BillingStatusToggle';
 export { BillingTimeline } from './BillingTimeline';
 export { BillingForm } from './BillingForm';
 export { ClientAutocomplete } from './ClientAutocomplete';
+export { DateInput } from './DateInput';

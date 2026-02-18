@@ -14,6 +14,7 @@ import type {
   DayTodo,
   BillingHistory,
   BillingStatus,
+  Project,
 } from '@/types';
 
 // Types pour les rows Supabase (snake_case)
@@ -60,9 +61,25 @@ interface DocumentRow {
   updated_at: string;
 }
 
+interface ProjectRow {
+  id: string;
+  client_id: string;
+  name: string;
+  quote_amount?: number | null;
+  quote_date?: string | null;
+  deposit_amount?: number | null;
+  deposit_date?: string | null;
+  progress_amounts?: number[] | null;
+  progress_dates?: string[] | null;
+  balance_date?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface DeliverableRow {
   id: string;
   client_id?: string | null;
+  project_id?: string | null;
   name: string;
   due_date?: string | null;
   in_backlog?: boolean | null;
@@ -175,10 +192,28 @@ export function mapDocumentRow(row: DocumentRow): ClientDocument {
   };
 }
 
+export function mapProjectRow(row: ProjectRow): Project {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    name: row.name,
+    quoteAmount: row.quote_amount != null ? Number(row.quote_amount) : undefined,
+    quoteDate: row.quote_date ?? undefined,
+    depositAmount: row.deposit_amount != null ? Number(row.deposit_amount) : undefined,
+    depositDate: row.deposit_date ?? undefined,
+    progressAmounts: Array.isArray(row.progress_amounts) ? row.progress_amounts.map(Number) : [],
+    progressDates: Array.isArray(row.progress_dates) ? row.progress_dates : [],
+    balanceDate: row.balance_date ?? undefined,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  };
+}
+
 export function mapDeliverableRow(row: DeliverableRow): Deliverable {
   return {
     id: row.id,
     clientId: row.client_id ?? undefined,
+    projectId: row.project_id ?? undefined,
     name: row.name,
     dueDate: row.due_date ? new Date(row.due_date) : undefined,
     inBacklog: row.in_backlog === true,

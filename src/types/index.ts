@@ -85,10 +85,42 @@ export interface BillingHistory {
   changedBy?: string;     // user_id
 }
 
+// ─── Projects ──────────────────────────────────────────────────────
+
+export type ProjectBillingStatus = 'none' | 'quoted' | 'deposit' | 'progress' | 'balanced';
+
+export interface Project {
+  id: string;
+  clientId: string;
+  name: string;
+  quoteAmount?: number;
+  quoteDate?: string;
+  depositAmount?: number;
+  depositDate?: string;
+  progressAmounts: number[];
+  progressDates: string[];
+  balanceDate?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ProjectBillingInfo {
+  status: ProjectBillingStatus;
+  totalProductInvoiced: number;
+  totalProjectPayments: number;
+  totalPaid: number;
+  remaining: number;
+  progressPercent: number;
+}
+
+// ─── Deliverables ──────────────────────────────────────────────────
+
 export interface Deliverable {
   id: string;
   /** Optionnel : produit créé depuis le backlog sans client assigné */
   clientId?: string;
+  /** Optionnel : produit rattaché à un projet */
+  projectId?: string;
   name: string;
   /** Optionnel : date de deadline sur la timeline */
   dueDate?: Date;

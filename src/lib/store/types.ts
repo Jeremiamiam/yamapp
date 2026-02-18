@@ -1,4 +1,4 @@
-import type { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, TeamMember, Contact, ClientDocument, DayTodo, BillingHistory, BillingStatus } from '@/types';
+import type { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, TeamMember, Contact, ClientDocument, DayTodo, BillingHistory, BillingStatus, Project } from '@/types';
 
 export type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta' | 'admin' | 'production';
 export type ClientStatusFilter = 'all' | 'prospect' | 'client';
@@ -16,6 +16,7 @@ export type ModalType =
   | { type: 'deliverable'; mode: 'create' | 'edit'; clientId?: string; deliverable?: Deliverable }
   | { type: 'call'; mode: 'create' | 'edit'; clientId?: string; call?: Call; presetCallType?: CallType }
   | { type: 'client'; mode: 'create' | 'edit'; client?: Client; presetStatus?: ClientStatus }
+  | { type: 'project'; presetClientId?: string; project?: Project; initialTab?: 'projet' | 'billing' }
   | null;
 
 export interface AppState {
@@ -24,6 +25,7 @@ export interface AppState {
   deliverables: Deliverable[];
   calls: Call[];
   team: TeamMember[];
+  projects: Project[];
   dayTodos: DayTodo[];
   billingHistory: Map<string, BillingHistory[]>;
   comptaMonthly: { month: string; year: number; entrées: number; sorties: number; soldeCumulé: number }[];
@@ -92,6 +94,14 @@ export interface AppState {
   deleteBillingHistoryEntry: (historyId: string, deliverableId: string) => Promise<void>;
   loadBillingHistory: (deliverableId: string) => Promise<void>;
   getBillingHistory: (deliverableId: string) => BillingHistory[];
+
+  // CRUD Actions - Projects
+  addProject: (data: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'progressAmounts' | 'progressDates'> & { progressAmounts?: number[]; progressDates?: string[] }) => Promise<Project | undefined>;
+  updateProject: (id: string, data: Partial<Omit<Project, 'id' | 'createdAt'>>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  assignDeliverableToProject: (deliverableId: string, projectId: string | null) => Promise<void>;
+  getProjectsByClientId: (clientId: string) => Project[];
+  getDeliverablesByProjectId: (projectId: string) => Deliverable[];
 
   // CRUD Actions - Calls
   addCall: (call: Omit<Call, 'id' | 'createdAt'>) => Promise<void>;

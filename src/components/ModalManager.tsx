@@ -2,6 +2,7 @@
 
 import { useAppStore } from '@/lib/store';
 import { ContactForm, DocumentForm, DeliverableForm, CallForm, ClientForm, ReportUploadModal } from '@/features/clients/components';
+import { ProjectModal } from '@/features/production/components/ProjectModal';
 
 /**
  * Centralise tous les modals CRUD de l'app.
@@ -9,6 +10,7 @@ import { ContactForm, DocumentForm, DeliverableForm, CallForm, ClientForm, Repor
  */
 export function ModalManager() {
   const activeModal = useAppStore((state) => state.activeModal);
+  const closeModal = useAppStore((state) => state.closeModal);
 
   if (!activeModal) return null;
 
@@ -25,6 +27,15 @@ export function ModalManager() {
       return <CallForm />;
     case 'client':
       return <ClientForm />;
+    case 'project':
+      return (
+        <ProjectModal
+          project={activeModal.project}
+          presetClientId={activeModal.presetClientId}
+          initialTab={activeModal.initialTab}
+          onClose={closeModal}
+        />
+      );
     default:
       return null;
   }

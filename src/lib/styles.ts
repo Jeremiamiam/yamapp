@@ -3,7 +3,7 @@
  * Évite les duplications et assure la cohérence visuelle.
  */
 
-import type { DeliverableStatus, DeliverableType, DeliverableCategory } from '@/types';
+import type { DeliverableStatus, DeliverableType } from '@/types';
 import type { DocumentType } from '@/types';
 
 export const STATUS_STYLES: Record<
@@ -38,31 +38,6 @@ export const STATUS_STYLES: Record<
 
 export function getStatusStyle(status: DeliverableStatus) {
   return STATUS_STYLES[status];
-}
-
-export const CATEGORY_STYLES: Record<
-  DeliverableCategory,
-  { bg: string; text: string; label: string }
-> = {
-  print: {
-    bg: 'bg-[var(--accent-amber)]/10',
-    text: 'text-[var(--accent-amber)]',
-    label: 'Print',
-  },
-  digital: {
-    bg: 'bg-[var(--accent-cyan)]/10',
-    text: 'text-[var(--accent-cyan)]',
-    label: 'Digital',
-  },
-  other: {
-    bg: 'bg-[var(--bg-tertiary)]',
-    text: 'text-[var(--text-muted)]',
-    label: 'Autre',
-  },
-} as const;
-
-export function getCategoryStyle(category: DeliverableCategory) {
-  return CATEGORY_STYLES[category];
 }
 
 export const DOCUMENT_TYPE_STYLES: Record<

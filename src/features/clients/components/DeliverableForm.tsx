@@ -49,6 +49,8 @@ export function DeliverableForm() {
     getClientById,
     navigateToClient,
     deliverables,
+    projects,
+    assignDeliverableToProject,
   } = useAppStore();
   const isOpen = activeModal?.type === 'deliverable';
   const mode = isOpen ? activeModal.mode : 'create';
@@ -68,6 +70,11 @@ export function DeliverableForm() {
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
   const [freelances, setFreelances] = useState<FreelanceEntry[]>([]);
   const [isEditingName, setIsEditingName] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+
+  const clientProjects = effectiveClientId
+    ? projects.filter((p) => p.clientId === effectiveClientId)
+    : [];
 
   // Verrou : actif par défaut si produit terminé
   const isCompleted = existingDeliverable?.status === 'completed';
@@ -146,6 +153,7 @@ export function DeliverableForm() {
           notes: existingDeliverable.notes ?? '',
         });
         setSelectedTeamIds(existingDeliverable.assigneeId ? [existingDeliverable.assigneeId] : []);
+        setSelectedProjectId(existingDeliverable.projectId ?? '');
         // Parse existing coutSousTraitance into freelances if it's a simple number
         if (existingDeliverable.coutSousTraitance) {
           setFreelances([{ id: '1', name: 'Freelance', budget: String(existingDeliverable.coutSousTraitance) }]);
@@ -186,13 +194,13 @@ export function DeliverableForm() {
         });
         setSelectedTeamIds([]);
         setFreelances([]);
-        // Reset billing data
+        setSelectedProjectId('');
         setBillingData({});
       }
     }
   }, [isOpen, existingDeliverable, modalClientId, reset]);
 
-  const onSubmit = (data: DeliverableFormData) => {
+  const onSubmit = async (data: DeliverableFormData) => {
     // En création, c'est toujours backlog (pas de date)
     // En édition, on garde la date existante
     const dueDate = mode === 'edit' && existingDeliverable?.dueDate 
@@ -216,9 +224,11 @@ export function DeliverableForm() {
 
     const avancementsTotal = (billingData.avancements || []).reduce((sum, v) => sum + v, 0);
     const totalInvoiced = (billingData.acompte || 0) + avancementsTotal + (billingData.solde || 0);
+    const hasDevis = billingData.devis != null && billingData.devis > 0;
 
     const computedBillingStatus = getBillingStatus();
-    const prixFinal = totalInvoiced > 0 ? totalInvoiced : undefined;
+    // Prix pour affichage + cascade : facturé si > 0, sinon montant devis si présent (pour faire passer "À deviser" → "À faire")
+    const prixFinal = totalInvoiced > 0 ? totalInvoiced : (hasDevis ? billingData.devis! : undefined);
 
     // Cascade automatique du statut production en fonction de la facturation
     const currentStatus = existingDeliverable?.status ?? 'to_quote';
@@ -246,8 +256,14 @@ export function DeliverableForm() {
       externalContractor: undefined,
       notes: data.notes?.trim() || undefined,
       billingStatus: computedBillingStatus,
-      quoteAmount: billingData.devis,
-      quoteDate: billingData.devisDate,
+      // En édition, devis vidé = null explicite pour persister en base (sinon refresh restaure l'ancien montant)
+      quoteAmount:
+        billingData.devis != null && billingData.devis > 0
+          ? billingData.devis
+          : mode === 'edit'
+            ? null
+            : undefined,
+      quoteDate: billingData.devis != null && billingData.devis > 0 ? billingData.devisDate : (mode === 'edit' ? undefined : billingData.devisDate),
       depositAmount: billingData.acompte,
       depositDate: billingData.acompteDate,
       progressAmounts: billingData.avancements,
@@ -259,9 +275,20 @@ export function DeliverableForm() {
     };
 
     if (mode === 'edit' && existingDeliverable) {
-      updateDeliverable(existingDeliverable.id, deliverableData);
+      await updateDeliverable(existingDeliverable.id, deliverableData);
+      const oldProjectId = existingDeliverable.projectId ?? '';
+      if (selectedProjectId !== oldProjectId) {
+        await assignDeliverableToProject(existingDeliverable.id, selectedProjectId || null);
+      }
     } else {
-      addDeliverable(deliverableData);
+      const beforeIds = new Set(useAppStore.getState().deliverables.map((d) => d.id));
+      await addDeliverable(deliverableData);
+      if (selectedProjectId) {
+        const newDel = useAppStore.getState().deliverables.find((d) => !beforeIds.has(d.id));
+        if (newDel) {
+          await assignDeliverableToProject(newDel.id, selectedProjectId);
+        }
+      }
     }
     closeModal();
   };
@@ -448,6 +475,20 @@ export function DeliverableForm() {
             </button>
           </div>
         ) : null}
+
+        {/* Projet */}
+        {clientProjects.length > 0 && (
+          <FormField label="Projet">
+            <Select
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              options={[
+                { value: '', label: 'Aucun projet' },
+                ...clientProjects.map((p) => ({ value: p.id, label: p.name })),
+              ]}
+            />
+          </FormField>
+        )}
 
         <FormField label="Nom du produit" required error={errors.name?.message}>
           {isEditingName ? (

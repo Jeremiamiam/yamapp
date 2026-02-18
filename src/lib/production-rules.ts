@@ -6,7 +6,7 @@
  * Flux :  à deviser → à faire → en attente → terminé
  * 
  * Règles :
- *  - to_quote → pending    : nécessite prixFacturé > 0
+ *  - to_quote → pending    : nécessite prixFacturé > 0 OU projet devisé (le projet l’emporte)
  *  - pending → in-progress  : libre
  *  - in-progress → completed: nécessite billingStatus === 'balance'
  *  - completed → autre      : libre (correction), reset billing si nécessaire
@@ -20,6 +20,8 @@ export interface DeliverableContext {
   status: DeliverableStatus;
   billingStatus: BillingStatus;
   prixFacturé?: number;
+  /** Devis global du projet si le produit est rattaché à un projet devisé (le projet l’emporte) */
+  projectQuoteAmount?: number;
 }
 
 /** Résultat d'une tentative de transition */
@@ -56,10 +58,14 @@ export function canTransitionStatus(
     return { allowed: true };
   }
 
-  // Vers "à faire" : nécessite un prix
+  // Vers "à faire" : nécessite un prix produit OU un projet devisé (le projet l’emporte)
   if (newStatus === 'pending') {
-    if (current === 'to_quote' && (prixFacturé == null || prixFacturé <= 0)) {
-      return { allowed: false, reason: 'Ajoute un prix avant de passer à "À faire"' };
+    if (current === 'to_quote') {
+      const hasProductPrice = prixFacturé != null && prixFacturé > 0;
+      const projectDevised = (ctx.projectQuoteAmount ?? 0) > 0;
+      if (!hasProductPrice && !projectDevised) {
+        return { allowed: false, reason: 'Ajoute un prix ou rattache à un projet devisé' };
+      }
     }
     return { allowed: true };
   }
@@ -90,6 +96,11 @@ export function computeStatusCascade(
     changes.status = 'pending';
   }
 
+  // Cascade 1b : devis/prix supprimé + statut "à faire" → repasse à "à deviser"
+  if (currentStatus === 'pending' && (newPrixFacturé == null || newPrixFacturé <= 0)) {
+    changes.status = 'to_quote';
+  }
+
   // Cascade 2 : billing soldé → passe à "terminé"
   if (newBillingStatus === 'balance' && currentStatus !== 'completed') {
     changes.status = 'completed';
@@ -117,9 +128,10 @@ export const ALL_TEST_CASES: TestCase[] = [
   // ── Transitions Kanban (drag & drop) ──
 
   // to_quote → pending
-  { name: '❌ to_quote → pending SANS prix', ctx: { status: 'to_quote', billingStatus: 'pending' }, action: { type: 'transition', newStatus: 'pending' }, expected: { allowed: false, reason: 'Ajoute un prix' } },
-  { name: '❌ to_quote → pending prix = 0', ctx: { status: 'to_quote', billingStatus: 'pending', prixFacturé: 0 }, action: { type: 'transition', newStatus: 'pending' }, expected: { allowed: false, reason: 'Ajoute un prix' } },
-  { name: '✅ to_quote → pending AVEC prix', ctx: { status: 'to_quote', billingStatus: 'pending', prixFacturé: 1500 }, action: { type: 'transition', newStatus: 'pending' }, expected: { allowed: true } },
+  { name: '❌ to_quote → pending SANS prix ni projet devisé', ctx: { status: 'to_quote', billingStatus: 'pending' }, action: { type: 'transition', newStatus: 'pending' }, expected: { allowed: false, reason: 'Ajoute un prix ou rattache à un projet devisé' } },
+  { name: '❌ to_quote → pending prix = 0 et pas de projet', ctx: { status: 'to_quote', billingStatus: 'pending', prixFacturé: 0 }, action: { type: 'transition', newStatus: 'pending' }, expected: { allowed: false, reason: 'Ajoute un prix ou rattache à un projet devisé' } },
+  { name: '✅ to_quote → pending AVEC prix produit', ctx: { status: 'to_quote', billingStatus: 'pending', prixFacturé: 1500 }, action: { type: 'transition', newStatus: 'pending' }, expected: { allowed: true } },
+  { name: '✅ to_quote → pending SANS prix mais projet devisé', ctx: { status: 'to_quote', billingStatus: 'pending', projectQuoteAmount: 10000 }, action: { type: 'transition', newStatus: 'pending' }, expected: { allowed: true } },
 
   // pending → to_quote
   { name: '❌ pending → to_quote si déjà devisé', ctx: { status: 'pending', billingStatus: 'pending', prixFacturé: 1500 }, action: { type: 'transition', newStatus: 'to_quote' }, expected: { allowed: false, reason: 'déjà devisé' } },
@@ -188,6 +200,9 @@ export const ALL_TEST_CASES: TestCase[] = [
 
   // Scénario 10 : Édition to_quote → on supprime le prix (vide) → reste to_quote
   { name: '📋 modale: to_quote + prix vide → reste to_quote', ctx: { status: 'to_quote', billingStatus: 'pending' }, action: { type: 'cascade', newBilling: 'pending', newPrix: 0 }, expected: { newStatus: undefined } },
+
+  // Scénario 11 : Édition pending → on supprime le devis (champ vidé) → repasse à to_quote
+  { name: '📋 modale: pending + devis supprimé → to_quote', ctx: { status: 'pending', billingStatus: 'pending', prixFacturé: 2000 }, action: { type: 'cascade', newBilling: 'pending', newPrix: undefined }, expected: { newStatus: 'to_quote' } },
 ];
 
 /** Exécute tous les tests et retourne les résultats */

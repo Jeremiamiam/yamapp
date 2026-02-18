@@ -3,6 +3,7 @@ import type { AppState, AppRole } from '../types';
 import type { Client, Deliverable, Call, TeamMember, DayTodo, BillingHistory } from '@/types';
 import { handleError, AppError } from '@/lib/error-handler';
 import { createClient } from '@/lib/supabase/client';
+import { CACHE_KEY, CACHE_TIMESTAMP_KEY } from '@/lib/cache';
 import {
   mapTeamRow,
   mapClientRow,
@@ -13,6 +14,7 @@ import {
   mapCallRow,
   mapDayTodoRow,
   mapBillingHistoryRow,
+  mapProjectRow,
 } from '@/lib/supabase-mappers';
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -23,7 +25,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 type DataSliceKeys =
-  | 'clients' | 'deliverables' | 'calls' | 'team' | 'dayTodos'
+  | 'clients' | 'deliverables' | 'calls' | 'team' | 'projects' | 'dayTodos'
   | 'billingHistory' | 'comptaMonthly' | 'isLoading' | 'loadingError'
   | 'loadData'
   | 'getClientById' | 'getTeamMemberById' | 'getDeliverablesByClientId' | 'getCallsByClientId'
@@ -35,6 +37,7 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
   deliverables: [],
   calls: [],
   team: [],
+  projects: [],
   dayTodos: [],
   billingHistory: new Map<string, BillingHistory[]>(),
   comptaMonthly: [],
@@ -42,10 +45,6 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
   loadingError: null,
 
   loadData: async () => {
-    const CACHE_KEY = 'yam_dashboard_cache';
-    const CACHE_TIMESTAMP_KEY = 'yam_dashboard_cache_ts';
-    const CACHE_MAX_AGE = 5 * 60 * 1000;
-
     const rehydrateDates = (data: Record<string, unknown>) => {
       const deliverables = (data.deliverables as Deliverable[] || []).map(d => ({
         ...d,
@@ -86,7 +85,6 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
       const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
 
       if (cachedData && cachedTimestamp) {
-        const cacheAge = Date.now() - parseInt(cachedTimestamp, 10);
         const parsed: unknown = JSON.parse(cachedData);
 
         const isValid =
@@ -94,7 +92,8 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
           typeof parsed === 'object' &&
           Array.isArray((parsed as Record<string, unknown>).clients) &&
           Array.isArray((parsed as Record<string, unknown>).deliverables) &&
-          Array.isArray((parsed as Record<string, unknown>).calls);
+          Array.isArray((parsed as Record<string, unknown>).calls) &&
+          Array.isArray((parsed as Record<string, unknown>).projects);
 
         if (!isValid) {
           localStorage.removeItem(CACHE_KEY);
@@ -103,11 +102,19 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
         } else {
           type CachedState = {
             team: TeamMember[];
+            projects?: { id: string; clientId: string; name: string; quoteAmount?: number; quoteDate?: string; depositAmount?: number; depositDate?: string; progressAmounts?: number[]; progressDates?: string[]; balanceDate?: string; createdAt: string; updatedAt: string }[];
             comptaMonthly: { month: string; year: number; entrées: number; sorties: number; soldeCumulé: number }[];
             currentUserRole: AppRole;
           };
           const p = parsed as CachedState;
           const rehydrated = rehydrateDates(parsed as Parameters<typeof rehydrateDates>[0]);
+          const projects = (p.projects || []).map((proj) => ({
+            ...proj,
+            progressAmounts: proj.progressAmounts ?? [],
+            progressDates: proj.progressDates ?? [],
+            createdAt: proj.createdAt ? new Date(proj.createdAt) : new Date(),
+            updatedAt: proj.updatedAt ? new Date(proj.updatedAt) : new Date(),
+          }));
 
           set({
             team: p.team || [],
@@ -115,17 +122,15 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
             deliverables: rehydrated.deliverables,
             calls: rehydrated.calls,
             dayTodos: rehydrated.dayTodos,
+            projects,
             comptaMonthly: p.comptaMonthly || [],
             currentUserRole: p.currentUserRole,
             isLoading: false,
             loadingError: null,
           });
 
-          // Si le cache est récent ET que le rôle est connu, pas besoin de recharger
-          // Si le rôle est null alors que l'utilisateur est connecté, on force un refresh
-          if (cacheAge < CACHE_MAX_AGE && p.currentUserRole !== null) {
-            return;
-          }
+          // Stale-while-revalidate : on a affiché le cache, on refetch en arrière-plan
+          // (pas de return → on continue vers le bloc Supabase ci-dessous)
         }
       } else {
         set({ isLoading: true, loadingError: null });
@@ -160,7 +165,7 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
         }
       }
 
-      const [teamRes, clientsRes, contactsRes, linksRes, docsRes, delivRes, callsRes, comptaRes, todosRes] = await withTimeout(
+      const [teamRes, clientsRes, contactsRes, linksRes, docsRes, delivRes, callsRes, comptaRes, todosRes, projectsRes] = await withTimeout(
         Promise.all([
           supabase.from('team').select('id,name,initials,role,color,email'),
           supabase.from('clients').select('*'),
@@ -171,6 +176,7 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
           supabase.from('calls').select('*'),
           supabase.from('compta_monthly').select('month,year,entrees,sorties,solde_cumule'),
           supabase.from('day_todos').select('id,text,for_date,done,created_at,scheduled_at,assignee_id'),
+          supabase.from('projects').select('*'),
         ]),
         10000
       );
@@ -184,6 +190,7 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
       if (callsRes.error) throw callsRes.error;
       if (comptaRes.error) throw comptaRes.error;
       if (todosRes.error) throw todosRes.error;
+      if (projectsRes.error) throw projectsRes.error;
 
       const teamRows = teamRes.data ?? [];
       const clientsData = clientsRes.data ?? [];
@@ -194,6 +201,7 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
       const callsData = callsRes.data ?? [];
       const comptaData = comptaRes.data ?? [];
       const todosData = todosRes.data ?? [];
+      const projectsData = projectsRes.data ?? [];
 
       const team = teamRows.map(mapTeamRow);
       const clients: Client[] = clientsData.map((row) => {
@@ -208,6 +216,7 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
       const deliverables = delivData.map(mapDeliverableRow);
       const calls = callsData.map(mapCallRow);
       const dayTodos = todosData.map(mapDayTodoRow);
+      const projects = projectsData.map(mapProjectRow);
       const comptaMonthly = comptaData.map((m: { month: string; year: number; entrees: number; sorties: number; solde_cumule: number }) => ({
         month: m.month,
         year: m.year,
@@ -217,14 +226,14 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
       }));
 
       try {
-        const cacheData = { team, clients, deliverables, calls, dayTodos, comptaMonthly, currentUserRole: userRole };
+        const cacheData = { team, clients, deliverables, calls, dayTodos, projects, comptaMonthly, currentUserRole: userRole };
         localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
         localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
       } catch {
         // Quota dépassé, on ignore
       }
 
-      set({ team, clients, deliverables, calls, dayTodos, comptaMonthly, currentUserRole: userRole, isLoading: false, loadingError: null });
+      set({ team, clients, deliverables, calls, dayTodos, projects, comptaMonthly, currentUserRole: userRole, isLoading: false, loadingError: null });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       set({ isLoading: false, loadingError: message });
