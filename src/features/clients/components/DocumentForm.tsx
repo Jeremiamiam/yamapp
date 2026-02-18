@@ -41,10 +41,12 @@ export function DocumentForm() {
   const existingDoc = isOpen && activeModal.mode === 'edit' ? activeModal.document : undefined;
 
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [plaudTranscript, setPlaudTranscript] = useState('');
+  const [transcriptContent, setTranscriptContent] = useState('');
+  const [transcriptFileName, setTranscriptFileName] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const transcriptInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -72,7 +74,8 @@ export function DocumentForm() {
         reset({ type: 'note', title: '', content: '' });
       }
       setUploadError(null);
-      setPlaudTranscript('');
+      setTranscriptContent('');
+      setTranscriptFileName('');
       setAnalyzeError(null);
     }
   }, [isOpen, existingDoc, reset]);
@@ -98,15 +101,28 @@ export function DocumentForm() {
     }
   };
 
+  const handleTranscriptFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTranscriptContent(reader.result as string);
+      setTranscriptFileName(file.name);
+      setAnalyzeError(null);
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+
   const handleAnalyze = async () => {
-    if (!plaudTranscript.trim()) return;
+    if (!transcriptContent.trim()) return;
     setIsAnalyzing(true);
     setAnalyzeError(null);
     try {
       const res = await fetch('/api/analyze-plaud', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript: plaudTranscript }),
+        body: JSON.stringify({ transcript: transcriptContent }),
       });
       const data = (await res.json()) as ReportPlaudTemplate & { error?: string };
       if (!res.ok || data.error) {
@@ -115,7 +131,8 @@ export function DocumentForm() {
       }
       setValue('title', data.title);
       setValue('content', JSON.stringify(data, null, 2));
-      setPlaudTranscript('');
+      setTranscriptContent('');
+      setTranscriptFileName('');
     } catch {
       setAnalyzeError('Impossible de contacter l\'API. Vérifie ta connexion.');
     } finally {
@@ -193,17 +210,38 @@ export function DocumentForm() {
             <label className="block text-sm font-medium text-[var(--text-secondary)]">
               Analyser avec Claude
             </label>
-            <Textarea
-              value={plaudTranscript}
-              onChange={(e) => setPlaudTranscript(e.target.value)}
-              placeholder="Colle ici la transcription brute de ton Plaud..."
-              rows={5}
+            <input
+              ref={transcriptInputRef}
+              type="file"
+              accept=".txt,.md,text/plain,text/markdown"
+              onChange={handleTranscriptFile}
+              className="hidden"
             />
+            {transcriptFileName ? (
+              <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] text-sm border border-[var(--border-subtle)]">
+                <span className="text-[var(--text-secondary)] truncate">{transcriptFileName}</span>
+                <button
+                  type="button"
+                  onClick={() => { setTranscriptContent(''); setTranscriptFileName(''); }}
+                  className="text-[var(--text-muted)] hover:text-[var(--accent-magenta)] ml-2 flex-shrink-0 transition-colors"
+                >✕</button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => transcriptInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2"
+              >
+                <Upload />
+                Charger transcript .txt / .md
+              </Button>
+            )}
             <Button
               type="button"
               variant="secondary"
               onClick={handleAnalyze}
-              disabled={isAnalyzing || !plaudTranscript.trim()}
+              disabled={isAnalyzing || !transcriptContent.trim()}
               className="w-full flex items-center justify-center gap-2"
             >
               {isAnalyzing ? 'Analyse en cours...' : '✦ Analyser avec Claude'}

@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { formatDocDate } from '@/lib/date-utils';
 import { getDocumentTypeStyle } from '@/lib/styles';
 import { DocumentType } from '@/types';
-import type { ClientDocument } from '@/types';
+import type { ClientDocument, Deliverable } from '@/types';
 import { parseStructuredDocument } from '@/types/document-templates';
 import type { BriefTemplate, ReportPlaudTemplate } from '@/types/document-templates';
 
@@ -88,7 +88,29 @@ function BriefTemplatedView({ data }: { data: BriefTemplate }) {
   );
 }
 
-function ReportPlaudTemplatedView({ data }: { data: ReportPlaudTemplate }) {
+function ReportPlaudTemplatedView({
+  data,
+  clientId,
+  onAddDeliverable,
+}: {
+  data: ReportPlaudTemplate;
+  clientId?: string;
+  onAddDeliverable?: (d: Omit<Deliverable, 'id' | 'createdAt'>) => void;
+}) {
+  const [added, setAdded] = useState<Set<string>>(new Set());
+
+  const handleAdd = (name: string, type: 'creative' | 'document' | 'other') => {
+    if (!onAddDeliverable || !clientId || added.has(name)) return;
+    onAddDeliverable({
+      clientId,
+      name,
+      type,
+      status: 'to_quote',
+      billingStatus: 'pending',
+    });
+    setAdded(prev => new Set(prev).add(name));
+  };
+
   return (
     <div className="space-y-5 text-[var(--text-secondary)]">
       <div className="flex flex-wrap gap-3 text-xs text-[var(--text-muted)]">
@@ -122,6 +144,32 @@ function ReportPlaudTemplatedView({ data }: { data: ReportPlaudTemplate }) {
           <p className="text-sm">{data.nextSteps}</p>
         </section>
       )}
+      {data.suggestedDeliverables?.length ? (
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--accent-amber)] mb-2">Livrables détectés</h3>
+          <div className="flex flex-wrap gap-2">
+            {data.suggestedDeliverables.map((d, i) => {
+              const isAdded = added.has(d.name);
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={isAdded || !clientId}
+                  onClick={() => handleAdd(d.name, d.type)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                    isAdded
+                      ? 'bg-[var(--accent-lime)]/10 border-[var(--accent-lime)]/30 text-[var(--accent-lime)] cursor-default'
+                      : 'bg-[var(--bg-tertiary)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-amber)] hover:text-[var(--accent-amber)]'
+                  }`}
+                >
+                  {isAdded ? '✓ ' : '+ '}{d.name}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-[var(--text-muted)] mt-2">Cliquer pour créer le livrable sur ce client</p>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -136,10 +184,14 @@ function DocumentModalContent({
   document: selectedDocument,
   structured,
   onClose,
+  clientId,
+  onAddDeliverable,
 }: {
   document: ClientDocument;
   structured: BriefTemplate | ReportPlaudTemplate | null;
   onClose: () => void;
+  clientId?: string;
+  onAddDeliverable?: (d: Omit<Deliverable, 'id' | 'createdAt'>) => void;
 }) {
   const docStyle = getDocTypeStyle(selectedDocument.type);
   const showTemplated = structured !== null;
@@ -195,7 +247,11 @@ function DocumentModalContent({
             <BriefTemplatedView data={structured as BriefTemplate} />
           )}
           {showTemplated && selectedDocument.type === 'report' && (
-            <ReportPlaudTemplatedView data={structured as ReportPlaudTemplate} />
+            <ReportPlaudTemplatedView
+              data={structured as ReportPlaudTemplate}
+              clientId={clientId}
+              onAddDeliverable={onAddDeliverable}
+            />
           )}
           {!showTemplated && (
             <div className="prose prose-invert max-w-none">
@@ -222,7 +278,7 @@ function DocumentModalContent({
 }
 
 export function DocumentModal() {
-  const { selectedDocument, closeDocument } = useAppStore();
+  const { selectedDocument, closeDocument, selectedClientId, addDeliverable } = useAppStore();
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -248,6 +304,12 @@ export function DocumentModal() {
   }, [selectedDocument?.content, selectedDocument?.type]);
 
   return selectedDocument ? (
-    <DocumentModalContent document={selectedDocument} structured={structured} onClose={closeDocument} />
+    <DocumentModalContent
+      document={selectedDocument}
+      structured={structured}
+      onClose={closeDocument}
+      clientId={selectedClientId ?? undefined}
+      onAddDeliverable={addDeliverable}
+    />
   ) : null;
 }

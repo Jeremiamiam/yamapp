@@ -25,6 +25,7 @@ export interface ReportPlaudTemplate {
   actionItems: { text: string; assignee?: string }[];
   nextSteps?: string;
   transcriptionExcerpt?: string;
+  suggestedDeliverables?: { name: string; type: 'creative' | 'document' | 'other' }[];
 }
 
 export type StructuredDocument = BriefTemplate | ReportPlaudTemplate;
