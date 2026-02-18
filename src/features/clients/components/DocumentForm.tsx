@@ -8,7 +8,7 @@ import { useAppStore } from '@/lib/store';
 import { getDocumentTypeStyle } from '@/lib/styles';
 import { DocumentSchema, type DocumentFormData } from '@/lib/validation';
 import { DocumentType, ClientDocument } from '@/types';
-import { parseStructuredDocument } from '@/types/document-templates';
+import { parseStructuredDocument, ReportPlaudTemplate } from '@/types/document-templates';
 
 const Upload = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -41,6 +41,9 @@ export function DocumentForm() {
   const existingDoc = isOpen && activeModal.mode === 'edit' ? activeModal.document : undefined;
 
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [plaudTranscript, setPlaudTranscript] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -69,6 +72,8 @@ export function DocumentForm() {
         reset({ type: 'note', title: '', content: '' });
       }
       setUploadError(null);
+      setPlaudTranscript('');
+      setAnalyzeError(null);
     }
   }, [isOpen, existingDoc, reset]);
 
@@ -90,6 +95,31 @@ export function DocumentForm() {
     if (mode === 'edit' && existingDoc) {
       deleteDocument(clientId, existingDoc.id);
       closeModal();
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!plaudTranscript.trim()) return;
+    setIsAnalyzing(true);
+    setAnalyzeError(null);
+    try {
+      const res = await fetch('/api/analyze-plaud', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: plaudTranscript }),
+      });
+      const data = (await res.json()) as ReportPlaudTemplate & { error?: string };
+      if (!res.ok || data.error) {
+        setAnalyzeError(data.error ?? 'Erreur lors de l\'analyse.');
+        return;
+      }
+      setValue('title', data.title);
+      setValue('content', JSON.stringify(data, null, 2));
+      setPlaudTranscript('');
+    } catch {
+      setAnalyzeError('Impossible de contacter l\'API. Vérifie ta connexion.');
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -158,7 +188,57 @@ export function DocumentForm() {
           />
         </FormField>
 
-        {(type === 'brief' || type === 'report') && (
+        {type === 'report' && (
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-[var(--text-secondary)]">
+              Analyser avec Claude
+            </label>
+            <Textarea
+              value={plaudTranscript}
+              onChange={(e) => setPlaudTranscript(e.target.value)}
+              placeholder="Colle ici la transcription brute de ton Plaud..."
+              rows={5}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleAnalyze}
+              disabled={isAnalyzing || !plaudTranscript.trim()}
+              className="w-full flex items-center justify-center gap-2"
+            >
+              {isAnalyzing ? 'Analyse en cours...' : '✦ Analyser avec Claude'}
+            </Button>
+            {analyzeError && (
+              <p className="text-xs text-[var(--accent-magenta)]">{analyzeError}</p>
+            )}
+            <div className="flex items-center gap-3 py-1">
+              <div className="h-px flex-1 bg-[var(--border)]" />
+              <span className="text-[10px] text-[var(--text-muted)]">ou importer un JSON</span>
+              <div className="h-px flex-1 bg-[var(--border)]" />
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              onChange={handleJsonUpload}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full flex items-center justify-center gap-2"
+            >
+              <Upload />
+              Choisir un fichier .json
+            </Button>
+            {uploadError && (
+              <p className="text-xs text-[var(--accent-magenta)]">{uploadError}</p>
+            )}
+          </div>
+        )}
+
+        {type === 'brief' && (
           <div className="space-y-2">
             <label className="block text-sm font-medium text-[var(--text-secondary)]">
               Importer un JSON (output IA)
@@ -180,7 +260,7 @@ export function DocumentForm() {
               Choisir un fichier .json
             </Button>
             <p className="text-[10px] text-[var(--text-muted)]">
-              Le JSON doit respecter le template {type === 'brief' ? 'Brief' : 'Report PLAUD'} (voir docs/json-templates-ia.md).
+              Le JSON doit respecter le template Brief (voir docs/json-templates-ia.md).
             </p>
             {uploadError && (
               <p className="text-xs text-[var(--accent-magenta)]">{uploadError}</p>
