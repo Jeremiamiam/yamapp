@@ -60,7 +60,8 @@ export default function SettingsPage() {
 
     if (!error && data) {
       // Normalize: Supabase returns team as array, but we expect single object
-      const normalized = data.map((row: any) => ({
+      type RawRow = Omit<UserRoleRow, 'team'> & { team: TeamRow[] | TeamRow | null };
+      const normalized = (data as RawRow[]).map((row) => ({
         ...row,
         team: Array.isArray(row.team) ? (row.team[0] ?? null) : row.team,
       }));

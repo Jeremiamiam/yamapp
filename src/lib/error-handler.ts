@@ -1,7 +1,4 @@
-/**
- * Gestion d'erreurs centralisée avec messages utilisateur.
- * Pour l'instant utilise alert(); peut être remplacé par un toast plus tard.
- */
+import { toast } from './toast';
 
 /** Extrait un message lisible depuis une erreur (Supabase, Error, ou inconnue). */
 export function getErrorMessage(error: unknown): string {
@@ -28,16 +25,13 @@ export class AppError extends Error {
 
 export function handleError(error: unknown): void {
   if (error instanceof AppError) {
-    // eslint-disable-next-line no-alert
-    alert(error.userMessage);
+    toast.error(error.userMessage);
     console.error(`[${error.code}]`, error.message);
   } else if (error instanceof Error) {
-    // eslint-disable-next-line no-alert
-    alert('Une erreur est survenue.');
+    toast.error('Une erreur est survenue.');
     console.error(error);
   } else {
-    // eslint-disable-next-line no-alert
-    alert('Une erreur inconnue est survenue.');
+    toast.error('Une erreur inconnue est survenue.');
     console.error(error);
   }
 }

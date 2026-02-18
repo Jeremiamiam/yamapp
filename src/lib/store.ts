@@ -21,6 +21,13 @@ import {
   toSupabaseDayTodo,
 } from './supabase-mappers';
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`Chargement trop long (${ms / 1000}s). Vérifiez votre connexion.`)), ms)
+  );
+  return Promise.race([promise, timeout]);
+}
+
 type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta' | 'admin' | 'production';
 
 // Filter types
@@ -238,30 +245,52 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const cachedData = localStorage.getItem(CACHE_KEY);
       const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
-      
+
       if (cachedData && cachedTimestamp) {
         const cacheAge = Date.now() - parseInt(cachedTimestamp, 10);
-        const parsed = JSON.parse(cachedData);
-        const rehydrated = rehydrateDates(parsed);
-        
-        // Charger le cache immédiatement (pas de loading spinner)
-        set({
-          team: parsed.team || [],
-          clients: rehydrated.clients,
-          deliverables: rehydrated.deliverables,
-          calls: rehydrated.calls,
-          dayTodos: rehydrated.dayTodos,
-          comptaMonthly: parsed.comptaMonthly || [],
-          currentUserRole: parsed.currentUserRole,
-          isLoading: false,
-          loadingError: null,
-        });
-        
-        // Si le cache est récent, pas besoin de recharger
-        if (cacheAge < CACHE_MAX_AGE) {
-          return;
+        const parsed: unknown = JSON.parse(cachedData);
+
+        // Vérifier que le cache a une structure minimale valide avant de l'utiliser
+        const isValid =
+          parsed !== null &&
+          typeof parsed === 'object' &&
+          Array.isArray((parsed as Record<string, unknown>).clients) &&
+          Array.isArray((parsed as Record<string, unknown>).deliverables) &&
+          Array.isArray((parsed as Record<string, unknown>).calls);
+
+        if (!isValid) {
+          localStorage.removeItem(CACHE_KEY);
+          localStorage.removeItem(CACHE_TIMESTAMP_KEY);
+          set({ isLoading: true, loadingError: null });
+          // Pas de return : on continue vers Supabase
+        } else {
+          type CachedState = {
+            team: TeamMember[];
+            comptaMonthly: { month: string; year: number; entrées: number; sorties: number; soldeCumulé: number }[];
+            currentUserRole: AppRole;
+          };
+          const p = parsed as CachedState;
+          const rehydrated = rehydrateDates(parsed as Parameters<typeof rehydrateDates>[0]);
+
+          // Charger le cache immédiatement (pas de loading spinner)
+          set({
+            team: p.team || [],
+            clients: rehydrated.clients,
+            deliverables: rehydrated.deliverables,
+            calls: rehydrated.calls,
+            dayTodos: rehydrated.dayTodos,
+            comptaMonthly: p.comptaMonthly || [],
+            currentUserRole: p.currentUserRole,
+            isLoading: false,
+            loadingError: null,
+          });
+
+          // Si le cache est récent, pas besoin de recharger
+          if (cacheAge < CACHE_MAX_AGE) {
+            return;
+          }
+          // Sinon, on continue pour revalider en background (sans spinner)
         }
-        // Sinon, on continue pour revalider en background (sans spinner)
       } else {
         // Pas de cache, afficher le loading
         set({ isLoading: true, loadingError: null });
@@ -300,17 +329,20 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
 
-      const [teamRes, clientsRes, contactsRes, linksRes, docsRes, delivRes, callsRes, comptaRes, todosRes] = await Promise.all([
-        supabase.from('team').select('id,name,initials,role,color,email'),
-        supabase.from('clients').select('*'),
-        supabase.from('contacts').select('*'),
-        supabase.from('client_links').select('*'),
-        supabase.from('documents').select('*'),
-        supabase.from('deliverables').select('*'),
-        supabase.from('calls').select('*'),
-        supabase.from('compta_monthly').select('month,year,entrees,sorties,solde_cumule'),
-        supabase.from('day_todos').select('id,text,for_date,done,created_at,scheduled_at,assignee_id'),
-      ]);
+      const [teamRes, clientsRes, contactsRes, linksRes, docsRes, delivRes, callsRes, comptaRes, todosRes] = await withTimeout(
+        Promise.all([
+          supabase.from('team').select('id,name,initials,role,color,email'),
+          supabase.from('clients').select('*'),
+          supabase.from('contacts').select('*'),
+          supabase.from('client_links').select('*'),
+          supabase.from('documents').select('*'),
+          supabase.from('deliverables').select('*'),
+          supabase.from('calls').select('*'),
+          supabase.from('compta_monthly').select('month,year,entrees,sorties,solde_cumule'),
+          supabase.from('day_todos').select('id,text,for_date,done,created_at,scheduled_at,assignee_id'),
+        ]),
+        10000
+      );
       if (teamRes.error) throw teamRes.error;
       if (clientsRes.error) throw clientsRes.error;
       if (contactsRes.error) throw contactsRes.error;
@@ -820,19 +852,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!prev) return;
     try {
       const supabase = createClient();
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-      console.log('Auth user:', user?.id, 'Auth error:', authError);
+      const { data: { user } } = await supabase.auth.getUser();
 
       // Update deliverable billing status
       const { error: updateError } = await supabase
         .from('deliverables')
         .update({ billing_status: newStatus })
         .eq('id', id);
-      if (updateError) {
-        console.error('Billing update error:', updateError);
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
       // Insert billing history entry
       const historyId = crypto.randomUUID();
@@ -846,19 +873,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         changed_by: user?.id ?? null,
       };
 
-      console.log('Inserting billing history:', historyPayload);
-
-      const { data: insertedData, error: historyError } = await supabase
+      const { error: historyError } = await supabase
         .from('billing_history')
         .insert(historyPayload)
         .select();
 
-      console.log('Insert result - data:', insertedData, 'error:', historyError);
-
-      if (historyError) {
-        console.error('Billing history insert error:', historyError);
-        throw historyError;
-      }
+      if (historyError) throw historyError;
 
       // Update local state
       set((state) => ({
@@ -879,7 +899,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     } catch (e) {
       const message = e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e);
-      console.error('updateDeliverableBillingStatus error:', e);
       handleError(new AppError(message, 'BILLING_UPDATE_FAILED', "Impossible de modifier le statut de facturation"));
     }
   },
@@ -897,42 +916,31 @@ export const useAppStore = create<AppState>((set, get) => ({
         .update(payload)
         .eq('id', historyId);
 
-      if (error) {
-        console.error('Update billing history error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       // Reload history
       await get().loadBillingHistory(deliverableId);
     } catch (e) {
       const message = e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e);
-      console.error('updateBillingHistoryEntry error:', e);
       handleError(new AppError(message, 'BILLING_HISTORY_UPDATE_FAILED', "Impossible de modifier l'entrée d'historique"));
     }
   },
 
   deleteBillingHistoryEntry: async (historyId, deliverableId) => {
-    console.log('🔧 deleteBillingHistoryEntry called', { historyId, deliverableId });
     try {
       const supabase = createClient();
 
       // Get current deliverable to check if we're deleting the most recent entry
       const currentDeliverable = get().deliverables.find(d => d.id === deliverableId);
-      console.log('📦 Current deliverable:', currentDeliverable?.name);
-      if (!currentDeliverable) {
-        console.error('❌ Deliverable not found');
-        return;
-      }
+      if (!currentDeliverable) return;
 
       // Get the entry we're about to delete
-      console.log('🔍 Fetching entry to delete...');
-      const { data: entryToDelete, error: fetchError } = await supabase
+      const { error: fetchError } = await supabase
         .from('billing_history')
         .select('*')
         .eq('id', historyId)
         .single();
 
-      console.log('📄 Entry to delete:', entryToDelete, 'Error:', fetchError);
       if (fetchError) throw fetchError;
 
       // Get all current history entries
@@ -945,21 +953,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (historyError) throw historyError;
 
       const isMostRecent = allHistory && allHistory.length > 0 && allHistory[0].id === historyId;
-      console.log('🎯 Is most recent entry?', isMostRecent);
 
       // Delete the history entry
-      console.log('🗑️ Attempting to delete entry from database...');
       const { error: deleteError } = await supabase
         .from('billing_history')
         .delete()
         .eq('id', historyId);
 
-      console.log('🗑️ Delete result - Error:', deleteError);
-      if (deleteError) {
-        console.error('❌ Delete billing history error:', deleteError);
-        throw deleteError;
-      }
-      console.log('✅ Entry deleted successfully from database');
+      if (deleteError) throw deleteError;
 
       // Only update deliverable status if we deleted the most recent entry
       if (isMostRecent) {
@@ -998,7 +999,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       await get().loadBillingHistory(deliverableId);
     } catch (e) {
       const message = e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e);
-      console.error('deleteBillingHistoryEntry error:', e);
       handleError(new AppError(message, 'BILLING_HISTORY_DELETE_FAILED', "Impossible de supprimer l'entrée d'historique"));
     }
   },
@@ -1012,10 +1012,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         .eq('deliverable_id', deliverableId)
         .order('changed_at', { ascending: true });
 
-      if (error) {
-        console.error('Load billing history error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       const history = (data ?? []).map(mapBillingHistoryRow);
       set((state) => {
@@ -1025,7 +1022,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     } catch (e) {
       const message = e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e);
-      console.error('loadBillingHistory error:', e);
       handleError(new AppError(message, 'BILLING_HISTORY_LOAD_FAILED', "Impossible de charger l'historique de facturation"));
     }
   },
