@@ -328,7 +328,7 @@ function ProjetModal({ nomProjet, clientId, clientName, products, onClose, onOpe
     const n = avancements.length + 1;
     setAvancements(prev => [...prev, { id: `av${Date.now()}`, label: `Avancement ${n}`, amount: '', pct: null, date: '', encaissé: false }]);
   };
-  const updateAvancement = (id: string, field: keyof ProgressInvoice, val: string | boolean) => {
+  const updateAvancement = (id: string, field: keyof ProgressInvoice, val: string | boolean | number | null) => {
     setAvancements(prev => prev.map(a => a.id === id ? { ...a, [field]: val } : a));
   };
   const removeAvancement = (id: string) => setAvancements(prev => prev.filter(a => a.id !== id));
@@ -561,7 +561,7 @@ function ProjetModal({ nomProjet, clientId, clientName, products, onClose, onOpe
                       const isSelected = av.pct === p;
                       return (
                         <button key={p}
-                          onClick={() => updateAvancement(av.id, 'pct', p) || updateAvancement(av.id, 'amount', String(computed))}
+                          onClick={() => { updateAvancement(av.id, 'pct', p); updateAvancement(av.id, 'amount', String(computed)); }}
                           className={`px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all ${
                             isSelected
                               ? 'bg-blue-400 text-black'
