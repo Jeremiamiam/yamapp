@@ -6,6 +6,7 @@ import { useAppStore } from '@/lib/store';
 import { TimelineFilters } from '@/features/timeline/components/TimelineFilters';
 import { createClient } from '@/lib/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useGlobalActions } from '@/components/GlobalProviders';
 import { Deliverable, Call } from '@/types';
 
 // Icons
@@ -58,6 +59,13 @@ const SettingsIcon = () => (
   </svg>
 );
 
+const BookOpenIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+  </svg>
+);
+
 /** Affiche le prénom ou la partie avant @ de l'email */
 function displayName(email: string | undefined, fullName: string | undefined): string {
   if (fullName?.trim()) return fullName.trim();
@@ -89,6 +97,7 @@ function formatTime(date: Date): string {
 export function Header() {
   const router = useRouter();
   const { isAdmin } = useUserRole();
+  const { openDocsYam } = useGlobalActions();
   const [userDisplayName, setUserDisplayName] = useState<string>('');
   const [now, setNow] = useState(() => new Date());
   const { currentView, navigateToTimeline, navigateToClients, navigateToCompta, navigateToProduction, deliverables, calls, getClientById, getTeamMemberById } = useAppStore();
@@ -311,6 +320,15 @@ export function Header() {
             </span>
           )}
           <div className="flex items-center gap-0.5 md:gap-1 pl-2 md:pl-3 border-l border-[var(--border-subtle)]">
+            <button
+              type="button"
+              onClick={openDocsYam}
+              className="p-1.5 md:p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/10 transition-colors touch-manipulation min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center"
+              title="Docs YAM (⌘⇧D)"
+              aria-label="Docs YAM"
+            >
+              <BookOpenIcon />
+            </button>
             {isAdmin && (
               <button
                 type="button"

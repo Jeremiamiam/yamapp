@@ -58,6 +58,9 @@
 
 html {
   font-size: 17px;
+}
+
+html[data-scroll-behavior="smooth"] {
   scroll-behavior: smooth;
 }
 
@@ -295,5 +298,17 @@ h1, h2, h3 {
     radial-gradient(at 80% 20%, rgba(34, 211, 238, 0.06) 0%, transparent 50%),
     radial-gradient(at 50% 50%, rgba(167, 139, 250, 0.04) 0%, transparent 50%),
     var(--bg-primary);
+}
+
+/* Spotlight animation */
+@keyframes spotlight-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
