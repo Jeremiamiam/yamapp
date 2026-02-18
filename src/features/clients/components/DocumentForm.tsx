@@ -45,6 +45,7 @@ export function DocumentForm() {
   const [transcriptFileName, setTranscriptFileName] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [analyzeCost, setAnalyzeCost] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const transcriptInputRef = useRef<HTMLInputElement>(null);
 
@@ -77,6 +78,7 @@ export function DocumentForm() {
       setTranscriptContent('');
       setTranscriptFileName('');
       setAnalyzeError(null);
+      setAnalyzeCost(null);
     }
   }, [isOpen, existingDoc, reset]);
 
@@ -124,13 +126,16 @@ export function DocumentForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcript: transcriptContent }),
       });
-      const data = (await res.json()) as ReportPlaudTemplate & { error?: string };
+      const data = (await res.json()) as ReportPlaudTemplate & { error?: string; _meta?: { costUsd: number; inputTokens: number; outputTokens: number } };
       if (!res.ok || data.error) {
         setAnalyzeError(data.error ?? 'Erreur lors de l\'analyse.');
         return;
       }
-      setValue('title', data.title);
-      setValue('content', JSON.stringify(data, null, 2));
+      if (data._meta) setAnalyzeCost(data._meta.costUsd);
+      const { _meta, ...doc } = data;
+      void _meta;
+      setValue('title', doc.title);
+      setValue('content', JSON.stringify(doc, null, 2));
       setTranscriptContent('');
       setTranscriptFileName('');
     } catch {
@@ -248,6 +253,11 @@ export function DocumentForm() {
             </Button>
             {analyzeError && (
               <p className="text-xs text-[var(--accent-magenta)]">{analyzeError}</p>
+            )}
+            {analyzeCost !== null && (
+              <p className="text-[10px] text-[var(--text-muted)] text-right">
+                Coût requête : ~${(analyzeCost * 100).toFixed(4)} ¢
+              </p>
             )}
             <div className="flex items-center gap-3 py-1">
               <div className="h-px flex-1 bg-[var(--border)]" />

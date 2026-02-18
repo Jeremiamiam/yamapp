@@ -51,7 +51,10 @@ export async function POST(req: Request) {
 
     const parsed = JSON.parse(cleaned) as ReportPlaudTemplate;
 
-    return Response.json(parsed);
+    // Coût estimé — claude-sonnet-4-5 : $3/MTok input, $15/MTok output
+    const costUsd = (message.usage.input_tokens * 3 + message.usage.output_tokens * 15) / 1_000_000;
+
+    return Response.json({ ...parsed, _meta: { costUsd, inputTokens: message.usage.input_tokens, outputTokens: message.usage.output_tokens } });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur inconnue';
     return Response.json({ error: `Analyse échouée : ${message}` }, { status: 500 });
