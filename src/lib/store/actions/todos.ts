@@ -82,9 +82,20 @@ export const createTodosActions: StateCreator<AppState, [], [], Pick<AppState, T
       if (Object.keys(payload).length === 0) return;
       const { error } = await supabase.from('team').update(payload).eq('id', id);
       if (error) throw error;
-      set((state) => ({
-        team: state.team.map((m) => (m.id === id ? { ...m, ...data } : m)),
-      }));
+      set((state) => {
+        const updatedTeam = state.team.map((m) => (m.id === id ? { ...m, ...data } : m));
+        // Mettre à jour le cache localStorage pour que le refresh reflète les nouvelles valeurs
+        try {
+          const CACHE_KEY = 'yam_dashboard_cache';
+          const cached = localStorage.getItem(CACHE_KEY);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            parsed.team = updatedTeam;
+            localStorage.setItem(CACHE_KEY, JSON.stringify(parsed));
+          }
+        } catch { /* ignore */ }
+        return { team: updatedTeam };
+      });
     } catch (e) {
       handleError(new AppError(getErrorMessage(e), 'TEAM_MEMBER_UPDATE_FAILED', 'Impossible de modifier le membre'));
     }

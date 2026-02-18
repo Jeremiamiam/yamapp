@@ -333,6 +333,18 @@ export function Header() {
               </button>
             )}
           </div>
+          {/* Lien proto — discret, hors nav */}
+          <a
+            href="/proto/projects"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Prototype · Vue Projets"
+            className="hidden md:flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium uppercase tracking-wider text-[var(--accent-violet)]/60 hover:text-[var(--accent-violet)] border border-dashed border-[var(--accent-violet)]/20 hover:border-[var(--accent-violet)]/50 transition-colors"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            proto
+          </a>
+
           {/* User + settings — visible sur toutes les tailles */}
           {userDisplayName && (
             <span className="text-xs md:text-sm font-medium text-[var(--text-primary)] truncate max-w-[100px] md:max-w-none" title="Connecté">

@@ -121,7 +121,9 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
             loadingError: null,
           });
 
-          if (cacheAge < CACHE_MAX_AGE) {
+          // Si le cache est récent ET que le rôle est connu, pas besoin de recharger
+          // Si le rôle est null alors que l'utilisateur est connecté, on force un refresh
+          if (cacheAge < CACHE_MAX_AGE && p.currentUserRole !== null) {
             return;
           }
         }
