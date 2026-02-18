@@ -75,8 +75,8 @@ export const DOCUMENT_TYPE_STYLES: Record<
     label: 'Brief',
   },
   report: {
-    bg: 'bg-[var(--accent-amber)]/10',
-    text: 'text-[var(--accent-amber)]',
+    bg: 'bg-[var(--accent-violet)]/10',
+    text: 'text-[var(--accent-violet)]',
     label: 'Report PLAUD',
   },
   note: {

@@ -6,3 +6,5 @@ export { DocumentForm } from './DocumentForm';
 export { DeliverableForm } from './DeliverableForm';
 export { CallForm } from './CallForm';
 export { ClientForm } from './ClientForm';
+export { ReportUploadModal } from './ReportUploadModal';
+export { ReportView } from './ReportView';

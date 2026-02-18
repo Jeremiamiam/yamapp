@@ -117,7 +117,7 @@ export function DocumentForm() {
   };
 
   const handleAnalyze = async () => {
-    if (!transcriptContent.trim()) return;
+    if (!transcriptContent.trim() || !clientId) return;
     setIsAnalyzing(true);
     setAnalyzeError(null);
     try {
@@ -131,13 +131,15 @@ export function DocumentForm() {
         setAnalyzeError(data.error ?? 'Erreur lors de l\'analyse.');
         return;
       }
-      if (data._meta) setAnalyzeCost(data._meta.costUsd);
       const { _meta, ...doc } = data;
       void _meta;
-      setValue('title', doc.title);
-      setValue('content', JSON.stringify(doc, null, 2));
-      setTranscriptContent('');
-      setTranscriptFileName('');
+      // Création automatique du report : plus d'étape "Créer", on enregistre et on ferme
+      addDocument(clientId, {
+        type: 'report',
+        title: doc.title,
+        content: JSON.stringify(doc),
+      });
+      closeModal();
     } catch {
       setAnalyzeError('Impossible de contacter l\'API. Vérifie ta connexion.');
     } finally {
@@ -157,6 +159,11 @@ export function DocumentForm() {
         const parsed = parseStructuredDocument(text, type);
         if (!parsed) {
           setUploadError('Le JSON ne respecte pas le template attendu. Voir docs/json-templates-ia.md');
+          return;
+        }
+        if (type === 'report' && mode === 'create' && clientId) {
+          addDocument(clientId, { type: 'report', title: parsed.title, content: text });
+          closeModal();
           return;
         }
         setValue('title', parsed.title);
@@ -192,9 +199,11 @@ export function DocumentForm() {
           <Button variant="secondary" onClick={closeModal}>
             Annuler
           </Button>
-          <Button onClick={handleSubmit(onSubmit)}>
-            {mode === 'edit' ? 'Enregistrer' : 'Créer'}
-          </Button>
+          {!(type === 'report' && mode === 'create') && (
+            <Button onClick={handleSubmit(onSubmit)}>
+              {mode === 'edit' ? 'Enregistrer' : 'Créer'}
+            </Button>
+          )}
         </>
       }
     >
@@ -316,28 +325,32 @@ export function DocumentForm() {
           </div>
         )}
 
-        <FormField label="Titre" required error={errors.title?.message}>
-          <Input
-            {...register('title')}
-            placeholder={
-              type === 'brief' ? 'Ex: Brief identité visuelle 2026' :
-              type === 'report' ? 'Ex: Call kick-off 13/02' :
-              'Ex: Notes réunion stratégie'
-            }
-            autoFocus
-          />
-        </FormField>
-        <FormField label="Contenu" required error={errors.content?.message}>
-          <Textarea
-            {...register('content')}
-            placeholder={
-              type === 'brief' ? 'Objectifs, contexte, produits attendus...' :
-              type === 'report' ? "Transcription de l'appel, points clés discutés..." :
-              'Contenu de la note...'
-            }
-            rows={8}
-          />
-        </FormField>
+        {!(type === 'report' && mode === 'create') && (
+          <>
+            <FormField label="Titre" required error={errors.title?.message}>
+              <Input
+                {...register('title')}
+                placeholder={
+                  type === 'brief' ? 'Ex: Brief identité visuelle 2026' :
+                  type === 'report' ? 'Ex: Call kick-off 13/02' :
+                  'Ex: Notes réunion stratégie'
+                }
+                autoFocus
+              />
+            </FormField>
+            <FormField label="Contenu" required error={errors.content?.message}>
+              <Textarea
+                {...register('content')}
+                placeholder={
+                  type === 'brief' ? 'Objectifs, contexte, produits attendus...' :
+                  type === 'report' ? "Transcription de l'appel, points clés discutés..." :
+                  'Contenu de la note...'
+                }
+                rows={8}
+              />
+            </FormField>
+          </>
+        )}
       </form>
     </Modal>
   );

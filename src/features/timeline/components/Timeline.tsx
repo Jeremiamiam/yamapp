@@ -87,6 +87,7 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
   const [backlogDragPos, setBacklogDragPos] = useState<{ x: number; y: number } | null>(null);
   const [lastDroppedId, setLastDroppedId] = useState<string | null>(null);
   const skipClickAfterDragRef = useRef<string | null>(null);
+  const hasScrolledToTodayRef = useRef(false);
 
   const compactWeeks = useAppStore((s) => s.compactWeeks);
   const setCompactWeeks = useAppStore((s) => s.setCompactWeeks);
@@ -352,16 +353,17 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
     [getDropTarget, updateDayTodo]
   );
 
-  // Scroll to today
+  // Scroll to today — une seule fois une fois le layout stable (évite flicker quand containerWidth/dayWidths se mettent à jour)
   useEffect(() => {
-    if (scrollContainerRef.current && datesWithWidth.length > 0) {
-      const todayIndex = datesWithWidth.findIndex(d => isToday(d.date));
-      if (todayIndex > 0) {
-        const scrollTo = datesWithWidth[todayIndex].position - dayWidths.weekday * 0.5;
-        scrollContainerRef.current.scrollLeft = Math.max(0, scrollTo);
-      }
+    if (hasScrolledToTodayRef.current || containerWidth === 0) return;
+    if (!scrollContainerRef.current || datesWithWidth.length === 0) return;
+    const todayIndex = datesWithWidth.findIndex(d => isToday(d.date));
+    if (todayIndex > 0) {
+      const scrollTo = datesWithWidth[todayIndex].position - dayWidths.weekday * 0.5;
+      scrollContainerRef.current.scrollLeft = Math.max(0, scrollTo);
     }
-  }, [datesWithWidth, dayWidths]);
+    hasScrolledToTodayRef.current = true;
+  }, [containerWidth, datesWithWidth, dayWidths]);
 
   // Group items by date (using filtered data)
   const itemsByDate = useMemo(() => {
@@ -593,14 +595,14 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
                 {/* Colonne horaires (seulement en mode grille) */}
                 {!stackedView && (
                   <>
-                    {/* Bande 12h–14h : pause déjeuner */}
+                    {/* Bande 12h–14h : pause déjeuner — hachure discrète */}
                     {LUNCH_START_HOUR >= START_HOUR && LUNCH_START_HOUR + 1 < END_HOUR && (
                       <div
-                        className="absolute left-0 right-0 border-y-2 border-[var(--accent-lime)]/20 bg-[var(--accent-lime)]/5 pointer-events-none"
+                        className="absolute left-0 right-0 pointer-events-none"
                         style={{
                           top: GRID_PADDING_TOP + (LUNCH_START_HOUR - START_HOUR) * hourHeight,
                           height: hourHeight * 2,
-                          boxShadow: 'inset 0 0 20px rgba(132, 204, 22, 0.08)'
+                          backgroundImage: 'repeating-linear-gradient(-35deg, transparent 0, transparent 2px, rgba(212, 245, 66, 0.06) 2px, rgba(212, 245, 66, 0.06) 3px)'
                         }}
                       />
                     )}
@@ -736,14 +738,14 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
                     {/* Grille horaire (seulement en mode normal) */}
                     {!stackedView && (
                       <>
-                        {/* Bande 12h–14h : pause déjeuner */}
+                        {/* Bande 12h–14h : pause déjeuner — hachure discrète */}
                         {LUNCH_START_HOUR >= START_HOUR && LUNCH_START_HOUR + 1 < END_HOUR && !d.isWeekend && (
                           <div
-                            className="absolute left-0 right-0 border-y-2 border-[var(--accent-lime)]/20 bg-[var(--accent-lime)]/5 pointer-events-none"
+                            className="absolute left-0 right-0 pointer-events-none"
                             style={{
                               top: GRID_PADDING_TOP + (LUNCH_START_HOUR - START_HOUR) * hourHeight,
                               height: hourHeight * 2,
-                              boxShadow: 'inset 0 0 20px rgba(132, 204, 22, 0.08)'
+                              backgroundImage: 'repeating-linear-gradient(-35deg, transparent 0, transparent 2px, rgba(212, 245, 66, 0.06) 2px, rgba(212, 245, 66, 0.06) 3px)'
                             }}
                           />
                         )}
@@ -761,22 +763,17 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
                           aria-hidden
                         />
 
-                        {/* Now line - only show if current time is within grid hours */}
+                        {/* Heure actuelle : barre en pointillés (derrière les cards) + poignées pour la lecture */}
                         {today && (() => {
                           const now = new Date();
                           const currentHour = now.getHours();
-                          const isWithinGridHours = currentHour >= START_HOUR && currentHour <= END_HOUR;
-                          if (!isWithinGridHours) return null;
+                          if (currentHour < START_HOUR || currentHour > END_HOUR) return null;
+                          const lineTop = GRID_PADDING_TOP + ((currentHour - START_HOUR) + now.getMinutes() / 60) * hourHeight;
                           return (
                             <div
-                              className="absolute left-0 right-0 z-10 flex items-center"
-                              style={{
-                                top: GRID_PADDING_TOP + ((currentHour - START_HOUR) + now.getMinutes() / 60) * hourHeight
-                              }}
-                            >
-                              <div className="w-2 h-2 rounded-full bg-[var(--accent-coral)] animate-pulse-glow" />
-                              <div className="flex-1 h-[2px] bg-[var(--accent-coral)]" />
-                            </div>
+                              className="absolute left-0 right-0 z-0 pointer-events-none border-t border-dashed border-[var(--accent-lime)]/70"
+                              style={{ top: lineTop }}
+                            />
                           );
                         })()}
                       </>
@@ -788,9 +785,6 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
                       const top = stackedView 
                         ? GRID_PADDING_TOP + itemIndex * 56 // 56px par card
                         : GRID_PADDING_TOP + ((item.hour - START_HOUR) + item.minutes / 60) * hourHeight + 4;
-                      // Calcul du délai staggered : basé sur l'index du jour + index de l'item
-                      const globalIndex = dayIndex * 3 + itemIndex; // Approximation pour stagger
-                      const animationDelay = globalIndex * 20; // 20ms entre chaque card
                       const handleCardClick = () => {
                         // Ouvrir directement la modale du produit/appel
                         if (item.type === 'deliverable') {
@@ -823,10 +817,30 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
                           compact={compactWeeks}
                           allowDragToBacklog={item.type !== 'todo'}
                           onDeleteTodo={item.type === 'todo' ? deleteDayTodo : undefined}
-                          animationDelay={animationDelay}
                         />
                       );
                     })}
+
+                    {/* Poignées heure actuelle : centre pile sur la ligne, légèrement hors champ colonne */}
+                    {today && !stackedView && (() => {
+                      const now = new Date();
+                      const currentHour = now.getHours();
+                      if (currentHour < START_HOUR || currentHour > END_HOUR) return null;
+                      const lineTop = GRID_PADDING_TOP + ((currentHour - START_HOUR) + now.getMinutes() / 60) * hourHeight;
+                      const handleSize = 10;
+                      return (
+                        <>
+                          <div
+                            className="absolute left-0 w-2.5 h-2.5 rounded-full bg-[var(--accent-lime)] border-2 border-[var(--bg-primary)] pointer-events-none z-10"
+                            style={{ top: lineTop - handleSize / 2, transform: 'translateX(-50%)' }}
+                          />
+                          <div
+                            className="absolute right-0 w-2.5 h-2.5 rounded-full bg-[var(--accent-lime)] border-2 border-[var(--bg-primary)] pointer-events-none z-10"
+                            style={{ top: lineTop - handleSize / 2, transform: 'translateX(50%)' }}
+                          />
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               );

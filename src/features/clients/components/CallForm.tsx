@@ -284,7 +284,7 @@ export function CallForm() {
                   key={member.id}
                   type="button"
                   onClick={() => toggleTeamMember(member.id)}
-                  className="inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold transition-all cursor-pointer border-2 hover:opacity-80"
+                  className="inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold transition-all cursor-pointer border hover:opacity-80"
                   style={{
                     backgroundColor: isSelected ? member.color : 'transparent',
                     color: isSelected ? '#000' : member.color,

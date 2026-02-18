@@ -71,7 +71,7 @@ export function TimelineFilters() {
               <button
                 key={member.id}
                 onClick={() => setTeamMemberFilter(member.id)}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border-2 hover:opacity-80 cursor-pointer"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border hover:opacity-80 cursor-pointer"
                 style={{ 
                   backgroundColor: 'transparent', 
                   color: member.color,

@@ -11,12 +11,13 @@ export function useModal() {
   const closeModal = useAppStore((state) => state.closeModal);
 
   return {
-    openContactModal: (clientId: string, contact?: Contact) =>
+    openContactModal: (clientId: string, contact?: Contact, presetContact?: Partial<Contact>) =>
       openModal({
         type: 'contact',
         mode: contact ? 'edit' : 'create',
         clientId,
         contact,
+        presetContact,
       }),
 
     openDocumentModal: (clientId: string, document?: ClientDocument) =>
@@ -26,6 +27,9 @@ export function useModal() {
         clientId,
         document,
       }),
+
+    openReportUploadModal: (clientId: string) =>
+      openModal({ type: 'report-upload', clientId }),
 
     openDeliverableModal: (clientId: string | undefined, deliverable?: Deliverable) =>
       openModal({

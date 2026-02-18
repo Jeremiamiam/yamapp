@@ -91,8 +91,7 @@ export function Header() {
   const { isAdmin } = useUserRole();
   const [userDisplayName, setUserDisplayName] = useState<string>('');
   const [now, setNow] = useState(() => new Date());
-  const [protoShowEvent, setProtoShowEvent] = useState(false); // Proto toggle pour simuler un event
-  const { currentView, navigateToTimeline, navigateToClients, navigateToCompta, navigateToProduction, deliverables, calls, getClientById, getTeamMemberById, team } = useAppStore();
+  const { currentView, navigateToTimeline, navigateToClients, navigateToCompta, navigateToProduction, deliverables, calls, getClientById, getTeamMemberById } = useAppStore();
   const canAccessCompta = isAdmin;
 
   // Rafraîchir "now" toutes les 30 secondes pour mettre à jour le countdown
@@ -142,22 +141,7 @@ export function Header() {
       }
     });
     
-    // Proto : simuler un événement si toggle activé
-    if (events.length === 0) {
-      if (protoShowEvent) {
-        // Simuler un call dans 45 min
-        const fakeDate = new Date(now.getTime() + 45 * 60 * 1000);
-        return {
-          type: 'call' as const,
-          date: fakeDate,
-          clientId: 'proto',
-          label: 'Point hebdo',
-          clientName: 'Acme Corp',
-           assignee: team?.length > 0 ? team[0] : undefined,
-        };
-      }
-      return null;
-    }
+    if (events.length === 0) return null;
     
     // Trier par date et prendre le premier
     events.sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -171,7 +155,7 @@ export function Header() {
       clientName: client?.name || 'Sans client',
       assignee,
     };
-  }, [deliverables, calls, getClientById, getTeamMemberById, now, protoShowEvent, team]);
+  }, [deliverables, calls, getClientById, getTeamMemberById, now]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -219,12 +203,12 @@ export function Header() {
           <div className="flex-1 min-w-0 hidden lg:flex items-center justify-center gap-3 px-4 py-1.5 rounded-lg bg-[var(--bg-secondary)]/60 border border-[var(--border-subtle)]">
             {nextEvent ? (
               <>
-                {/* Label "Prochain call" ou "Prochain produit" avec marquee */}
+                {/* Label "Prochain event" avec marquee */}
                 <div className="flex-shrink-0 overflow-hidden w-24">
                   <span 
                     className={`inline-block text-[10px] font-medium uppercase tracking-wider whitespace-nowrap animate-marquee ${nextEvent.type === 'call' ? 'text-[var(--accent-cyan)]' : 'text-[var(--accent-violet)]'}`}
                   >
-                    {nextEvent.type === 'call' ? 'Prochain call • Prochain call • Prochain call • ' : 'Prochain produit • Prochain produit • Prochain produit • '}
+                    Prochain event • Prochain event • Prochain event • 
                   </span>
                 </div>
                 <span className="flex-shrink-0 w-px h-4 bg-[var(--border-subtle)]" />
@@ -262,19 +246,6 @@ export function Header() {
                 Pas d'autre événement prévu aujourd'hui
               </span>
             )}
-            {/* Proto toggle */}
-            <button
-              type="button"
-              onClick={() => setProtoShowEvent(!protoShowEvent)}
-              title={protoShowEvent ? "Masquer event proto" : "Afficher event proto"}
-              className={`flex-shrink-0 w-4 h-4 rounded text-[8px] font-bold transition-all cursor-pointer ${
-                protoShowEvent
-                  ? 'bg-[var(--accent-coral)] text-white'
-                  : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--accent-coral)]'
-              }`}
-            >
-              P
-            </button>
           </div>
         </div>
         
@@ -333,18 +304,6 @@ export function Header() {
               </button>
             )}
           </div>
-          {/* Lien proto — discret, hors nav */}
-          <a
-            href="/proto/projects"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Prototype · Vue Projets"
-            className="hidden md:flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium uppercase tracking-wider text-[var(--accent-violet)]/60 hover:text-[var(--accent-violet)] border border-dashed border-[var(--accent-violet)]/20 hover:border-[var(--accent-violet)]/50 transition-colors"
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            proto
-          </a>
-
           {/* User + settings — visible sur toutes les tailles */}
           {userDisplayName && (
             <span className="text-xs md:text-sm font-medium text-[var(--text-primary)] truncate max-w-[100px] md:max-w-none" title="Connecté">

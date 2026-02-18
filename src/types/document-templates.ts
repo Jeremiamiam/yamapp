@@ -26,6 +26,10 @@ export interface ReportPlaudTemplate {
   nextSteps?: string;
   transcriptionExcerpt?: string;
   suggestedDeliverables?: { name: string; type: 'creative' | 'document' | 'other' }[];
+  /** Dates de rendu ou de call détectées dans la réunion — pour poser direct sur la timeline */
+  suggestedEvents?: { type: 'deliverable' | 'call'; label: string; date: string }[];
+  /** Clés des événements déjà ajoutés à la timeline (persisté pour rétroactivité après refresh) */
+  addedEventKeys?: string[];
 }
 
 export type StructuredDocument = BriefTemplate | ReportPlaudTemplate;

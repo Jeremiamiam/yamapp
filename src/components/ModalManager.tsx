@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
-import { ContactForm, DocumentForm, DeliverableForm, CallForm, ClientForm } from '@/features/clients/components';
+import { ContactForm, DocumentForm, DeliverableForm, CallForm, ClientForm, ReportUploadModal } from '@/features/clients/components';
 
 /**
  * Centralise tous les modals CRUD de l'app.
@@ -17,6 +17,8 @@ export function ModalManager() {
       return <ContactForm />;
     case 'document':
       return <DocumentForm />;
+    case 'report-upload':
+      return <ReportUploadModal />;
     case 'deliverable':
       return <DeliverableForm />;
     case 'call':

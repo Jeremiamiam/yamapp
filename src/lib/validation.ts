@@ -6,9 +6,9 @@
 import { z } from 'zod';
 
 export const ContactSchema = z.object({
-  name: z.string().min(1, 'Le nom est requis'),
-  role: z.string().min(1, 'Le rôle est requis'),
-  email: z.string().min(1, "L'email est requis").email("L'email n'est pas valide"),
+  name: z.string().optional(),
+  role: z.string().optional(),
+  email: z.string().optional().refine((v) => !v || v === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "L'email n'est pas valide"),
   phone: z.string().optional(),
 });
 

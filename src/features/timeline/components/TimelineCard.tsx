@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useRef, useCallback, useState, useEffect } from 'react';
+import { memo, useRef, useCallback } from 'react';
 import { Deliverable, TeamMember } from '@/types';
 
 // Icons
@@ -75,8 +75,6 @@ interface TimelineCardProps {
   allowDragToBacklog?: boolean;
   /** Callback pour supprimer une todo (marquer comme "géré") */
   onDeleteTodo?: (todoId: string) => void;
-  /** Délai d'animation pour effet staggered (ms) */
-  animationDelay?: number;
 }
 
 const DRAG_THRESHOLD_PX = 5;
@@ -97,7 +95,6 @@ function TimelineCardInner({
   compact = false,
   allowDragToBacklog = false,
   onDeleteTodo,
-  animationDelay,
 }: TimelineCardProps) {
   const isCall = item.type === 'call';
   const isCompleted = item.status === 'completed';
@@ -105,15 +102,6 @@ function TimelineCardInner({
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const didDragRef = useRef(false);
   const hasNotifiedDragStartRef = useRef(false);
-
-  // Animation staggered au mount
-  const [isVisible, setIsVisible] = useState(animationDelay === undefined);
-  useEffect(() => {
-    if (animationDelay !== undefined && !isGhost) {
-      const timer = setTimeout(() => setIsVisible(true), animationDelay);
-      return () => clearTimeout(timer);
-    }
-  }, [animationDelay, isGhost]);
 
   const handleHandleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -215,12 +203,6 @@ function TimelineCardInner({
         }
         return todoColor;
       };
-      // Animation staggered styles
-      const staggeredStyle = animationDelay !== undefined && !isGhost ? {
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? 'translateY(0)' : 'translateY(-12px)',
-        transition: 'opacity 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
-      } : {};
       return (
         <div
           className={`rounded-lg overflow-hidden group transition-all duration-150
@@ -234,7 +216,6 @@ function TimelineCardInner({
             border: `1.5px solid ${todoBorder(0.55)}`,
             boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
             ...(isGhost ? {} : { top }),
-            ...staggeredStyle,
           }}
           onClick={isGhost ? undefined : handleCardClick}
           onMouseEnter={isGhost ? undefined : (e) => {
@@ -284,12 +265,6 @@ function TimelineCardInner({
     }
 
     // Version normale pour todos — barre "Todo" + heure, puis contenu
-    // Animation staggered styles
-    const staggeredStyleNormal = animationDelay !== undefined && !isGhost ? {
-      opacity: isVisible ? 1 : 0,
-      transform: isVisible ? 'translateY(0)' : 'translateY(-12px)',
-      transition: 'opacity 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
-    } : {};
     return (
       <div
         className={`rounded-lg overflow-hidden transition-all duration-200
@@ -303,7 +278,6 @@ function TimelineCardInner({
           border: `1px solid ${todoColor}40`,
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
           ...(isGhost ? {} : { top }),
-          ...staggeredStyleNormal,
         }}
       >
         {/* Barre : "Todo" à gauche, heure à droite (zone de drag) */}
@@ -370,13 +344,6 @@ function TimelineCardInner({
       accent: assigneeColor,
     };
 
-    // Animation staggered styles
-    const staggeredStyle = animationDelay !== undefined && !isGhost ? {
-      opacity: isVisible ? 1 : 0,
-      transform: isVisible ? 'translateY(0)' : 'translateY(-12px)',
-      transition: 'opacity 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
-    } : {};
-
     return (
       <div
         className={`rounded-lg overflow-hidden group transition-all duration-150
@@ -390,7 +357,6 @@ function TimelineCardInner({
           border: style.border,
           boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
           ...(isGhost ? {} : { top }),
-          ...staggeredStyle,
         }}
         onClick={isGhost ? undefined : handleCardClick}
         onMouseEnter={isGhost ? undefined : (e) => {
@@ -436,13 +402,6 @@ function TimelineCardInner({
     accent: assigneeColor,
   };
 
-  // Animation staggered styles
-  const staggeredStyle = animationDelay !== undefined && !isGhost ? {
-    opacity: isVisible ? 1 : 0,
-    transform: isVisible ? 'translateY(0)' : 'translateY(-12px)',
-    transition: 'opacity 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
-  } : {};
-
   return (
     <div
       className={`rounded-xl overflow-hidden group transition-all duration-200 ease-out
@@ -458,7 +417,6 @@ function TimelineCardInner({
           ? `0 12px 28px rgba(0,0,0,0.35), ${style.hoverGlow}`
           : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         ...(isGhost ? {} : { top, willChange: justLanded ? 'transform' : 'transform, box-shadow, border-color' }),
-        ...staggeredStyle,
       }}
       onClick={isGhost ? undefined : handleCardClick}
       onMouseEnter={isGhost ? undefined : (e) => {

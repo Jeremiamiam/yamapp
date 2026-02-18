@@ -21,6 +21,7 @@ export function ContactForm() {
   const mode = isOpen ? activeModal.mode : 'create';
   const clientId = isOpen ? activeModal.clientId : '';
   const existingContact = isOpen && activeModal.mode === 'edit' ? activeModal.contact : undefined;
+  const presetContact = isOpen && activeModal.mode === 'create' ? activeModal.presetContact : undefined;
 
   const {
     register,
@@ -46,17 +47,24 @@ export function ContactForm() {
           email: existingContact.email,
           phone: existingContact.phone ?? '',
         });
+      } else if (presetContact) {
+        reset({
+          name: presetContact.name ?? '',
+          role: presetContact.role ?? '',
+          email: presetContact.email ?? '',
+          phone: presetContact.phone ?? '',
+        });
       } else {
         reset({ name: '', role: '', email: '', phone: '' });
       }
     }
-  }, [isOpen, existingContact, reset]);
+  }, [isOpen, existingContact, presetContact, reset]);
 
   const onSubmit = (data: ContactFormData) => {
     const contactData = {
-      name: data.name.trim(),
-      role: data.role.trim(),
-      email: data.email.trim(),
+      name: (data.name ?? '').trim(),
+      role: (data.role ?? '').trim(),
+      email: (data.email ?? '').trim(),
       phone: data.phone?.trim() || undefined,
     };
     if (mode === 'edit' && existingContact) {
@@ -103,20 +111,20 @@ export function ContactForm() {
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        <FormField label="Nom complet" required error={errors.name?.message}>
+        <FormField label="Nom complet" error={errors.name?.message}>
           <Input
             {...register('name')}
             placeholder="Ex: Marie Dupont"
             autoFocus
           />
         </FormField>
-        <FormField label="Rôle / Fonction" required error={errors.role?.message}>
+        <FormField label="Rôle / Fonction" error={errors.role?.message}>
           <Input
             {...register('role')}
             placeholder="Ex: Directrice Marketing"
           />
         </FormField>
-        <FormField label="Email" required error={errors.email?.message}>
+        <FormField label="Email" error={errors.email?.message}>
           <Input
             type="email"
             {...register('email')}

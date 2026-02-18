@@ -4,6 +4,7 @@ import type { ClientDocument } from '@/types';
 
 const getDefaultTimelineRange = () => {
   const start = new Date();
+  start.setDate(start.getDate() - 14);
   start.setHours(0, 0, 0, 0);
   const end = new Date();
   end.setDate(end.getDate() + 90);
@@ -11,10 +12,15 @@ const getDefaultTimelineRange = () => {
   return { start, end };
 };
 
-const persistView = (view: ViewType) => {
+const persistView = (view: ViewType, clientId?: string | null) => {
   if (typeof window !== 'undefined') {
     try {
       localStorage.setItem('yam-current-view', view);
+      if (clientId) {
+        localStorage.setItem('yam-selected-client', clientId);
+      } else {
+        localStorage.removeItem('yam-selected-client');
+      }
     } catch (_) {}
   }
 };
@@ -54,7 +60,7 @@ export const createUiSlice: StateCreator<AppState, [], [], Pick<AppState, UiSlic
 
   navigateToClient: (clientId) => {
     const current = get().currentView;
-    persistView('client-detail');
+    persistView('client-detail', clientId);
     set({ currentView: 'client-detail', previousView: current, selectedClientId: clientId });
   },
 
@@ -99,7 +105,11 @@ export const createUiSlice: StateCreator<AppState, [], [], Pick<AppState, UiSlic
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('yam-current-view');
-        if (saved && ['timeline', 'production', 'clients', 'compta', 'admin'].includes(saved)) {
+        const savedClientId = localStorage.getItem('yam-selected-client');
+        
+        if (saved === 'client-detail' && savedClientId) {
+          set({ currentView: 'client-detail', selectedClientId: savedClientId });
+        } else if (saved && ['timeline', 'production', 'clients', 'compta', 'admin'].includes(saved)) {
           set({ currentView: saved as ViewType });
         }
       } catch (_) {}

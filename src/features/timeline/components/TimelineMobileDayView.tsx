@@ -304,10 +304,11 @@ export function TimelineMobileDayView() {
             <div className="relative" style={{ height: totalHeight + GRID_PADDING_TOP + BOTTOM_SPACER }}>
               {LUNCH_START_HOUR >= START_HOUR && LUNCH_START_HOUR + 1 < END_HOUR && !isWeekend && (
                 <div
-                  className="absolute left-0 right-0 border-y-2 border-[var(--accent-lime)]/20 bg-[var(--accent-lime)]/5 pointer-events-none"
+                  className="absolute left-0 right-0 pointer-events-none"
                   style={{
                     top: GRID_PADDING_TOP + (LUNCH_START_HOUR - START_HOUR) * hourHeight,
                     height: hourHeight * 2,
+                    backgroundImage: 'repeating-linear-gradient(-35deg, transparent 0, transparent 2px, rgba(212, 245, 66, 0.06) 2px, rgba(212, 245, 66, 0.06) 3px)',
                   }}
                 />
               )}
@@ -323,16 +324,12 @@ export function TimelineMobileDayView() {
                 const now = new Date();
                 const currentHour = now.getHours();
                 if (currentHour < START_HOUR || currentHour > END_HOUR) return null;
+                const lineTop = GRID_PADDING_TOP + ((currentHour - START_HOUR) + now.getMinutes() / 60) * hourHeight;
                 return (
                   <div
-                    className="absolute left-0 right-0 z-10 flex items-center"
-                    style={{
-                      top: GRID_PADDING_TOP + ((currentHour - START_HOUR) + now.getMinutes() / 60) * hourHeight,
-                    }}
-                  >
-                    <div className="w-2 h-2 rounded-full bg-[var(--accent-coral)] animate-pulse-glow" />
-                    <div className="flex-1 h-[2px] bg-[var(--accent-coral)]" />
-                  </div>
+                    className="absolute left-0 right-0 z-0 pointer-events-none border-t border-dashed border-[var(--accent-lime)]/70"
+                    style={{ top: lineTop }}
+                  />
                 );
               })()}
 
@@ -364,6 +361,27 @@ export function TimelineMobileDayView() {
                     />
                   );
                 })}
+
+              {/* Poignées heure actuelle : centre pile sur la ligne, légèrement hors champ colonne */}
+              {isToday && (() => {
+                const now = new Date();
+                const currentHour = now.getHours();
+                if (currentHour < START_HOUR || currentHour > END_HOUR) return null;
+                const lineTop = GRID_PADDING_TOP + ((currentHour - START_HOUR) + now.getMinutes() / 60) * hourHeight;
+                const handleSize = 10;
+                return (
+                  <>
+                    <div
+                      className="absolute left-0 w-2.5 h-2.5 rounded-full bg-[var(--accent-lime)] border-2 border-[var(--bg-primary)] pointer-events-none z-10"
+                      style={{ top: lineTop - handleSize / 2, transform: 'translateX(-50%)' }}
+                    />
+                    <div
+                      className="absolute right-0 w-2.5 h-2.5 rounded-full bg-[var(--accent-lime)] border-2 border-[var(--bg-primary)] pointer-events-none z-10"
+                      style={{ top: lineTop - handleSize / 2, transform: 'translateX(50%)' }}
+                    />
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

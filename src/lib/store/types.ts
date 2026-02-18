@@ -10,8 +10,9 @@ export interface TimelineFilters {
 }
 
 export type ModalType =
-  | { type: 'contact'; mode: 'create' | 'edit'; clientId: string; contact?: Contact }
+  | { type: 'contact'; mode: 'create' | 'edit'; clientId: string; contact?: Contact; presetContact?: Partial<Contact> }
   | { type: 'document'; mode: 'create' | 'edit'; clientId: string; document?: ClientDocument }
+  | { type: 'report-upload'; clientId: string }
   | { type: 'deliverable'; mode: 'create' | 'edit'; clientId?: string; deliverable?: Deliverable }
   | { type: 'call'; mode: 'create' | 'edit'; clientId?: string; call?: Call; presetCallType?: CallType }
   | { type: 'client'; mode: 'create' | 'edit'; client?: Client; presetStatus?: ClientStatus }
