@@ -256,7 +256,7 @@ export function DocumentForm() {
             )}
             {analyzeCost !== null && (
               <p className="text-[10px] text-[var(--text-muted)] text-right">
-                Coût requête : ~${(analyzeCost * 100).toFixed(4)} ¢
+                {`Coût requête : ~${(analyzeCost * 100).toFixed(2)} ¢`}
               </p>
             )}
             <div className="flex items-center gap-3 py-1">
