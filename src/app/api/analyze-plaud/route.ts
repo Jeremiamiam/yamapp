@@ -19,7 +19,11 @@ const USER_PROMPT = (transcript: string) => `Analyse cette transcription de réu
   keyPoints: string[],                     // 3 à 7 points clés abordés
   actionItems: { text: string; assignee?: string }[],  // actions concrètes à faire
   nextSteps?: string,                      // prochaines étapes ou date de prochain RDV
-  transcriptionExcerpt?: string            // extrait le plus pertinent de la transcription (max 300 caractères)
+  transcriptionExcerpt?: string,           // extrait le plus pertinent de la transcription (max 300 caractères)
+  suggestedDeliverables?: { name: string; type: "creative" | "document" | "other" }[]
+  // 0 à 5 livrables concrets détectés dans la conversation (ex: logo, site web, plaquette, vidéo...)
+  // "creative" = création visuelle/audio/vidéo, "document" = doc écrit/présentation, "other" = autre
+  // Laisser vide si aucun livrable clairement évoqué
 }
 
 Transcription :
