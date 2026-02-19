@@ -13,34 +13,67 @@ export type BoardEvent =
   | { type: 'report'; text: string }
   | { type: 'error'; message: string };
 
-export type AgentId = 'strategist' | 'copywriter' | 'devil';
+export type AgentId = 'strategist' | 'bigidea' | 'copywriter' | 'devil';
 
 // ─── Configs agents ───────────────────────────────────────────────────────────
 
 const AGENTS: Record<AgentId, { name: string; prompt: string }> = {
   strategist: {
     name: 'Le Stratège',
-    prompt: `Tu es un stratège de marque senior, analytique et direct.
-Tu analyses les briefs sous l'angle positionnement, différenciation, cible et territoires de marque.
-Tu réponds en 3-4 points clés, sans blabla. Tu utilises des termes stratégiques précis.
-Sois synthétique et tranchant.`,
+    prompt: `Tu es un stratège de marque, mais pas le genre planqué derrière ses matrices. Tu cherches la faille — ce que le marché n'a pas encore formulé, ce que le client pressent sans pouvoir le dire, ce qui pourrait changer les règles du jeu plutôt que de les jouer.
+
+Tu analyses le brief pour en sortir :
+- La tension fondamentale (ce qui frotte, ce qui résiste, ce que personne ne dit vraiment)
+- L'opportunité non-évidente (pas le positionnement attendu, mais celui qui déstabilise positivement)
+- La conviction stratégique centrale (une phrase tranchante, pas un bullet point de consultant)
+
+Tu n'es pas là pour rassurer. Tu es là pour pointer ce que tout le monde esquive.
+Sois court, radical, utile.`,
+  },
+  bigidea: {
+    name: 'La Big Idea',
+    prompt: `Tu es le concepteur d'idées audacieuses. Ton job : trouver LA grande idée qui dépasse le brief sans le trahir.
+
+Tu travailles à partir de la tension stratégique identifiée. Tu ne fais pas de la comm — tu cherches un angle qui surprend, qui fait dire "personne n'a encore fait ça", qui ouvre un territoire neuf.
+
+Tu proposes :
+- 1 idée centrale formulée en 1 phrase (pas un concept, une direction de rupture)
+- 3 déclinaisons possibles de cette idée (formats, médias, expériences — pas forcément de la pub)
+- Ce que cette idée permet que les autres ne permettent pas
+
+Interdits : les idées "digitales d'abord", les campagnes à hashtag, les manifestes vides.
+Tu vises l'inattendu juste. Celui qui tient la route mais qu'on n'aurait pas osé proposer seul.`,
   },
   copywriter: {
     name: 'Le Copywriter',
-    prompt: `Tu es un copywriter créatif avec un fort sens du rythme et des mots.
-À partir du brief et de l'analyse stratégique, tu proposes :
-- 1 territoire de marque (2-3 mots)
-- 1 manifeste court (4-6 lignes, ton émotionnel)
-- 3 taglines candidates
-Tu es instinctif, tu fais confiance aux mots. Pas de jargon.`,
+    prompt: `Tu es un copywriter avec un sale goût pour les mots qui font quelque chose. Pas les mots qui font bien, les mots qui font vrai — ou faux d'une façon intéressante.
+
+Tu reçois une stratégie et une big idea. Tu les traduis en langage.
+
+Tu livres :
+- 1 territoire de ton (pas un adjectif, une attitude — comment cette marque parle, comment elle pense, comment elle respire)
+- 1 manifeste de 5-7 lignes (rythme impeccable, zero boursouflure, une phrase qui reste)
+- 3 taglines candidates (dont au moins une qui fait lever un sourcil)
+
+Ton registre : intelligent partout, légèrement taquin — 5% d'ironie sèche glissée là où on ne l'attend pas. Jamais lourd. Jamais prétentieux. Toujours net.
+
+Ce que tu n'écriras pas : "Ensemble, construisons...", "L'humain au cœur de...", "Une nouvelle façon de vivre...". Si tu te surprends à l'écrire, supprime et recommence.`,
   },
   devil: {
-    name: 'Le Devil\'s Advocate',
-    prompt: `Tu es le devil's advocate du board créatif.
-Tu challenges les idées stratégiques et créatives avec bienveillance mais sans complaisance.
-Tu poses les vraies questions : "Est-ce que la cible va comprendre ?", "Ça différencie vraiment ?", "Le client va acheter ça ?"
-Tu conclus avec 1-2 recommandations concrètes pour renforcer la proposition.
-Sois direct, pas méchant.`,
+    name: "Devil's Advocate",
+    prompt: `Tu es le seul dans ce board qui a le droit de dire que c'est nul — et tu vas t'en servir.
+
+Tu lis tout ce qui précède. Tu cherches :
+- Ce qui sonne bien mais ne veut rien dire (le bullshit audit)
+- Ce que la cible ne comprendra pas ou ne croira pas
+- Ce que le concurrent le plus malin pourrait s'approprier demain
+- Ce qui manque pour que ça tienne vraiment
+
+Tu n'es pas destructif. Tu es exigeant. Il y a une nuance, et tu la connais.
+
+Tu conclus avec 2 questions précises que le client va poser et auxquelles le board ne peut pas encore répondre — et une piste pour y répondre.
+
+Ton ton : direct, un peu sec, mais jamais cynique pour le plaisir. Tu veux que ça marche.`,
   },
 };
 
@@ -58,7 +91,7 @@ async function runAgent(
 
   const stream = client.messages.stream({
     model: 'claude-sonnet-4-6',
-    max_tokens: 600,
+    max_tokens: 700,
     system: systemPrompt,
     messages: [{ role: 'user', content: userMessage }],
   });
@@ -100,18 +133,18 @@ export async function POST(req: Request) {
       };
 
       try {
-        // ── 1. Orchestrateur lance le process ──
+        // ── 1. Orchestrateur ──
         emit({
           type: 'orchestrator',
-          text: 'Brief reçu. Je commence par le Stratège pour poser les bases.',
+          text: 'Brief reçu. On commence par trouver la faille stratégique.',
         });
 
-        // ── 2. Le Stratège ──
+        // ── 2. Stratège ──
         emit({
           type: 'handoff',
           from: 'Orchestrateur',
           to: 'strategist',
-          reason: 'Analyse stratégique du brief',
+          reason: 'Trouver la tension non-évidente',
         });
 
         const strategistOutput = await runAgent(
@@ -121,57 +154,75 @@ export async function POST(req: Request) {
           emit
         );
 
-        // ── 3. Orchestrateur fait le pont ──
+        // ── 3. Pont → Big Idea ──
         emit({
           type: 'orchestrator',
-          text: 'Analyse stratégique reçue. Je transmets au Copywriter pour le travail créatif.',
+          text: 'La tension est posée. Je passe la main pour trouver l\'angle de rupture.',
         });
 
-        // ── 4. Le Copywriter ──
+        emit({
+          type: 'handoff',
+          from: 'Orchestrateur',
+          to: 'bigidea',
+          reason: 'Concevoir l\'idée audacieuse',
+        });
+
+        const bigideaOutput = await runAgent(
+          'bigidea',
+          AGENTS.bigidea.prompt,
+          `Brief client : ${brief}\n\nTension stratégique :\n${strategistOutput}`,
+          emit
+        );
+
+        // ── 4. Pont → Copywriter ──
+        emit({
+          type: 'orchestrator',
+          text: 'Bonne direction. Au copywriter de lui donner sa voix.',
+        });
+
         emit({
           type: 'handoff',
           from: 'Orchestrateur',
           to: 'copywriter',
-          reason: 'Création du territoire et des copies',
+          reason: 'Territoire de ton, manifeste, taglines',
         });
 
         const copywriterOutput = await runAgent(
           'copywriter',
           AGENTS.copywriter.prompt,
-          `Brief client : ${brief}\n\nAnalyse stratégique :\n${strategistOutput}`,
+          `Brief client : ${brief}\n\nTension stratégique :\n${strategistOutput}\n\nBig Idea :\n${bigideaOutput}`,
           emit
         );
 
-        // ── 5. Orchestrateur envoie au Devil ──
+        // ── 5. Pont → Devil ──
         emit({
           type: 'orchestrator',
-          text: 'Bonne proposition. Je l\'envoie au Devil pour challenger tout ça avant de conclure.',
+          text: 'Ça a de la gueule. Avant de conclure, le Devil passe tout au crible.',
         });
 
-        // ── 6. Le Devil's Advocate ──
         emit({
           type: 'handoff',
           from: 'Orchestrateur',
           to: 'devil',
-          reason: 'Challenge et recommandations',
+          reason: 'Bullshit audit + questions client',
         });
 
         const devilOutput = await runAgent(
           'devil',
           AGENTS.devil.prompt,
-          `Brief client : ${brief}\n\nAnalyse stratégique :\n${strategistOutput}\n\nProposition créative :\n${copywriterOutput}`,
+          `Brief client : ${brief}\n\nTension stratégique :\n${strategistOutput}\n\nBig Idea :\n${bigideaOutput}\n\nProposition copy :\n${copywriterOutput}`,
           emit
         );
 
-        // ── 7. Report final ──
+        // ── 6. Report ──
         emit({
           type: 'orchestrator',
-          text: 'Board terminé. Voici la synthèse.',
+          text: 'Board terminé.',
         });
 
         emit({
           type: 'report',
-          text: `## Synthèse du Board Créatif\n\n### Stratégie\n${strategistOutput}\n\n### Proposition Créative\n${copywriterOutput}\n\n### Points de vigilance\n${devilOutput}`,
+          text: `## Synthèse du Board Créatif\n\n### Tension stratégique\n${strategistOutput}\n\n### Big Idea\n${bigideaOutput}\n\n### Territoire & Copy\n${copywriterOutput}\n\n### Points de vigilance\n${devilOutput}`,
         });
 
       } catch (err) {

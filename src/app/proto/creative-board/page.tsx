@@ -12,6 +12,12 @@ const AGENT_CONFIG: Record<AgentId, { label: string; color: string; accent: stri
     accent: 'var(--accent-cyan-dim)',
     icon: '◈',
   },
+  bigidea: {
+    label: 'La Big Idea',
+    color: 'var(--accent-amber)',
+    accent: 'var(--accent-amber-dim)',
+    icon: '⬡',
+  },
   copywriter: {
     label: 'Le Copywriter',
     color: 'var(--accent-lime)',
@@ -436,14 +442,15 @@ export default function CreativeBoardPage() {
             marginBottom: 32,
           }}>
             {(Object.entries(AGENT_CONFIG) as [AgentId, typeof AGENT_CONFIG[AgentId]][]).map(([id, cfg]) => (
-              <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+              <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 40%' }}>
                 <span style={{ color: cfg.color, fontSize: 16 }}>{cfg.icon}</span>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: cfg.color }}>{cfg.label}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                    {id === 'strategist' && 'Positionnement & territoires'}
-                    {id === 'copywriter' && 'Concept & copies'}
-                    {id === 'devil' && 'Challenge & recommandations'}
+                    {id === 'strategist' && 'La faille, pas le plan'}
+                    {id === 'bigidea' && 'L\'angle de rupture'}
+                    {id === 'copywriter' && 'Smart, net, légèrement taquin'}
+                    {id === 'devil' && 'Bullshit audit'}
                   </div>
                 </div>
               </div>
