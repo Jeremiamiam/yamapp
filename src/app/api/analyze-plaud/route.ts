@@ -48,10 +48,14 @@ export async function POST(req: Request) {
     const client = new Anthropic({ apiKey });
     const message = await client.messages.create({
       model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 2048,
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: USER_PROMPT(transcript.trim()) }],
     });
+
+    if (message.stop_reason === 'max_tokens') {
+      return Response.json({ error: 'Transcription trop longue : la synthèse a été tronquée. Essaie avec un extrait plus court.' }, { status: 422 });
+    }
 
     const rawText = (message.content[0] as { type: string; text: string }).text;
 
