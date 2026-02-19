@@ -30,6 +30,8 @@ export interface ReportPlaudTemplate {
   suggestedEvents?: { type: 'deliverable' | 'call'; label: string; date: string }[];
   /** Clés des événements déjà ajoutés à la timeline (persisté pour rétroactivité après refresh) */
   addedEventKeys?: string[];
+  /** Transcription brute conservée pour alimenter le Creative Board */
+  rawTranscript?: string;
 }
 
 export type StructuredDocument = BriefTemplate | ReportPlaudTemplate;

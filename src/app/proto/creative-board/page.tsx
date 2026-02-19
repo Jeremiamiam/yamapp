@@ -345,6 +345,14 @@ export default function CreativeBoardPage() {
   const storedOutputsRef = useRef<{ strategist: string; bigidea: string } | null>(null);
 
   useEffect(() => {
+    const prefill = sessionStorage.getItem('creative-board-brief-prefill');
+    if (prefill) {
+      setBrief(prefill);
+      sessionStorage.removeItem('creative-board-brief-prefill');
+    }
+  }, []);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [timeline, pendingIdeas]);
 

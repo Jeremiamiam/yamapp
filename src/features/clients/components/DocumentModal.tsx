@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useCallback, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { formatDocDate } from '@/lib/date-utils';
 import { getDocumentTypeStyle } from '@/lib/styles';
@@ -118,10 +119,12 @@ function DocumentModalContent({
   onEditDocument?: () => void;
   onDeleteDocument?: () => void;
 }) {
+  const router = useRouter();
   const updateDocument = useAppStore((s) => s.updateDocument);
   const docStyle = getDocTypeStyle(selectedDocument.type);
   const showTemplated = structured !== null;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [generatingBrief, setGeneratingBrief] = useState(false);
 
   const reportData = structured && selectedDocument.type === 'report' ? (structured as ReportPlaudTemplate) : null;
   const onEventAdded = useCallback(
@@ -140,6 +143,30 @@ function DocumentModalContent({
     },
     [reportData, clientId, selectedDocument.id, updateDocument]
   );
+
+  const handleGenerateBrief = useCallback(async () => {
+    if (!reportData?.rawTranscript) return;
+    setGeneratingBrief(true);
+    try {
+      const res = await fetch('/api/brief-from-plaud', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawTranscript: reportData.rawTranscript }),
+      });
+      const data = await res.json() as { brief?: string; error?: string };
+      if (!res.ok || data.error) {
+        toast.error(data.error ?? 'Erreur lors de la génération du brief.');
+        return;
+      }
+      sessionStorage.setItem('creative-board-brief-prefill', data.brief ?? '');
+      router.push('/proto/creative-board');
+      onClose();
+    } catch {
+      toast.error('Impossible de générer le brief.');
+    } finally {
+      setGeneratingBrief(false);
+    }
+  }, [reportData, router, onClose]);
 
   const handleDeleteClick = () => setShowDeleteConfirm(true);
   const handleDeleteCancel = () => setShowDeleteConfirm(false);
@@ -233,16 +260,34 @@ function DocumentModalContent({
             </div>
           )}
         </div>
-        <div className="flex-shrink-0 px-6 py-4 border-t border-[var(--border-subtle)] flex items-center justify-between">
+        <div className="flex-shrink-0 px-6 py-4 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
           <span className="text-xs text-[var(--text-muted)]">
             Derniere modification : {formatDocDate(selectedDocument.updatedAt)}
           </span>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-[var(--bg-tertiary)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
-          >
-            Fermer
-          </button>
+          <div className="flex items-center gap-2">
+            {reportData?.rawTranscript && (
+              <button
+                onClick={handleGenerateBrief}
+                disabled={generatingBrief}
+                className="px-4 py-2 rounded-lg bg-[var(--accent-violet)]/15 border border-[var(--accent-violet)]/30 text-sm font-semibold text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {generatingBrief ? (
+                  <>
+                    <span className="w-3 h-3 border-2 border-[var(--accent-violet)]/30 border-t-[var(--accent-violet)] rounded-full animate-spin" />
+                    Génération…
+                  </>
+                ) : (
+                  '⬡ Brief Créatif →'
+                )}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg bg-[var(--bg-tertiary)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
+            >
+              Fermer
+            </button>
+          </div>
         </div>
       </div>
 
