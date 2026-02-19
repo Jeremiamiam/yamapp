@@ -133,11 +133,12 @@ export function DocumentForm() {
       }
       const { _meta, ...doc } = data;
       void _meta;
+      const docWithRaw = { ...doc, rawTranscript: transcriptContent.trim() };
       // Création automatique du report : plus d'étape "Créer", on enregistre et on ferme
       addDocument(clientId, {
         type: 'report',
-        title: doc.title,
-        content: JSON.stringify(doc),
+        title: docWithRaw.title,
+        content: JSON.stringify(docWithRaw),
       });
       closeModal();
     } catch {

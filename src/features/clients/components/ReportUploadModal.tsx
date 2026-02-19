@@ -127,7 +127,8 @@ export function ReportUploadModal() {
         return;
       }
       const { error: _e, ...doc } = data;
-      addDocument(clientId, { type: 'report', title: doc.title, content: JSON.stringify(doc) });
+      const docWithRaw = { ...doc, rawTranscript: transcriptContent.trim() };
+      addDocument(clientId, { type: 'report', title: docWithRaw.title, content: JSON.stringify(docWithRaw) });
       setReportData(doc);
     } catch {
       setAnalyzeError("Impossible de contacter l'API. Verifie ta connexion.");

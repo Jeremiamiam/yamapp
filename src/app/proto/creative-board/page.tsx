@@ -572,6 +572,11 @@ export default function CreativeBoardPage() {
   const storedOutputsRef = useRef<{ strategist: string; bigidea: string } | null>(null);
 
   useEffect(() => {
+    const prefill = sessionStorage.getItem('creative-board-brief-prefill');
+    if (prefill) {
+      setBrief(prefill);
+      sessionStorage.removeItem('creative-board-brief-prefill');
+    }
     fetch('/api/creative-board')
       .then((r) => r.ok ? r.json() : null)
       .then((data: { agents?: Record<AgentId, { name: string; prompts: Record<AgentStyle, string> }> } | null) => {
