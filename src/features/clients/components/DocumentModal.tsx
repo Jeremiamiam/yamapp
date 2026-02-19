@@ -121,6 +121,7 @@ function DocumentModalContent({
 }) {
   const router = useRouter();
   const updateDocument = useAppStore((s) => s.updateDocument);
+  const addDocument = useAppStore((s) => s.addDocument);
   const docStyle = getDocTypeStyle(selectedDocument.type);
   const showTemplated = structured !== null;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -159,6 +160,10 @@ function DocumentModalContent({
         toast.error(data.error ?? 'Erreur lors de la génération du brief.');
         return;
       }
+      if (data.brief && clientId) {
+        const briefTitle = `Brief - ${selectedDocument.title}`;
+        addDocument(clientId, { type: 'brief', title: briefTitle, content: data.brief });
+      }
       sessionStorage.setItem('creative-board-brief-prefill', data.brief ?? '');
       router.push('/proto/creative-board');
       onClose();
@@ -167,7 +172,7 @@ function DocumentModalContent({
     } finally {
       setGeneratingBrief(false);
     }
-  }, [router, onClose]);
+  }, [router, onClose, clientId, selectedDocument.title, addDocument]);
 
   const handleGenerateBrief = useCallback(() => {
     const transcript = reportData?.rawTranscript;

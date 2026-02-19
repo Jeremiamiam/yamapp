@@ -186,6 +186,10 @@ export function ReportUploadModal() {
         setAnalyzeError(data.error ?? 'Erreur lors de la génération du brief.');
         return;
       }
+      if (data.brief && clientId) {
+        const briefTitle = `Brief - ${reportData?.title ?? new Date().toLocaleDateString('fr-FR')}`;
+        addDocument(clientId, { type: 'brief', title: briefTitle, content: data.brief });
+      }
       sessionStorage.setItem('creative-board-brief-prefill', data.brief ?? '');
       router.push('/proto/creative-board');
       handleClose();
