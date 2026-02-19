@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import type { ReportPlaudTemplate } from '@/types/document-templates';
 import { getDocumentTypeStyle } from '@/lib/styles';
+import { toast } from '@/lib/toast';
 import { Modal, Button, PlaudLogo } from '@/components/ui';
 
 const Upload = () => (
@@ -75,7 +76,7 @@ function sameDay(a: Date | string | null | undefined, b: string): boolean {
 }
 
 export function ReportUploadModal() {
-  const { activeModal, closeModal, addDocument, addDeliverable, addCall } = useAppStore();
+  const { activeModal, closeModal, addDocument, addDeliverable, addCall, openDocument } = useAppStore();
   const isOpen = activeModal?.type === 'report-upload';
   const clientId = isOpen ? activeModal.clientId : '';
 
@@ -87,6 +88,7 @@ export function ReportUploadModal() {
   const [reportData, setReportData] = useState<ReportPlaudTemplate | null>(null);
   const [addedEvents, setAddedEvents] = useState<Set<string>>(new Set());
   const [addedDeliverables, setAddedDeliverables] = useState<Set<string>>(new Set());
+  const [generatingBrief, setGeneratingBrief] = useState(false);
 
   const deliverables = useAppStore((s) => s.deliverables).filter((d) => d.clientId === clientId);
   const calls = useAppStore((s) => s.calls).filter((c) => c.clientId === clientId);
@@ -128,7 +130,7 @@ export function ReportUploadModal() {
       }
       const { error: _e, ...doc } = data;
       const docWithRaw = { ...doc, rawTranscript: transcriptContent.trim() };
-      addDocument(clientId, { type: 'report', title: docWithRaw.title, content: JSON.stringify(docWithRaw) });
+      await addDocument(clientId, { type: 'report', title: docWithRaw.title, content: JSON.stringify(docWithRaw) });
       setReportData(doc);
     } catch {
       setAnalyzeError("Impossible de contacter l'API. Verifie ta connexion.");
@@ -169,6 +171,37 @@ export function ReportUploadModal() {
     setAddedDeliverables((prev) => new Set(prev).add(name));
   };
 
+  const handleGenerateBrief = async () => {
+    if (!transcriptContent.trim() || !clientId) return;
+    setGeneratingBrief(true);
+    try {
+      const res = await fetch('/api/brief-from-plaud', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawTranscript: transcriptContent.trim() }),
+      });
+      const data = (await res.json()) as { brief?: string; error?: string };
+      if (!res.ok || data.error) {
+        setAnalyzeError(data.error ?? 'Erreur lors de la génération du brief.');
+        return;
+      }
+      const briefContent = data.brief ?? '';
+      const createdDoc = await addDocument(clientId, {
+        type: 'brief',
+        title: `Brief - ${reportData?.title ?? 'Plaud'}`,
+        content: briefContent,
+      });
+      handleClose();
+      toast.success('Brief généré', {
+        action: { label: 'Voir le brief', onClick: () => openDocument(createdDoc) },
+      });
+    } catch {
+      setAnalyzeError('Impossible de générer le brief.');
+    } finally {
+      setGeneratingBrief(false);
+    }
+  };
+
   const handleClose = () => {
     setReportData(null);
     setTranscriptContent('');
@@ -194,9 +227,31 @@ export function ReportUploadModal() {
       iconColor={typeStyle.text}
       size={reportData ? 'xl' : 'md'}
       footer={
-        <Button onClick={handleClose}>
-          {reportData ? 'Fermer' : 'Annuler'}
-        </Button>
+        <div className="flex items-center justify-end gap-2 w-full">
+          {reportData && (
+            <button
+              type="button"
+              onClick={handleGenerateBrief}
+              disabled={generatingBrief}
+              className="px-4 py-2 rounded-xl bg-[var(--accent-violet)]/15 border border-[var(--accent-violet)]/30 text-sm font-semibold text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              {generatingBrief ? (
+                <>
+                  <span className="w-3 h-3 border-2 border-[var(--accent-violet)]/30 border-t-[var(--accent-violet)] rounded-full animate-spin" />
+                  Génération…
+                </>
+              ) : (
+                <>
+                  <Sparkle />
+                  Brief Créatif →
+                </>
+              )}
+            </button>
+          )}
+          <Button onClick={handleClose}>
+            {reportData ? 'Fermer' : 'Annuler'}
+          </Button>
+        </div>
       }
     >
       {!reportData ? (

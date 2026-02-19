@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useCallback, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { formatDocDate } from '@/lib/date-utils';
 import { getDocumentTypeStyle } from '@/lib/styles';
@@ -92,6 +91,49 @@ function BriefTemplatedView({ data }: { data: BriefTemplate }) {
   );
 }
 
+/** Découpe le contenu texte du brief (template MARQUE / CIBLE / …) en sections pour affichage lisible. */
+function parseBriefSections(content: string): { title: string; body: string }[] {
+  const lines = content.split('\n');
+  const sections: { title: string; body: string }[] = [];
+  let current: { title: string; body: string } | null = null;
+  const isSectionHeader = (line: string) => /^[A-ZÀ-Ÿ][A-ZÀ-Ÿ0-9\s]+$/.test(line.trim()) && line.trim().length > 1;
+  for (const line of lines) {
+    if (isSectionHeader(line)) {
+      if (current) sections.push(current);
+      current = { title: line.trim(), body: '' };
+    } else if (current) {
+      current.body += (current.body ? '\n' : '') + line;
+    }
+  }
+  if (current) sections.push(current);
+  return sections;
+}
+
+function BriefContentView({ content }: { content: string }) {
+  const sections = parseBriefSections(content);
+  if (sections.length === 0) {
+    return (
+      <p className="text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap text-[15px]">
+        {content}
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-8 max-w-[65ch]">
+      {sections.map((sec, i) => (
+        <section key={i}>
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-[var(--accent-cyan)] mb-2.5">
+            {sec.title}
+          </h3>
+          <p className="text-[15px] leading-[1.7] text-[var(--text-secondary)] whitespace-pre-wrap">
+            {sec.body.trim()}
+          </p>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 function getDocTypeStyle(type: DocumentType) {
   const base = getDocumentTypeStyle(type);
   const icon = type === 'brief' ? <Briefcase /> : type === 'report' ? <PlaudLogo className="w-4 h-4" /> : <StickyNote />;
@@ -119,8 +161,10 @@ function DocumentModalContent({
   onEditDocument?: () => void;
   onDeleteDocument?: () => void;
 }) {
-  const router = useRouter();
   const updateDocument = useAppStore((s) => s.updateDocument);
+  const addDocument = useAppStore((s) => s.addDocument);
+  const openDocument = useAppStore((s) => s.openDocument);
+  const navigateToCreativeBoard = useAppStore((s) => s.navigateToCreativeBoard);
   const docStyle = getDocTypeStyle(selectedDocument.type);
   const showTemplated = structured !== null;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -159,15 +203,27 @@ function DocumentModalContent({
         toast.error(data.error ?? 'Erreur lors de la génération du brief.');
         return;
       }
-      sessionStorage.setItem('creative-board-brief-prefill', data.brief ?? '');
-      router.push('/proto/creative-board');
+      const briefContent = data.brief ?? '';
+      let createdDoc: import('@/types').ClientDocument | null = null;
+      if (clientId) {
+        createdDoc = await addDocument(clientId, {
+          type: 'brief',
+          title: `Brief - ${reportData?.title ?? 'Plaud'}`,
+          content: briefContent,
+        });
+      }
       onClose();
+      if (createdDoc) {
+        toast.success('Brief généré', {
+          action: { label: 'Voir le brief', onClick: () => openDocument(createdDoc!) },
+        });
+      }
     } catch {
       toast.error('Impossible de générer le brief.');
     } finally {
       setGeneratingBrief(false);
     }
-  }, [router, onClose]);
+  }, [onClose, clientId, reportData?.title, addDocument, openDocument]);
 
   const handleGenerateBrief = useCallback(() => {
     const transcript = reportData?.rawTranscript;
@@ -273,11 +329,15 @@ function DocumentModalContent({
             />
           )}
           {!showTemplated && (
-            <div className="prose prose-invert max-w-none">
-              <p className="text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap text-[15px]">
-                {selectedDocument.content}
-              </p>
-            </div>
+            selectedDocument.type === 'brief' ? (
+              <BriefContentView content={selectedDocument.content} />
+            ) : (
+              <div className="prose prose-invert max-w-none">
+                <p className="text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap text-[15px]">
+                  {selectedDocument.content}
+                </p>
+              </div>
+            )
           )}
         </div>
         <div className="flex-shrink-0 border-t border-[var(--border-subtle)]">
@@ -310,11 +370,25 @@ function DocumentModalContent({
               </button>
             </div>
           )}
-          <div className="px-6 py-4 flex items-center justify-between gap-3">
+          <div className="px-6 py-4 flex items-center justify-between gap-3 flex-wrap">
             <span className="text-xs text-[var(--text-muted)]">
-              Derniere modification : {formatDocDate(selectedDocument.updatedAt)}
+              Dernière modification : {formatDocDate(selectedDocument.updatedAt)}
             </span>
             <div className="flex items-center gap-2">
+              {selectedDocument.type === 'brief' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sessionStorage.setItem('creative-board-brief-prefill', selectedDocument.content);
+                    navigateToCreativeBoard();
+                    onClose();
+                  }}
+                  className="px-4 py-2 rounded-lg bg-[var(--accent-lime)]/15 border border-[var(--accent-lime)]/30 text-sm font-semibold text-[var(--accent-lime)] hover:bg-[var(--accent-lime)]/25 transition-colors flex items-center gap-2"
+                >
+                  <span>⬡</span>
+                  Envoyer au board
+                </button>
+              )}
               {reportData && (
                 <button
                   onClick={handleGenerateBrief}

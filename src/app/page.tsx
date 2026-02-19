@@ -14,9 +14,10 @@ import { ClientDetail, ClientsList, DocumentModal } from '@/features/clients/com
 import { ComptaView } from '@/features/compta/components';
 import { ProductionView } from '@/features/production/components/ProductionView';
 import { DayTodoDrawer } from '@/features/timeline/components/DayTodoDrawer';
+import { CreativeBoardPage } from '@/app/proto/creative-board/page';
 
 // Ordre des vues pour la navigation clavier (sans client-detail qui est une vue modale)
-const VIEW_ORDER = ['timeline', 'production', 'clients', 'compta'] as const;
+const VIEW_ORDER = ['timeline', 'production', 'creative-board', 'clients', 'compta'] as const;
 type MainView = typeof VIEW_ORDER[number];
 
 export default function Home() {
@@ -27,6 +28,7 @@ export default function Home() {
   const navigateToClients = useAppStore((state) => state.navigateToClients);
   const navigateToProduction = useAppStore((state) => state.navigateToProduction);
   const navigateToCompta = useAppStore((state) => state.navigateToCompta);
+  const navigateToCreativeBoard = useAppStore((state) => state.navigateToCreativeBoard);
   const isLoading = useAppStore((state) => state.isLoading);
   const loadingError = useAppStore((state) => state.loadingError);
   const { role, loading } = useUserRole();
@@ -92,9 +94,10 @@ export default function Home() {
     const newView = accessibleViews[newIndex];
     if (newView === 'timeline') navigateToTimeline();
     else if (newView === 'production') navigateToProduction();
+    else if (newView === 'creative-board') navigateToCreativeBoard();
     else if (newView === 'clients') navigateToClients();
     else if (newView === 'compta') navigateToCompta();
-  }, [currentView, role, navigateToTimeline, navigateToProduction, navigateToClients, navigateToCompta]);
+  }, [currentView, role, navigateToTimeline, navigateToProduction, navigateToCreativeBoard, navigateToClients, navigateToCompta]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -158,6 +161,12 @@ export default function Home() {
         return <ClientsList />;
       case 'production':
         return <ProductionView />;
+      case 'creative-board':
+        return (
+          <div className="flex-1 min-h-0 overflow-auto">
+            <CreativeBoardPage embedded />
+          </div>
+        );
       case 'compta':
         return <ComptaView />;
       case 'client-detail':

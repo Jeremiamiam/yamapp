@@ -224,7 +224,7 @@ async function runAgent(
   const isStrategist = agentId === 'strategist';
   const stream = client.messages.stream({
     model: 'claude-sonnet-4-6',
-    max_tokens: isStrategist ? 1200 : 700,
+    max_tokens: isStrategist ? 4096 : 700,
     system: systemPrompt,
     messages: [{ role: 'user', content: userMessage }],
     ...(isStrategist && { tools: STRATEGIST_TOOLS }),

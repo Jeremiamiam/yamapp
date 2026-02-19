@@ -1,6 +1,6 @@
 import type { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, TeamMember, Contact, ClientDocument, DayTodo, BillingHistory, BillingStatus, Project } from '@/types';
 
-export type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta' | 'admin' | 'production';
+export type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta' | 'admin' | 'production' | 'creative-board';
 export type ClientStatusFilter = 'all' | 'prospect' | 'client';
 export type AppRole = 'admin' | 'member' | null;
 
@@ -56,6 +56,7 @@ export interface AppState {
   navigateToCompta: () => void;
   navigateToAdmin: () => void;
   navigateToProduction: () => void;
+  navigateToCreativeBoard: () => void;
   navigateBack: () => void;
   restoreViewFromStorage: () => void;
   openDocument: (doc: ClientDocument) => void;
@@ -80,7 +81,7 @@ export interface AppState {
   deleteClientLink: (clientId: string, linkId: string) => Promise<void>;
 
   // CRUD Actions - Documents
-  addDocument: (clientId: string, doc: Omit<ClientDocument, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  addDocument: (clientId: string, doc: Omit<ClientDocument, 'id' | 'createdAt' | 'updatedAt'>) => Promise<ClientDocument>;
   updateDocument: (clientId: string, docId: string, data: Partial<ClientDocument>) => Promise<void>;
   deleteDocument: (clientId: string, docId: string) => Promise<void>;
 

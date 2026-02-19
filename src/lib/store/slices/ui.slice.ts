@@ -30,7 +30,7 @@ type UiSliceKeys =
   | 'activeModal' | 'filters' | 'timelineRange' | 'comptaYear' | 'compactWeeks'
   | 'setComptaYear' | 'setCompactWeeks'
   | 'navigateToClient' | 'navigateToTimeline' | 'navigateToClients' | 'navigateToCompta'
-  | 'navigateToAdmin' | 'navigateToProduction' | 'navigateBack' | 'restoreViewFromStorage'
+  | 'navigateToAdmin' | 'navigateToProduction' | 'navigateToCreativeBoard' | 'navigateBack' | 'restoreViewFromStorage'
   | 'openDocument' | 'closeDocument'
   | 'openModal' | 'closeModal'
   | 'setClientStatusFilter' | 'setTeamMemberFilter' | 'resetFilters' | 'setTimelineRange';
@@ -94,6 +94,12 @@ export const createUiSlice: StateCreator<AppState, [], [], Pick<AppState, UiSlic
     set({ currentView: 'production', previousView: current, selectedClientId: null });
   },
 
+  navigateToCreativeBoard: () => {
+    const current = get().currentView;
+    persistView('creative-board');
+    set({ currentView: 'creative-board', previousView: current, selectedClientId: null });
+  },
+
   navigateBack: () => {
     const { previousView } = get();
     const targetView = previousView === 'client-detail' ? 'clients' : (previousView || 'timeline');
@@ -109,7 +115,7 @@ export const createUiSlice: StateCreator<AppState, [], [], Pick<AppState, UiSlic
         
         if (saved === 'client-detail' && savedClientId) {
           set({ currentView: 'client-detail', selectedClientId: savedClientId });
-        } else if (saved && ['timeline', 'production', 'clients', 'compta', 'admin'].includes(saved)) {
+        } else if (saved && ['timeline', 'production', 'clients', 'compta', 'admin', 'creative-board'].includes(saved)) {
           set({ currentView: saved as ViewType });
         }
       } catch (_) {}

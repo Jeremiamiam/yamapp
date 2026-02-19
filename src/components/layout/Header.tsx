@@ -106,7 +106,7 @@ export function Header() {
   const { openDocsYam } = useGlobalActions();
   const [userDisplayName, setUserDisplayName] = useState<string>('');
   const [now, setNow] = useState(() => new Date());
-  const { currentView, navigateToTimeline, navigateToClients, navigateToCompta, navigateToProduction, deliverables, calls, getClientById, getTeamMemberById } = useAppStore();
+  const { currentView, navigateToTimeline, navigateToClients, navigateToCompta, navigateToProduction, navigateToCreativeBoard, deliverables, calls, getClientById, getTeamMemberById } = useAppStore();
   const canAccessCompta = isAdmin;
 
   // Rafraîchir "now" toutes les 30 secondes pour mettre à jour le countdown
@@ -328,9 +328,9 @@ export function Header() {
           <div className="flex items-center gap-0.5 md:gap-1 pl-2 md:pl-3 border-l border-[var(--border-subtle)]">
             <button
               type="button"
-              onClick={() => router.push('/proto/creative-board')}
-              className="p-1.5 md:p-2 rounded-md text-[var(--accent-lime)] hover:bg-[var(--accent-lime)]/10 transition-colors touch-manipulation min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center"
-              title="Creative Board — proto multi-agents"
+              onClick={navigateToCreativeBoard}
+              className={`p-1.5 md:p-2 rounded-md transition-colors touch-manipulation min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center ${currentView === 'creative-board' ? 'text-[var(--accent-lime)] bg-[var(--accent-lime)]/10' : 'text-[var(--accent-lime)] hover:bg-[var(--accent-lime)]/10'}`}
+              title="Creative Board"
               aria-label="Creative Board"
             >
               <SparkleIcon />

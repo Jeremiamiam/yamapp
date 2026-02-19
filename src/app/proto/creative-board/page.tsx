@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import type { BoardEvent, AgentId, AgentStyle } from '@/app/api/creative-board/route';
+import { useAppStore } from '@/lib/store';
 
 const AGENT_IDS: AgentId[] = ['strategist', 'bigidea', 'copywriter', 'devil'];
 
@@ -545,7 +547,7 @@ function ReportBlock({ text }: { text: string }) {
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 
-export default function CreativeBoardPage() {
+export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [brief, setBrief] = useState('');
   const [running, setRunning] = useState(false);
   const [boardPhase, setBoardPhase] = useState<BoardPhase>('idle');
@@ -788,13 +790,8 @@ export default function CreativeBoardPage() {
     ? 'var(--accent-amber)'
     : 'var(--text-muted)';
 
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--bg-primary)',
-      color: 'var(--text-primary)',
-      fontFamily: 'Instrument Sans, sans-serif',
-    }}>
+  const content = (
+    <>
       <style>{`
         @keyframes pulse {
           0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
@@ -1208,6 +1205,33 @@ export default function CreativeBoardPage() {
           </div>
         )}
       </div>
+    </>
+  );
+
+  if (embedded) return content;
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--bg-primary)',
+      color: 'var(--text-primary)',
+      fontFamily: 'Instrument Sans, sans-serif',
+    }}>
+      {content}
+    </div>
+  );
+}
+
+/** Redirection vers l’app avec la vue Creative Board (pour liens directs / pipeline PLAUD). */
+export default function ProtoCreativeBoardRedirect() {
+  const router = useRouter();
+  const navigateToCreativeBoard = useAppStore((s) => s.navigateToCreativeBoard);
+  useEffect(() => {
+    navigateToCreativeBoard();
+    router.replace('/');
+  }, [navigateToCreativeBoard, router]);
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
+      <div className="h-10 w-10 rounded-full border-2 border-[var(--accent-lime)] border-t-transparent animate-spin" />
     </div>
   );
 }

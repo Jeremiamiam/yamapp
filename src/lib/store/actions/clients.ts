@@ -190,9 +190,10 @@ export const createClientsActions: StateCreator<AppState, [], [], Pick<AppState,
   },
 
   addDocument: async (clientId, docData) => {
+    const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const now = new Date();
+    const doc: ClientDocument = { ...docData, id, createdAt: now, updatedAt: now };
     try {
-      const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const now = new Date();
       const supabase = createClient();
       const { error } = await supabase.from('documents').insert({
         id,
@@ -202,14 +203,15 @@ export const createClientsActions: StateCreator<AppState, [], [], Pick<AppState,
         updated_at: now.toISOString(),
       });
       if (error) throw error;
-      const doc: ClientDocument = { ...docData, id, createdAt: now, updatedAt: now };
       set((state) => ({
         clients: state.clients.map((client) =>
           client.id === clientId ? { ...client, documents: [...client.documents, doc], updatedAt: now } : client
         ),
       }));
+      return doc;
     } catch (e) {
       handleError(new AppError(getErrorMessage(e), 'DOC_ADD_FAILED', "Impossible d'ajouter le document"));
+      throw e;
     }
   },
 
