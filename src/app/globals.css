@@ -312,6 +312,15 @@ h1, h2, h3 {
 }
 
 /* Spotlight animation */
+/* Creative Board — rendu Markdown des sorties agents */
+.agent-markdown {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.agent-markdown > *:last-child {
+  margin-bottom: 0;
+}
+
 @keyframes spotlight-appear {
   from {
     opacity: 0;
