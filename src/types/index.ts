@@ -93,7 +93,7 @@ export interface Project {
   id: string;
   clientId: string;
   name: string;
-  quoteAmount?: number;
+  quoteAmount?: number | null;
   quoteDate?: string;
   depositAmount?: number;
   depositDate?: string;
@@ -146,7 +146,7 @@ export interface Deliverable {
   isPotentiel?: boolean;
   // Facturation
   billingStatus: BillingStatus;
-  quoteAmount?: number;       // Montant total devisé
+  quoteAmount?: number | null; // Montant total devisé (null = effacement explicite en base)
   quoteDate?: string;         // Date devis (YYYY-MM-DD)
   depositAmount?: number;     // Montant acompte
   depositDate?: string;       // Date acompte (YYYY-MM-DD)

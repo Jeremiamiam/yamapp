@@ -162,7 +162,7 @@ export function DeliverableForm() {
         }
         // Initialize billing data avec dates
         setBillingData({
-          devis: existingDeliverable.quoteAmount,
+          devis: existingDeliverable.quoteAmount ?? undefined,
           devisDate: existingDeliverable.quoteDate,
           acompte: existingDeliverable.depositAmount,
           acompteDate: existingDeliverable.depositDate,
