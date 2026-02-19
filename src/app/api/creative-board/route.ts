@@ -10,6 +10,7 @@ export type BoardEvent =
   | { type: 'agent_start'; agent: AgentId }
   | { type: 'agent_chunk'; agent: AgentId; text: string }
   | { type: 'agent_done'; agent: AgentId }
+  | { type: 'awaiting_selection'; ideas: { title: string; body: string }[] }
   | { type: 'report'; text: string }
   | { type: 'error'; message: string };
 
@@ -36,19 +37,25 @@ Sois court, radical, utile.`,
 
 Tu travailles à partir de la tension stratégique identifiée. Tu ne fais pas de la comm — tu cherches un angle qui surprend, qui fait dire "personne n'a encore fait ça", qui ouvre un territoire neuf.
 
-Tu proposes :
-- 1 idée centrale formulée en 1 phrase (pas un concept, une direction de rupture)
-- 3 déclinaisons possibles de cette idée (formats, médias, expériences — pas forcément de la pub)
-- Ce que cette idée permet que les autres ne permettent pas
+Tu proposes exactement 3 idées de rupture. Format strict et obligatoire — chaque idée doit commencer exactement comme ci-dessous :
+
+### IDÉE 1 — [Titre percutant en 3-5 mots]
+[2-3 phrases. L'idée centrale, ce qu'elle déverrouille, pourquoi c'est inattendu.]
+
+### IDÉE 2 — [Titre percutant en 3-5 mots]
+[2-3 phrases...]
+
+### IDÉE 3 — [Titre percutant en 3-5 mots]
+[2-3 phrases...]
 
 Interdits : les idées "digitales d'abord", les campagnes à hashtag, les manifestes vides.
-Tu vises l'inattendu juste. Celui qui tient la route mais qu'on n'aurait pas osé proposer seul.`,
+Tu vises l'inattendu juste — celui qui tient la route mais qu'on n'aurait pas osé proposer seul.`,
   },
   copywriter: {
     name: 'Le Copywriter',
     prompt: `Tu es un copywriter avec un sale goût pour les mots qui font quelque chose. Pas les mots qui font bien, les mots qui font vrai — ou faux d'une façon intéressante.
 
-Tu reçois une stratégie et une big idea. Tu les traduis en langage.
+Tu reçois une tension stratégique et un angle créatif retenu. Tu les traduis en langage.
 
 Tu livres :
 - 1 territoire de ton (pas un adjectif, une attitude — comment cette marque parle, comment elle pense, comment elle respire)
@@ -76,6 +83,23 @@ Tu conclus avec 2 questions précises que le client va poser et auxquelles le bo
 Ton ton : direct, un peu sec, mais jamais cynique pour le plaisir. Tu veux que ça marche.`,
   },
 };
+
+// ─── Parser BigIdea output → 3 idées structurées ─────────────────────────────
+
+function parseBigIdeas(text: string): { title: string; body: string }[] {
+  const sections = text.split(/###\s*IDÉE\s*\d+\s*[—–-]/i);
+  return sections
+    .slice(1, 4)
+    .map((section) => {
+      const newlineIdx = section.indexOf('\n');
+      if (newlineIdx === -1) return { title: section.trim(), body: '' };
+      return {
+        title: section.slice(0, newlineIdx).trim(),
+        body: section.slice(newlineIdx + 1).trim(),
+      };
+    })
+    .filter((idea) => idea.title.length > 0);
+}
 
 // ─── Helper : stream un agent et émet ses chunks ──────────────────────────────
 
@@ -114,7 +138,13 @@ async function runAgent(
 // ─── Route POST ───────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
-  const { brief } = await req.json();
+  const {
+    brief,
+    phase = 1,
+    selectedIdea,
+    strategistOutput: prevStrategist,
+    bigideaOutput: prevBigidea,
+  } = await req.json();
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json({ error: 'ANTHROPIC_API_KEY manquante' }, { status: 500 });
@@ -133,97 +163,98 @@ export async function POST(req: Request) {
       };
 
       try {
-        // ── 1. Orchestrateur ──
-        emit({
-          type: 'orchestrator',
-          text: 'Brief reçu. On commence par trouver la faille stratégique.',
-        });
+        if (phase === 1) {
+          // ── Phase 1 : Stratège → Big Idea → sélection ──
 
-        // ── 2. Stratège ──
-        emit({
-          type: 'handoff',
-          from: 'Orchestrateur',
-          to: 'strategist',
-          reason: 'Trouver la tension non-évidente',
-        });
+          emit({
+            type: 'orchestrator',
+            text: 'Brief reçu. On commence par trouver la faille stratégique.',
+          });
 
-        const strategistOutput = await runAgent(
-          'strategist',
-          AGENTS.strategist.prompt,
-          `Brief client : ${brief}`,
-          emit
-        );
+          emit({
+            type: 'handoff',
+            from: 'Orchestrateur',
+            to: 'strategist',
+            reason: 'Trouver la tension non-évidente',
+          });
 
-        // ── 3. Pont → Big Idea ──
-        emit({
-          type: 'orchestrator',
-          text: 'La tension est posée. Je passe la main pour trouver l\'angle de rupture.',
-        });
+          const strategistOut = await runAgent(
+            'strategist',
+            AGENTS.strategist.prompt,
+            `Brief client : ${brief}`,
+            emit
+          );
 
-        emit({
-          type: 'handoff',
-          from: 'Orchestrateur',
-          to: 'bigidea',
-          reason: 'Concevoir l\'idée audacieuse',
-        });
+          emit({
+            type: 'orchestrator',
+            text: 'La tension est posée. Trois angles de rupture possibles — à vous de choisir.',
+          });
 
-        const bigideaOutput = await runAgent(
-          'bigidea',
-          AGENTS.bigidea.prompt,
-          `Brief client : ${brief}\n\nTension stratégique :\n${strategistOutput}`,
-          emit
-        );
+          emit({
+            type: 'handoff',
+            from: 'Orchestrateur',
+            to: 'bigidea',
+            reason: '3 directions audacieuses',
+          });
 
-        // ── 4. Pont → Copywriter ──
-        emit({
-          type: 'orchestrator',
-          text: 'Bonne direction. Au copywriter de lui donner sa voix.',
-        });
+          const bigideaOut = await runAgent(
+            'bigidea',
+            AGENTS.bigidea.prompt,
+            `Brief client : ${brief}\n\nTension stratégique :\n${strategistOut}`,
+            emit
+          );
 
-        emit({
-          type: 'handoff',
-          from: 'Orchestrateur',
-          to: 'copywriter',
-          reason: 'Territoire de ton, manifeste, taglines',
-        });
+          const ideas = parseBigIdeas(bigideaOut);
+          emit({ type: 'awaiting_selection', ideas });
 
-        const copywriterOutput = await runAgent(
-          'copywriter',
-          AGENTS.copywriter.prompt,
-          `Brief client : ${brief}\n\nTension stratégique :\n${strategistOutput}\n\nBig Idea :\n${bigideaOutput}`,
-          emit
-        );
+        } else {
+          // ── Phase 2 : Copywriter → Devil → rapport ──
 
-        // ── 5. Pont → Devil ──
-        emit({
-          type: 'orchestrator',
-          text: 'Ça a de la gueule. Avant de conclure, le Devil passe tout au crible.',
-        });
+          emit({
+            type: 'orchestrator',
+            text: 'Direction retenue. Au copywriter de lui donner sa voix.',
+          });
 
-        emit({
-          type: 'handoff',
-          from: 'Orchestrateur',
-          to: 'devil',
-          reason: 'Bullshit audit + questions client',
-        });
+          emit({
+            type: 'handoff',
+            from: 'Orchestrateur',
+            to: 'copywriter',
+            reason: 'Territoire de ton, manifeste, taglines',
+          });
 
-        const devilOutput = await runAgent(
-          'devil',
-          AGENTS.devil.prompt,
-          `Brief client : ${brief}\n\nTension stratégique :\n${strategistOutput}\n\nBig Idea :\n${bigideaOutput}\n\nProposition copy :\n${copywriterOutput}`,
-          emit
-        );
+          const copywriterOut = await runAgent(
+            'copywriter',
+            AGENTS.copywriter.prompt,
+            `Brief client : ${brief}\n\nTension stratégique :\n${prevStrategist}\n\nAngle créatif retenu :\n${selectedIdea}`,
+            emit
+          );
 
-        // ── 6. Report ──
-        emit({
-          type: 'orchestrator',
-          text: 'Board terminé.',
-        });
+          emit({
+            type: 'orchestrator',
+            text: 'Ça a de la gueule. Avant de conclure, le Devil passe tout au crible.',
+          });
 
-        emit({
-          type: 'report',
-          text: `## Synthèse du Board Créatif\n\n### Tension stratégique\n${strategistOutput}\n\n### Big Idea\n${bigideaOutput}\n\n### Territoire & Copy\n${copywriterOutput}\n\n### Points de vigilance\n${devilOutput}`,
-        });
+          emit({
+            type: 'handoff',
+            from: 'Orchestrateur',
+            to: 'devil',
+            reason: 'Bullshit audit + questions client',
+          });
+
+          const devilOut = await runAgent(
+            'devil',
+            AGENTS.devil.prompt,
+            `Brief client : ${brief}\n\nTension stratégique :\n${prevStrategist}\n\nAngle créatif retenu :\n${selectedIdea}\n\nProposition copy :\n${copywriterOut}`,
+            emit
+          );
+
+          emit({ type: 'orchestrator', text: 'Board terminé.' });
+
+          emit({
+            type: 'report',
+            text: `## Synthèse du Board Créatif\n\n### Tension stratégique\n${prevStrategist}\n\n### Angle retenu\n${selectedIdea}\n\n### Territoire & Copy\n${copywriterOut}\n\n### Points de vigilance\n${devilOut}`,
+          });
+        }
 
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erreur inconnue';
