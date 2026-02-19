@@ -211,7 +211,7 @@ export function ProductionView() {
   const getProjectQuoteForDeliverable = useCallback((d: Deliverable) => {
     if (!d.projectId) return undefined;
     const project = projects.find((p) => p.id === d.projectId);
-    return project?.quoteAmount;
+    return project?.quoteAmount ?? undefined;
   }, [projects]);
   const { openDeliverableModal, openProjectModal } = useModal();
   const [draggedItem, setDraggedItem] = useState<Deliverable | null>(null);
