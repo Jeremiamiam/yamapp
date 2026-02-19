@@ -59,6 +59,11 @@ export const DOCUMENT_TYPE_STYLES: Record<
     text: 'text-[var(--accent-violet)]',
     label: 'Note',
   },
+  'creative-strategy': {
+    bg: 'bg-[var(--accent-lime)]/10',
+    text: 'text-[var(--accent-lime)]',
+    label: 'Stratégie créative',
+  },
 } as const;
 
 export function getDocumentTypeStyle(type: DocumentType) {

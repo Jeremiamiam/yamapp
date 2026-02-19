@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import type { BoardEvent, AgentId, AgentStyle } from '@/app/api/creative-board/route';
 import { useAppStore } from '@/lib/store';
+import { toast } from '@/lib/toast';
 
-const AGENT_IDS: AgentId[] = ['strategist', 'bigidea', 'copywriter', 'devil'];
+const AGENT_IDS: AgentId[] = ['strategist', 'bigidea', 'architect', 'copywriter', 'devil'];
 
 const STYLE_LABELS: Record<AgentStyle, string> = {
   corporate: 'Corporate',
@@ -15,36 +17,26 @@ const STYLE_LABELS: Record<AgentStyle, string> = {
   subversif: 'Subversif',
 };
 
-// ─── Config agents ────────────────────────────────────────────────────────────
+// ─── Config agents ─────────────────────────────────────────────────────────────
 
-const AGENT_CONFIG: Record<AgentId, { label: string; color: string; accent: string; icon: string }> = {
-  strategist: {
-    label: 'Le Stratège',
-    color: 'var(--accent-cyan)',
-    accent: 'var(--accent-cyan-dim)',
-    icon: '◈',
-  },
-  bigidea: {
-    label: 'Le Concepteur',
-    color: 'var(--accent-amber)',
-    accent: 'var(--accent-amber-dim)',
-    icon: '⬡',
-  },
-  copywriter: {
-    label: 'Le Copywriter',
-    color: 'var(--accent-lime)',
-    accent: 'var(--accent-lime-dim)',
-    icon: '✦',
-  },
-  devil: {
-    label: "Devil's Advocate",
-    color: 'var(--accent-coral)',
-    accent: 'var(--accent-coral-dim)',
-    icon: '◉',
-  },
+const AGENT_CONFIG: Record<AgentId, { label: string; icon: string; description: string; rawColor: string; rawDim: string }> = {
+  strategist: { label: 'Le Stratège',     icon: '◈', description: 'La faille, pas le plan',        rawColor: 'var(--accent-cyan)',   rawDim: 'var(--accent-cyan-dim)'   },
+  bigidea:    { label: 'Le Concepteur',   icon: '⬡', description: '3 angles → vous choisissez',   rawColor: 'var(--accent-amber)',  rawDim: 'var(--accent-amber-dim)'  },
+  architect:  { label: "L'Architecte",    icon: '🏛️', description: 'Vision, Mission, Valeurs',      rawColor: 'var(--accent-violet)', rawDim: 'var(--accent-violet-dim)' },
+  copywriter: { label: 'Le Copywriter',   icon: '✦', description: 'Smart, net, légèrement taquin', rawColor: 'var(--accent-lime)',   rawDim: 'var(--accent-lime-dim)'   },
+  devil:      { label: "Devil's Advocate",icon: '◉', description: 'Bullshit audit',                rawColor: 'var(--accent-coral)',  rawDim: 'var(--accent-coral-dim)'  },
 };
 
-// ─── Types internes ───────────────────────────────────────────────────────────
+// Tailwind literal strings for JIT
+const AGENT_TEXT: Record<AgentId, string> = {
+  strategist: 'text-[var(--accent-cyan)]',
+  bigidea:    'text-[var(--accent-amber)]',
+  architect:  'text-[var(--accent-violet)]',
+  copywriter: 'text-[var(--accent-lime)]',
+  devil:      'text-[var(--accent-coral)]',
+};
+
+// ─── Types ─────────────────────────────────────────────────────────────────────
 
 type TimelineEntryInput =
   | { kind: 'orchestrator'; text: string }
@@ -54,270 +46,179 @@ type TimelineEntryInput =
   | { kind: 'report'; text: string };
 
 type TimelineEntry = TimelineEntryInput & { id: number };
-
 type BoardPhase = 'idle' | 'phase1' | 'selecting' | 'phase2' | 'done';
 
-// ─── Rendu Markdown des sorties agents ───────────────────────────────────────
+// ─── Markdown components ────────────────────────────────────────────────────────
 
 const agentMarkdownComponents: Components = {
-  h1: ({ children }) => (
-    <h1 style={{
-      fontSize: 22,
-      fontWeight: 700,
-      color: 'var(--text-primary)',
-      margin: '0 0 12px 0',
-      letterSpacing: '-0.02em',
-      lineHeight: 1.35,
-    }}>
-      {children}
-    </h1>
-  ),
-  h2: ({ children }) => (
-    <h2 style={{
-      fontSize: 17,
-      fontWeight: 700,
-      color: 'var(--text-primary)',
-      margin: '20px 0 8px 0',
-      letterSpacing: '0.04em',
-      textTransform: 'uppercase',
-      opacity: 0.95,
-    }}>
-      {children}
-    </h2>
-  ),
-  h3: ({ children }) => (
-    <h3 style={{
-      fontSize: 15,
-      fontWeight: 600,
-      color: 'var(--text-secondary)',
-      margin: '14px 0 6px 0',
-    }}>
-      {children}
-    </h3>
-  ),
-  p: ({ children }) => (
-    <p style={{ margin: '0 0 14px 0', fontSize: 16, lineHeight: 1.75 }}>
-      {children}
-    </p>
-  ),
+  h1: ({ children }) => <h1 className="text-xl font-bold text-[var(--text-primary)] mb-3 leading-snug tracking-tight">{children}</h1>,
+  h2: ({ children }) => <h2 className="text-[11px] font-bold uppercase tracking-widest text-[var(--text-primary)] mt-5 mb-2 opacity-90">{children}</h2>,
+  h3: ({ children }) => <h3 className="text-sm font-semibold text-[var(--text-secondary)] mt-3.5 mb-1.5">{children}</h3>,
+  p:  ({ children }) => <p  className="mb-3.5 leading-relaxed">{children}</p>,
   blockquote: ({ children }) => (
-    <blockquote style={{
-      margin: '16px 0',
-      paddingLeft: 18,
-      borderLeft: '3px solid var(--border-medium)',
-      color: 'var(--text-secondary)',
-      fontStyle: 'italic',
-      fontSize: 16,
-      lineHeight: 1.75,
-    }}>
+    <blockquote className="my-4 pl-4 border-l-2 border-[var(--border-medium)] text-[var(--text-secondary)] italic leading-relaxed">
       {children}
     </blockquote>
   ),
-  strong: ({ children }) => (
-    <strong style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-      {children}
-    </strong>
-  ),
-  ul: ({ children }) => (
-    <ul style={{
-      margin: '10px 0',
-      paddingLeft: 24,
-      fontSize: 16,
-      lineHeight: 1.75,
-    }}>
-      {children}
-    </ul>
-  ),
-  ol: ({ children }) => (
-    <ol style={{
-      margin: '10px 0',
-      paddingLeft: 24,
-      fontSize: 16,
-      lineHeight: 1.75,
-    }}>
-      {children}
-    </ol>
-  ),
-  li: ({ children }) => (
-    <li style={{ marginBottom: 6 }}>
-      {children}
-    </li>
-  ),
-  hr: () => (
-    <hr style={{
-      border: 'none',
-      borderTop: '1px solid var(--border-medium)',
-      margin: '18px 0',
-    }} />
-  ),
+  strong: ({ children }) => <strong className="font-bold text-[var(--text-primary)]">{children}</strong>,
+  ul: ({ children }) => <ul className="my-2.5 pl-5 space-y-1.5 list-disc">{children}</ul>,
+  ol: ({ children }) => <ol className="my-2.5 pl-5 space-y-1.5 list-decimal">{children}</ol>,
+  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+  hr: () => <hr className="border-t border-[var(--border-medium)] my-4" />,
 };
 
-// ─── Composants ───────────────────────────────────────────────────────────────
+// ─── Brand Platform Types & Component ───
+
+interface BrandPlatformData {
+  the_battlefield: { status_quo: string; the_enemy: string; the_gap: string };
+  the_hero_and_villain: { the_cult_member: string; the_anti_persona: string };
+  core_identity: { origin_story: string; radical_promise: string; archetype_mix: { dominant: string; twist: string } };
+  expression_matrix: {
+    is_vs_is_not: { is: string; is_not: string }[];
+    vocabulary_trigger_words: string[];
+    banned_words: string[];
+  };
+  the_manifesto: { part_1_frustration: string; part_2_belief: string; part_3_solution: string };
+}
+
+function BrandPlatformView({ data }: { data: BrandPlatformData }) {
+  return (
+    <div className="space-y-8 animate-fade-in-up">
+      {/* Introduction : Le Champ de Bataille */}
+      <section className="grid md:grid-cols-3 gap-4">
+        <div className="bg-[var(--bg-tertiary)]/50 p-5 rounded-xl border border-[var(--border-subtle)]">
+          <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Status Quo</h4>
+          <p className="text-sm">{data.the_battlefield.status_quo}</p>
+        </div>
+        <div className="bg-red-500/5 p-5 rounded-xl border border-red-500/20">
+          <h4 className="text-[10px] font-bold uppercase tracking-wider text-red-400 mb-2">L'Ennemi</h4>
+          <p className="text-sm text-red-200/90">{data.the_battlefield.the_enemy}</p>
+        </div>
+        <div className="bg-[var(--accent-lime)]/5 p-5 rounded-xl border border-[var(--accent-lime)]/20">
+          <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-lime)] mb-2">Le Gap</h4>
+          <p className="text-sm text-[var(--accent-lime)]/90">{data.the_battlefield.the_gap}</p>
+        </div>
+      </section>
+
+      {/* Identité & Héros */}
+      <section className="grid md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <h3 className="text-sm font-bold uppercase text-[var(--text-secondary)]">Identité Profonde</h3>
+          <div className="bg-[var(--bg-card)] p-6 rounded-xl border border-[var(--border-subtle)] space-y-4">
+            <div>
+              <span className="text-xs text-[var(--text-muted)]">Histoire d'origine</span>
+              <p className="text-sm mt-1">{data.core_identity.origin_story}</p>
+            </div>
+            <div>
+              <span className="text-xs text-[var(--text-muted)]">Promesse Radicale</span>
+              <p className="text-lg font-bold text-[var(--text-primary)] mt-1">"{data.core_identity.radical_promise}"</p>
+            </div>
+            <div>
+              <span className="text-xs text-[var(--text-muted)]">Archétypes</span>
+              <div className="flex gap-2 mt-1">
+                <span className="px-2 py-1 rounded bg-[var(--bg-tertiary)] text-xs font-medium">{data.core_identity.archetype_mix.dominant}</span>
+                <span className="text-xs text-[var(--text-muted)] self-center">+</span>
+                <span className="px-2 py-1 rounded bg-[var(--bg-tertiary)] text-xs font-medium">{data.core_identity.archetype_mix.twist}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-sm font-bold uppercase text-[var(--text-secondary)]">Casting</h3>
+          <div className="grid gap-4 h-full">
+            <div className="bg-[var(--accent-cyan)]/5 p-5 rounded-xl border border-[var(--accent-cyan)]/20">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">🤩</span>
+                <h4 className="text-xs font-bold text-[var(--accent-cyan)]">Le Client Idéal</h4>
+              </div>
+              <p className="text-sm text-[var(--text-secondary)]">{data.the_hero_and_villain.the_cult_member}</p>
+            </div>
+            <div className="bg-[var(--bg-tertiary)] p-5 rounded-xl border border-[var(--border-subtle)] opacity-70">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">🚫</span>
+                <h4 className="text-xs font-bold text-[var(--text-muted)]">L'Anti-Persona</h4>
+              </div>
+              <p className="text-sm text-[var(--text-muted)]">{data.the_hero_and_villain.the_anti_persona}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Matrice d'Expression */}
+      <section>
+        <h3 className="text-sm font-bold uppercase text-[var(--text-secondary)] mb-4">Matrice d'Expression</h3>
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            {data.expression_matrix.is_vs_is_not.map((item, i) => (
+              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)]/30 border border-[var(--border-subtle)]">
+                <span className="font-medium text-[var(--accent-lime)]">{item.is}</span>
+                <span className="text-xs text-[var(--text-muted)]">mais pas</span>
+                <span className="font-medium text-[var(--text-muted)] line-through decoration-red-500/50">{item.is_not}</span>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-4">
+            <div>
+              <span className="text-xs text-[var(--text-muted)] block mb-2">Mots Clés</span>
+              <div className="flex flex-wrap gap-2">
+                {data.expression_matrix.vocabulary_trigger_words.map((w, i) => (
+                  <span key={i} className="px-2.5 py-1 rounded-md bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] text-xs border border-[var(--accent-cyan)]/20">{w}</span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <span className="text-xs text-[var(--text-muted)] block mb-2">Mots Interdits</span>
+              <div className="flex flex-wrap gap-2">
+                {data.expression_matrix.banned_words.map((w, i) => (
+                  <span key={i} className="px-2.5 py-1 rounded-md bg-red-500/10 text-red-400 text-xs border border-red-500/20">{w}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Manifeste */}
+      <section className="bg-[var(--bg-card)] p-8 rounded-xl border border-[var(--border-subtle)] relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-5 text-4xl">📜</div>
+        <div className="space-y-6 relative z-10 font-serif text-[var(--text-primary)]">
+          <p className="text-lg leading-relaxed border-l-2 border-red-500/50 pl-4">{data.the_manifesto.part_1_frustration}</p>
+          <p className="text-lg leading-relaxed border-l-2 border-[var(--accent-cyan)]/50 pl-4">{data.the_manifesto.part_2_belief}</p>
+          <p className="text-xl font-bold leading-relaxed border-l-4 border-[var(--accent-lime)] pl-4 text-[var(--accent-lime)]">{data.the_manifesto.part_3_solution}</p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ─── Composants ────────────────────────────────────────────────────────────────
 
 function TypingDots() {
   return (
-    <span style={{ display: 'inline-flex', gap: 3, alignItems: 'center', marginLeft: 6 }}>
+    <span className="inline-flex items-center gap-1 ml-1.5">
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          style={{
-            width: 4,
-            height: 4,
-            borderRadius: '50%',
-            background: 'var(--text-muted)',
-            display: 'inline-block',
-            animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`,
-          }}
+          className="w-1 h-1 rounded-full bg-[var(--text-muted)]"
+          style={{ animation: `board-dot 1.2s ease-in-out ${i * 0.2}s infinite` }}
         />
       ))}
     </span>
   );
 }
 
-function OrchestratorBubble({ text }: { text: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 0' }}>
-      <div style={{
-        width: 32,
-        height: 32,
-        borderRadius: '50%',
-        background: 'var(--bg-tertiary)',
-        border: '1px solid var(--accent-violet)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 14,
-        color: 'var(--accent-violet)',
-        flexShrink: 0,
-        marginTop: 2,
-      }}>
-        ⬡
-      </div>
-      <div style={{
-        background: 'var(--bg-card)',
-        border: '1px solid rgba(167,139,250,0.2)',
-        borderRadius: 12,
-        padding: '12px 18px',
-        fontSize: 16,
-        lineHeight: 1.7,
-        color: 'var(--text-secondary)',
-        fontStyle: 'italic',
-        maxWidth: 520,
-      }}>
-        {text}
-      </div>
-    </div>
-  );
-}
-
-function HandoffRow({ to, reason }: { to: AgentId; reason: string }) {
-  const cfg = AGENT_CONFIG[to];
-  return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      padding: '10px 0 10px 42px',
-      opacity: 0.85,
-    }}>
-      <div style={{ width: 24, height: 1, background: cfg.color, opacity: 0.5 }} />
-      <span style={{ fontSize: 13, fontWeight: 600, color: cfg.color, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-        → {cfg.label}
-      </span>
-      <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>— {reason}</span>
-    </div>
-  );
-}
-
-function AgentBlock({
-  agent,
-  text,
-  done,
-}: {
-  agent: AgentId;
-  text: string;
-  done: boolean;
-}) {
+function AgentPane({ agent, text, done }: { agent: AgentId; text: string; done: boolean }) {
   const cfg = AGENT_CONFIG[agent];
   return (
-    <div style={{
-      marginLeft: 42,
-      marginBottom: 16,
-      borderLeft: `3px solid ${cfg.color}`,
-      paddingLeft: 18,
-    }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        marginBottom: 10,
-      }}>
-        <span style={{ color: cfg.color, fontSize: 18 }}>{cfg.icon}</span>
-        <span style={{
-          fontSize: 13,
-          fontWeight: 700,
-          color: cfg.color,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-        }}>
-          {cfg.label}
-        </span>
-        {!done && <TypingDots />}
-        {done && (
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 4 }}>✓</span>
-        )}
-      </div>
-      <div style={{
-        background: cfg.accent,
-        borderRadius: 12,
-        padding: '18px 20px',
-        fontSize: 16,
-        color: 'var(--text-primary)',
-        lineHeight: 1.75,
-        minHeight: done ? 'auto' : 28,
-      }}>
-        {!text && <span style={{ color: 'var(--text-muted)', fontSize: 16 }}>…</span>}
-        {text && !done && (
-          <span style={{ whiteSpace: 'pre-wrap', fontSize: 16, lineHeight: 1.75 }}>{text}</span>
-        )}
-        {text && done && (
-          <div className="agent-markdown">
-            <ReactMarkdown components={agentMarkdownComponents}>
-              {text}
-            </ReactMarkdown>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** Panneau plein largeur pour un agent (vue onglets) */
-function AgentPane({
-  agent,
-  text,
-  done,
-}: {
-  agent: AgentId;
-  text: string;
-  done: boolean;
-}) {
-  const cfg = AGENT_CONFIG[agent];
-  return (
-    <div style={{
-      background: cfg.accent,
-      border: `1px solid ${cfg.color}25`,
-      borderRadius: 14,
-      padding: '24px 28px',
-      minHeight: 200,
-      maxWidth: '100%',
-    }}>
-      {!text && <span style={{ color: 'var(--text-muted)', fontSize: 16 }}>En attente…</span>}
-      {text && !done && (
-        <span style={{ whiteSpace: 'pre-wrap', fontSize: 17, lineHeight: 1.75, color: 'var(--text-primary)' }}>{text}</span>
-      )}
+    <div
+      className="rounded-xl px-6 py-5 min-h-48 border text-sm leading-relaxed"
+      style={{ background: cfg.rawDim, borderColor: `${cfg.rawColor}25` }}
+    >
+      {!text && <span className="text-[var(--text-muted)]">En attente…</span>}
+      {text && !done && <span className="whitespace-pre-wrap">{text}</span>}
       {text && done && (
-        <div className="agent-markdown" style={{ fontSize: 17, lineHeight: 1.75 }}>
+        <div className="agent-markdown">
           <ReactMarkdown components={agentMarkdownComponents}>{text}</ReactMarkdown>
         </div>
       )}
@@ -327,20 +228,11 @@ function AgentPane({
 
 function SelectionBadge({ title }: { title: string }) {
   return (
-    <div style={{ marginLeft: 42, marginBottom: 14 }}>
-      <div style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 10,
-        background: 'rgba(251,191,36,0.1)',
-        border: '1px solid rgba(251,191,36,0.4)',
-        borderRadius: 10,
-        padding: '10px 18px',
-        fontSize: 15,
-      }}>
-        <span style={{ color: 'var(--accent-amber)', fontSize: 16 }}>⬡</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Angle retenu</span>
-        <span style={{ color: 'var(--accent-amber)', fontWeight: 700 }}>{title}</span>
+    <div className="mb-4">
+      <div className="inline-flex items-center gap-2.5 bg-[var(--accent-amber-dim)] border border-[var(--accent-amber)]/30 rounded-xl px-4 py-2.5">
+        <span className="text-[var(--accent-amber)]">⬡</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Angle retenu</span>
+        <span className="text-sm font-semibold text-[var(--accent-amber)]">{title}</span>
       </div>
     </div>
   );
@@ -353,81 +245,31 @@ function IdeaCards({
   ideas: { title: string; body: string }[];
   onSelect: (idea: { title: string; body: string }) => void;
 }) {
-  const [hovered, setHovered] = useState<number | null>(null);
-
   return (
-    <div style={{ marginTop: 24, marginLeft: 42 }}>
-      <div style={{
-        fontSize: 13,
-        fontWeight: 700,
-        color: 'var(--accent-amber)',
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        marginBottom: 18,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-      }}>
-        <span style={{
-          display: 'inline-block',
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          background: 'var(--accent-amber)',
-          animation: 'pulse 1.2s ease-in-out infinite',
-        }} />
-        Choisissez votre angle de rupture
+    <div className="mt-5">
+      <div className="flex items-center gap-2 mb-4">
+        <span
+          className="w-2 h-2 rounded-full bg-[var(--accent-amber)]"
+          style={{ animation: 'board-dot 1.2s ease-in-out infinite' }}
+        />
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-amber)]">
+          Choisissez votre angle de rupture
+        </span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="flex flex-col gap-3">
         {ideas.map((idea, i) => (
           <button
             key={i}
             onClick={() => onSelect(idea)}
-            onMouseEnter={() => setHovered(i)}
-            onMouseLeave={() => setHovered(null)}
-            style={{
-              background: hovered === i ? 'rgba(251,191,36,0.07)' : 'var(--bg-card)',
-              border: `1px solid ${hovered === i ? 'rgba(251,191,36,0.55)' : 'rgba(251,191,36,0.2)'}`,
-              borderRadius: 12,
-              padding: '18px 22px',
-              textAlign: 'left',
-              cursor: 'pointer',
-              fontFamily: 'Instrument Sans, sans-serif',
-              transition: 'all 0.15s',
-              color: 'var(--text-primary)',
-              width: '100%',
-            }}
+            className="group w-full text-left bg-[var(--bg-card)] border border-[var(--accent-amber)]/20 rounded-xl px-5 py-4 hover:border-[var(--accent-amber)]/50 hover:bg-[var(--accent-amber-dim)] transition-all"
           >
-            <div style={{
-              fontSize: 16,
-              fontWeight: 700,
-              color: 'var(--accent-amber)',
-              marginBottom: 8,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-            }}>
-              <span style={{
-                width: 26,
-                height: 26,
-                borderRadius: '50%',
-                border: '1px solid rgba(251,191,36,0.4)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 14,
-                flexShrink: 0,
-              }}>{i + 1}</span>
-              {idea.title}
+            <div className="flex items-center gap-3 mb-2">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full border border-[var(--accent-amber)]/40 flex items-center justify-center text-xs text-[var(--accent-amber)] font-bold">
+                {i + 1}
+              </span>
+              <span className="text-sm font-bold text-[var(--accent-amber)]">{idea.title}</span>
             </div>
-            <div style={{
-              fontSize: 16,
-              color: 'var(--text-secondary)',
-              lineHeight: 1.75,
-              paddingLeft: 36,
-            }}>
-              {idea.body}
-            </div>
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed pl-9">{idea.body}</p>
           </button>
         ))}
       </div>
@@ -452,90 +294,73 @@ function parseReportSections(text: string): ReportSection[] {
 }
 
 const REPORT_CARD_STYLES: Record<string, { color: string; icon: string; bg: string }> = {
-  'Tension stratégique': { color: 'var(--accent-cyan)', icon: '◈', bg: 'rgba(34,211,238,0.06)' },
-  'Angle retenu': { color: 'var(--accent-amber)', icon: '⬡', bg: 'rgba(251,191,36,0.06)' },
-  'Territoire & Copy': { color: 'var(--accent-lime)', icon: '✦', bg: 'rgba(212,245,66,0.06)' },
-  'Points de vigilance': { color: 'var(--accent-coral)', icon: '◉', bg: 'rgba(251,113,133,0.06)' },
+  'Tension stratégique':  { color: 'var(--accent-cyan)',   icon: '◈', bg: 'var(--accent-cyan-dim)'   },
+  'Angle retenu':         { color: 'var(--accent-amber)',  icon: '⬡', bg: 'var(--accent-amber-dim)'  },
+  'Plateforme de Marque': { color: 'var(--accent-violet)', icon: '🏛️', bg: 'var(--accent-violet-dim)' },
+  'Territoire & Copy':    { color: 'var(--accent-lime)',   icon: '✦', bg: 'var(--accent-lime-dim)'   },
+  'Points de vigilance':  { color: 'var(--accent-coral)',  icon: '◉', bg: 'var(--accent-coral-dim)'  },
 };
 
 function ReportBlock({ text }: { text: string }) {
   const sections = parseReportSections(text);
-  const defaultStyle = { color: 'var(--accent-lime)', icon: '◆', bg: 'rgba(212,245,66,0.05)' };
+  const defaultStyle = { color: 'var(--accent-lime)', icon: '◆', bg: 'var(--accent-lime-dim)' };
   const displaySections = sections.length > 0
     ? sections
     : [{ title: 'Synthèse', body: text.replace(/^##\s+.*\n?/m, '').trim() || text }];
 
   return (
-    <div style={{ marginTop: 32 }}>
-      <div style={{
-        fontSize: 12,
-        fontWeight: 700,
-        color: 'var(--text-muted)',
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
-        marginBottom: 20,
-      }}>
-        Synthèse du Board
+    <div className="mt-8">
+      <div className="flex items-center gap-2 mb-5">
+        <div className="w-1.5 h-4 rounded-full bg-[var(--accent-lime)]" />
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Synthèse du Board</span>
       </div>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-        gap: 16,
-      }}>
+      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
         {displaySections.map(({ title, body }, i) => {
-          const style = REPORT_CARD_STYLES[title] ?? defaultStyle;
+          const s = REPORT_CARD_STYLES[title] ?? defaultStyle;
+          
+          // Détection auto du JSON pour la Plateforme de Marque
+          const isPlatformSection = title === 'Plateforme de Marque';
+          let platformData: BrandPlatformData | null = null;
+          if (isPlatformSection) {
+            try {
+              // Extraction plus robuste : chercher le premier { et le dernier }
+              const firstBrace = body.indexOf('{');
+              const lastBrace = body.lastIndexOf('}');
+              if (firstBrace !== -1 && lastBrace !== -1) {
+                const jsonCandidate = body.substring(firstBrace, lastBrace + 1);
+                platformData = JSON.parse(jsonCandidate);
+              } else {
+                // Fallback simple
+                const cleanJson = body.replace(/```json\n?|\n?```/g, '').trim();
+                platformData = JSON.parse(cleanJson);
+              }
+            } catch {
+              // Pas du JSON valide, on affiche le texte brut
+            }
+          }
+
           return (
             <div
               key={i}
-              style={{
-                background: style.bg,
-                border: `1px solid ${style.color}20`,
-                borderRadius: 14,
-                padding: '20px 22px',
-                minHeight: 120,
-                display: 'flex',
-                flexDirection: 'column',
-              }}
+              className={`rounded-xl p-5 flex flex-col min-h-28 border ${isPlatformSection ? 'col-span-full' : ''}`}
+              style={{ background: s.bg, borderColor: `${s.color}20` }}
             >
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                marginBottom: 14,
-                paddingBottom: 12,
-                borderBottom: `1px solid ${style.color}25`,
-              }}>
-                <span style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 10,
-                  background: `${style.color}18`,
-                  color: style.color,
-                  fontSize: 16,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                }}>
-                  {style.icon}
+              <div className="flex items-center gap-2.5 mb-3 pb-3" style={{ borderBottom: `1px solid ${s.color}25` }}>
+                <span
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-base font-bold flex-shrink-0"
+                  style={{ background: `${s.color}18`, color: s.color }}
+                >
+                  {s.icon}
                 </span>
-                <span style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: style.color,
-                  letterSpacing: '0.04em',
-                }}>
-                  {title}
-                </span>
+                <span className="text-sm font-bold" style={{ color: s.color }}>{title}</span>
               </div>
-              <div style={{
-                fontSize: 15,
-                lineHeight: 1.7,
-                color: 'var(--text-primary)',
-                whiteSpace: 'pre-wrap',
-                flex: 1,
-              }}>
-                {body}
+              
+              <div className="flex-1">
+                {platformData ? (
+                  <BrandPlatformView data={platformData} />
+                ) : (
+                  <p className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{body}</p>
+                )}
               </div>
             </div>
           );
@@ -545,7 +370,7 @@ function ReportBlock({ text }: { text: string }) {
   );
 }
 
-// ─── Page principale ──────────────────────────────────────────────────────────
+// ─── Page principale ────────────────────────────────────────────────────────────
 
 export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [brief, setBrief] = useState('');
@@ -554,16 +379,16 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [pendingIdeas, setPendingIdeas] = useState<{ title: string; body: string }[]>([]);
 
-  const [enabledAgents, setEnabledAgents] = useState<AgentId[]>(['strategist', 'bigidea', 'copywriter', 'devil']);
+  const [enabledAgents, setEnabledAgents] = useState<AgentId[]>(['strategist', 'bigidea', 'architect', 'copywriter', 'devil']);
   const [agentStyles, setAgentStyles] = useState<Record<AgentId, AgentStyle>>({
     strategist: 'audacieux',
     bigidea: 'audacieux',
+    architect: 'audacieux',
     copywriter: 'audacieux',
     devil: 'audacieux',
   });
   const [agentPrompts, setAgentPrompts] = useState<Partial<Record<AgentId, string>>>({});
   const [openCustomFor, setOpenCustomFor] = useState<AgentId | null>(null);
-
   const [presets, setPresets] = useState<Record<AgentId, Record<AgentStyle, string>> | null>(null);
   const [openPresetsFor, setOpenPresetsFor] = useState<AgentId | null>(null);
   const [activeAgentTab, setActiveAgentTab] = useState<AgentId>('strategist');
@@ -572,6 +397,13 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
   const bottomRef = useRef<HTMLDivElement>(null);
   const phase1OutputsRef = useRef({ strategist: '', bigidea: '' });
   const storedOutputsRef = useRef<{ strategist: string; bigidea: string } | null>(null);
+  const savedReportRef = useRef(false);
+  const addDocument = useAppStore((s) => s.addDocument);
+  const clientIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const cid = sessionStorage.getItem('creative-board-client-id');
+    if (cid) clientIdRef.current = cid;
+  }, []);
 
   useEffect(() => {
     const prefill = sessionStorage.getItem('creative-board-brief-prefill');
@@ -629,8 +461,6 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
     });
   }, []);
 
-  // ─── SSE stream processor ─────────────────────────────────────────────────
-
   const handleBoardEvent = useCallback((event: BoardEvent) => {
     if (event.type === 'orchestrator') {
       addEntry({ kind: 'orchestrator', text: event.text });
@@ -651,6 +481,15 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
       setBoardPhase('selecting');
     } else if (event.type === 'report') {
       addEntry({ kind: 'report', text: event.text });
+      const cid = clientIdRef.current;
+      if (cid && !savedReportRef.current) {
+        savedReportRef.current = true;
+        sessionStorage.removeItem('creative-board-client-id');
+        const title = `Stratégie créative - ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+        addDocument(cid, { type: 'creative-strategy', title, content: event.text })
+          .then(() => toast.success('Stratégie enregistrée dans la fiche client'))
+          .catch(() => {});
+      }
     } else if (event.type === 'error') {
       addEntry({ kind: 'orchestrator', text: `Erreur : ${event.message}` });
     }
@@ -664,7 +503,6 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -676,17 +514,13 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
         try {
           const event: BoardEvent = JSON.parse(part.slice(6));
           handleBoardEvent(event);
-        } catch {
-          // ignore parse errors
-        }
+        } catch { /* ignore */ }
       }
     }
   }, [addEntry, handleBoardEvent]);
 
-  // ─── Phase 1 ──────────────────────────────────────────────────────────────
-
   const handleSubmit = async () => {
-    if (!brief.trim() || running) return;
+    if (!brief.trim() || running || enabledAgents.length === 0) return;
     setRunning(true);
     setBoardPhase('phase1');
     setTimeline([]);
@@ -695,12 +529,7 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
     storedOutputsRef.current = null;
     counterRef.current = 0;
 
-    const payload: Record<string, unknown> = {
-      brief,
-      phase: 1,
-      enabledAgents,
-      agentStyles,
-    };
+    const payload: Record<string, unknown> = { brief, phase: 1, enabledAgents, agentStyles };
     const customPrompts = Object.fromEntries(
       Object.entries(agentPrompts).filter(([, v]) => typeof v === 'string' && v.trim() !== '')
     ) as Partial<Record<AgentId, string>>;
@@ -712,32 +541,23 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-
     await processStream(res);
     setRunning(false);
   };
 
-  // ─── Phase 2 ──────────────────────────────────────────────────────────────
-
   const handleSelectIdea = async (idea: { title: string; body: string }) => {
     if (!storedOutputsRef.current) return;
-
     setBoardPhase('phase2');
     setPendingIdeas([]);
     setRunning(true);
-
     addEntry({ kind: 'selection', title: idea.title });
 
     const { strategist, bigidea } = storedOutputsRef.current;
-
     const payload: Record<string, unknown> = {
-      brief,
-      phase: 2,
+      brief, phase: 2,
       selectedIdea: `${idea.title}\n\n${idea.body}`,
-      strategistOutput: strategist,
-      bigideaOutput: bigidea,
-      enabledAgents,
-      agentStyles,
+      strategistOutput: strategist, bigideaOutput: bigidea,
+      enabledAgents, agentStyles,
     };
     const customPrompts = Object.fromEntries(
       Object.entries(agentPrompts).filter(([, v]) => typeof v === 'string' && v.trim() !== '')
@@ -750,13 +570,10 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-
     await processStream(res);
     setRunning(false);
     setBoardPhase('done');
   };
-
-  // ─── Status label ─────────────────────────────────────────────────────────
 
   const agentOutputs = useMemo(() => {
     const out: Partial<Record<AgentId, { text: string; done: boolean }>> = {};
@@ -776,135 +593,94 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
     return null;
   }, [timeline]);
 
-  const statusLabel = running
-    ? 'Session en cours'
-    : boardPhase === 'selecting'
-    ? 'Choisissez une direction'
-    : boardPhase === 'done'
-    ? 'Session terminée'
+  const isBlocked = running || boardPhase === 'selecting';
+
+  const statusLabel =
+    running ? 'Session en cours'
+    : boardPhase === 'selecting' ? 'Choisissez une direction'
+    : boardPhase === 'done' ? 'Session terminée'
     : null;
 
-  const statusColor = running
-    ? 'var(--accent-lime)'
-    : boardPhase === 'selecting'
-    ? 'var(--accent-amber)'
+  const statusColor =
+    running ? 'var(--accent-lime)'
+    : boardPhase === 'selecting' ? 'var(--accent-amber)'
     : 'var(--text-muted)';
 
   const content = (
     <>
       <style>{`
-        @keyframes pulse {
+        @keyframes board-dot {
           0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
           40% { opacity: 1; transform: scale(1); }
         }
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
       `}</style>
-
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '56px 28px' }}>
-
-        {/* Header */}
-        <div style={{ marginBottom: 40 }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 10,
-            background: 'var(--accent-violet-dim)',
-            border: '1px solid rgba(167,139,250,0.3)',
-            borderRadius: 20,
-            padding: '6px 14px',
-            marginBottom: 18,
-            fontSize: 13,
-            color: 'var(--accent-violet)',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            fontWeight: 600,
-          }}>
-            ⬡ Proto — Board Créatif IA
+      <div className="w-full max-w-5xl mx-auto px-6 py-10 space-y-8">
+        {!embedded && (
+          <div className="flex items-center justify-between">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              ← Retour au tableau de bord
+            </Link>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--accent-violet-dim)] border border-[var(--accent-violet)]/25 text-[10px] font-bold uppercase tracking-widest text-[var(--accent-violet)]">
+              ⬡ Proto
+            </span>
           </div>
-          <h1 style={{
-            fontFamily: 'Syne, sans-serif',
-            fontSize: 36,
-            fontWeight: 800,
-            margin: 0,
-            lineHeight: 1.15,
-          }}>
-            Creative Board
-          </h1>
-          <p style={{ fontSize: 17, color: 'var(--text-muted)', marginTop: 10, marginBottom: 0, lineHeight: 1.5 }}>
-            Choisissez votre équipe et le style de chaque agent
-          </p>
+        )}
+
+        {/* ── Header ── */}
+        <div>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">Creative Board</h1>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">Choisissez votre équipe et le style de chaque agent</p>
         </div>
 
-        {/* Équipe & styles */}
-        <div style={{
-          marginBottom: 36,
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 14,
-          overflow: 'hidden',
-        }}>
-          <div style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--border-subtle)',
-            fontSize: 13,
-            fontWeight: 700,
-            color: 'var(--text-muted)',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-          }}>
-            Équipe & styles
+        {/* ── Équipe & styles ── */}
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
+          <div className="px-5 py-4 border-b border-[var(--border-subtle)]">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Équipe & styles</span>
           </div>
-          <div style={{ padding: '20px 22px' }}>
+          <div className="divide-y divide-[var(--border-subtle)]">
             {AGENT_IDS.map((agentId) => {
               const cfg = AGENT_CONFIG[agentId];
               const enabled = enabledAgents.includes(agentId);
               const style = agentStyles[agentId];
               const customOpen = openCustomFor === agentId;
               return (
-                <div
-                  key={agentId}
-                  style={{
-                    marginBottom: agentId === 'devil' ? 0 : 24,
-                    paddingBottom: agentId === 'devil' ? 0 : 24,
-                    borderBottom: agentId === 'devil' ? 'none' : '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', minWidth: 160 }}>
+                <div key={agentId} className="px-5 py-4 space-y-3">
+                  <div className="flex items-center flex-wrap gap-2.5">
+                    <label className="flex items-center gap-2.5 cursor-pointer min-w-40">
                       <input
                         type="checkbox"
                         checked={enabled}
                         onChange={() => {
                           setEnabledAgents((prev) =>
-                            enabled ? prev.filter((id) => id !== agentId) : [...prev, agentId].sort((a, b) => AGENT_IDS.indexOf(a) - AGENT_IDS.indexOf(b))
+                            enabled
+                              ? prev.filter((id) => id !== agentId)
+                              : [...prev, agentId].sort((a, b) => AGENT_IDS.indexOf(a) - AGENT_IDS.indexOf(b))
                           );
                         }}
                         disabled={running}
-                        style={{ width: 18, height: 18, accentColor: cfg.color }}
+                        className="w-4 h-4 rounded"
+                        style={{ accentColor: cfg.rawColor }}
                       />
-                      <span style={{ color: cfg.color, fontSize: 16, fontWeight: 600 }}>{cfg.icon} {cfg.label}</span>
+                      <span className={`text-sm font-semibold ${AGENT_TEXT[agentId]}`}>
+                        {cfg.icon} {cfg.label}
+                      </span>
                     </label>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div className="flex gap-1.5">
                       {(['corporate', 'audacieux', 'subversif'] as const).map((s) => (
                         <button
                           key={s}
                           type="button"
                           onClick={() => setAgentStyles((prev) => ({ ...prev, [agentId]: s }))}
                           disabled={running}
-                          style={{
-                            padding: '8px 14px',
-                            borderRadius: 10,
-                            border: style === s ? `2px solid ${cfg.color}` : '1px solid var(--border-subtle)',
-                            background: style === s ? cfg.accent : 'var(--bg-secondary)',
-                            color: style === s ? cfg.color : 'var(--text-secondary)',
-                            fontSize: 13,
-                            fontWeight: 600,
-                            cursor: running ? 'not-allowed' : 'pointer',
-                            opacity: running ? 0.7 : 1,
-                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                            style === s
+                              ? 'border-2'
+                              : 'border border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--border-medium)]'
+                          }`}
+                          style={style === s ? { borderColor: cfg.rawColor, background: cfg.rawDim, color: cfg.rawColor } : undefined}
                         >
                           {STYLE_LABELS[s]}
                         </button>
@@ -912,71 +688,36 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
                     </div>
                     <button
                       type="button"
-                      onClick={() => setOpenPresetsFor((prev) => (prev === agentId ? null : agentId))}
+                      onClick={() => setOpenPresetsFor((prev) => prev === agentId ? null : agentId)}
                       disabled={running || presets === null}
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: 10,
-                        border: '1px solid var(--border-subtle)',
-                        background: openPresetsFor === agentId ? 'var(--bg-tertiary)' : 'transparent',
-                        color: 'var(--text-muted)',
-                        fontSize: 13,
-                        cursor: running || presets === null ? 'not-allowed' : 'pointer',
-                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {openPresetsFor === agentId ? '▼ Éditer les 3 styles' : '▶ Éditer les 3 styles'}
                     </button>
                     <button
                       type="button"
-                      onClick={() => setOpenCustomFor((prev) => (prev === agentId ? null : agentId))}
+                      onClick={() => setOpenCustomFor((prev) => prev === agentId ? null : agentId)}
                       disabled={running}
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: 10,
-                        border: '1px solid var(--border-subtle)',
-                        background: customOpen ? 'var(--bg-tertiary)' : 'transparent',
-                        color: 'var(--text-muted)',
-                        fontSize: 13,
-                        cursor: running ? 'not-allowed' : 'pointer',
-                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {customOpen ? '▼ Personnaliser' : '▶ Personnaliser'}
                     </button>
                   </div>
                   {openPresetsFor === agentId && presets && (
-                    <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div className="space-y-3 pt-1">
                       {(['corporate', 'audacieux', 'subversif'] as const).map((s) => (
-                        <div key={s} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                            {STYLE_LABELS[s]}
-                          </label>
+                        <div key={s} className="space-y-1.5">
+                          <label className="text-xs font-semibold text-[var(--text-secondary)]">{STYLE_LABELS[s]}</label>
                           <textarea
                             value={presets[agentId]?.[s] ?? ''}
                             onChange={(e) =>
                               setPresets((prev) =>
-                                prev
-                                  ? {
-                                      ...prev,
-                                      [agentId]: { ...prev[agentId], [s]: e.target.value },
-                                    }
-                                  : prev
+                                prev ? { ...prev, [agentId]: { ...prev[agentId], [s]: e.target.value } } : prev
                               )
                             }
                             disabled={running}
-                            rows={6}
-                            style={{
-                              width: '100%',
-                              boxSizing: 'border-box',
-                              padding: 14,
-                              borderRadius: 10,
-                              border: '1px solid var(--border-subtle)',
-                              background: 'var(--bg-secondary)',
-                              fontSize: 15,
-                              color: 'var(--text-primary)',
-                              resize: 'vertical',
-                              fontFamily: 'inherit',
-                              lineHeight: 1.6,
-                            }}
+                            rows={5}
+                            className="w-full px-4 py-3 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] resize-vertical focus:outline-none focus:border-[var(--accent-violet)]/40 focus:ring-2 focus:ring-[var(--accent-violet)]/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed leading-relaxed"
                           />
                         </div>
                       ))}
@@ -989,19 +730,7 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
                       placeholder={`Prompt personnalisé pour ${cfg.label} (sinon le style choisi s'applique)`}
                       disabled={running}
                       rows={4}
-                      style={{
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        padding: 14,
-                        borderRadius: 10,
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-secondary)',
-                        fontSize: 15,
-                        color: 'var(--text-primary)',
-                        resize: 'vertical',
-                        fontFamily: 'inherit',
-                        lineHeight: 1.65,
-                      }}
+                      className="w-full px-4 py-3 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] resize-vertical focus:outline-none focus:border-[var(--accent-violet)]/40 focus:ring-2 focus:ring-[var(--accent-violet)]/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed leading-relaxed"
                     />
                   )}
                 </div>
@@ -1010,140 +739,75 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
           </div>
         </div>
 
-        {/* Brief input */}
-        <div style={{ marginBottom: 36 }}>
-          <label style={{
-            display: 'block',
-            fontSize: 13,
-            fontWeight: 700,
-            color: 'var(--text-muted)',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            marginBottom: 12,
-          }}>
+        {/* ── Brief input ── */}
+        <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-subtle)] p-5 space-y-4">
+          <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
             Brief client
           </label>
           <textarea
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
-            placeholder="Ex : On veut repositionner notre marque de mobilier haut de gamme pour toucher les 30-45 ans urbains. On a du mal à se différencier de nos concurrents scandinaves..."
+            placeholder="Ex : On veut repositionner notre marque de mobilier haut de gamme pour toucher les 30-45 ans urbains. On a du mal à se différencier de nos concurrents scandinaves…"
             rows={5}
-            style={{
-              width: '100%',
-              background: 'var(--bg-card)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 12,
-              padding: '18px 20px',
-              fontSize: 16,
-              color: 'var(--text-primary)',
-              resize: 'vertical',
-              outline: 'none',
-              fontFamily: 'Instrument Sans, sans-serif',
-              lineHeight: 1.7,
-              boxSizing: 'border-box',
-              transition: 'border-color 0.2s',
-            }}
-            onFocus={(e) => e.target.style.borderColor = 'rgba(167,139,250,0.4)'}
-            onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
-            disabled={running || boardPhase === 'selecting'}
+            disabled={isBlocked}
+            className="w-full px-4 py-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-vertical focus:outline-none focus:border-[var(--accent-violet)]/40 focus:ring-2 focus:ring-[var(--accent-violet)]/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed leading-relaxed"
           />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+          <div className="flex justify-end">
             <button
               onClick={handleSubmit}
-              disabled={running || !brief.trim() || boardPhase === 'selecting' || enabledAgents.length === 0}
-              style={{
-                background: (running || boardPhase === 'selecting') ? 'var(--bg-tertiary)' : 'var(--accent-lime)',
-                color: (running || boardPhase === 'selecting') ? 'var(--text-muted)' : '#0a0a0b',
-                border: 'none',
-                borderRadius: 10,
-                padding: '12px 28px',
-                fontSize: 15,
-                fontWeight: 700,
-                cursor: (running || !brief.trim() || boardPhase === 'selecting') ? 'not-allowed' : 'pointer',
-                fontFamily: 'Instrument Sans, sans-serif',
-                letterSpacing: '0.02em',
-                transition: 'all 0.2s',
-              }}
+              disabled={isBlocked || !brief.trim() || enabledAgents.length === 0}
+              className="px-5 py-2.5 rounded-xl bg-[var(--accent-lime)] text-black text-sm font-bold tracking-tight hover:bg-[var(--accent-lime)]/90 disabled:bg-[var(--bg-tertiary)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed transition-all"
             >
               {running ? 'Board en cours…' : boardPhase === 'selecting' ? 'Choisissez une direction ↓' : 'Lancer le Board →'}
             </button>
           </div>
         </div>
 
-        {/* Agents legend */}
         {timeline.length === 0 && !running && (
-          <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 16,
-            padding: '20px 22px',
-            background: 'var(--bg-secondary)',
-            borderRadius: 12,
-            marginBottom: 36,
-          }}>
-            {(Object.entries(AGENT_CONFIG) as [AgentId, typeof AGENT_CONFIG[AgentId]][]).map(([id, cfg]) => (
-              <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 40%' }}>
-                <span style={{ color: cfg.color, fontSize: 20 }}>{cfg.icon}</span>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: cfg.color }}>{cfg.label}</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                    {id === 'strategist' && 'La faille, pas le plan'}
-                    {id === 'bigidea' && '3 angles → vous choisissez'}
-                    {id === 'copywriter' && 'Smart, net, légèrement taquin'}
-                    {id === 'devil' && 'Bullshit audit'}
+          <div className="grid grid-cols-2 gap-3">
+            {AGENT_IDS.map((id) => {
+              const cfg = AGENT_CONFIG[id];
+              return (
+                <div key={id} className="flex items-start gap-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border-subtle)] px-4 py-3.5">
+                  <span className="text-lg flex-shrink-0 mt-0.5" style={{ color: cfg.rawColor }}>{cfg.icon}</span>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: cfg.rawColor }}>{cfg.label}</p>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{cfg.description}</p>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {/* Vue horizontale : agents côte à côte */}
         {timeline.length > 0 && (
-          <div>
-            <div style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: statusColor,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              marginBottom: 12,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-            }}>
-              <div style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: statusColor,
-                animation: (running || boardPhase === 'selecting') ? 'pulse 1.2s ease-in-out infinite' : 'none',
-              }} />
-              {statusLabel}
-            </div>
-
-            {lastOrchestratorMessage && (
-              <div style={{
-                marginBottom: 16,
-                padding: '10px 14px',
-                background: 'var(--bg-secondary)',
-                borderRadius: 10,
-                borderLeft: '3px solid var(--accent-violet)',
-                fontSize: 14,
-                color: 'var(--text-secondary)',
-                fontStyle: 'italic',
-              }}>
-                {lastOrchestratorMessage}
+          <div className="space-y-5">
+            {statusLabel && (
+              <div className="flex items-center gap-2 pb-4 border-b border-[var(--border-subtle)]">
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{
+                    background: statusColor,
+                    animation: isBlocked ? 'board-dot 1.2s ease-in-out infinite' : 'none',
+                  }}
+                />
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: statusColor }}>
+                  {statusLabel}
+                </span>
               </div>
             )}
-
-            <div style={{ marginBottom: 24 }}>
-              <div style={{
-                display: 'flex',
-                gap: 4,
-                marginBottom: 16,
-                flexWrap: 'wrap',
-              }}>
+            {lastOrchestratorMessage && (
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5 w-7 h-7 rounded-full bg-[var(--bg-tertiary)] border border-[var(--accent-violet)]/30 flex items-center justify-center text-[11px] text-[var(--accent-violet)]">
+                  ⬡
+                </div>
+                <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-secondary)] italic leading-relaxed max-w-lg">
+                  {lastOrchestratorMessage}
+                </div>
+              </div>
+            )}
+            <div>
+              <div className="flex gap-2 flex-wrap mb-4">
                 {AGENT_IDS.map((id) => {
                   const cfg = AGENT_CONFIG[id];
                   const output = agentOutputs[id];
@@ -1154,24 +818,19 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
                       key={id}
                       type="button"
                       onClick={() => setActiveAgentTab(id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '12px 18px',
-                        borderRadius: 12,
-                        border: `2px solid ${isActive ? cfg.color : 'var(--border-subtle)'}`,
-                        background: isActive ? `${cfg.color}18` : 'var(--bg-secondary)',
-                        color: isActive ? cfg.color : 'var(--text-secondary)',
-                        fontSize: 14,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s',
-                      }}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 text-sm font-bold transition-all ${
+                        isActive
+                          ? ''
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--border-medium)]'
+                      }`}
+                      style={isActive ? { borderColor: cfg.rawColor, background: cfg.rawDim, color: cfg.rawColor } : undefined}
                     >
-                      <span style={{ fontSize: 16 }}>{cfg.icon}</span>
+                      <span>{cfg.icon}</span>
                       {cfg.label}
-                      {done ? <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}> ✓</span> : (output && !done ? <TypingDots /> : null)}
+                      {done
+                        ? <span className="text-[var(--text-muted)] font-normal text-xs ml-0.5">✓</span>
+                        : (output && !done ? <TypingDots /> : null)
+                      }
                     </button>
                   );
                 })}
@@ -1182,46 +841,38 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
                 done={agentOutputs[activeAgentTab]?.done ?? false}
               />
             </div>
-
             {timeline.some((e) => e.kind === 'selection') && (
               <SelectionBadge
                 title={(timeline.find((e) => e.kind === 'selection') as { title: string } | undefined)?.title ?? ''}
               />
             )}
-
             {boardPhase === 'selecting' && pendingIdeas.length > 0 && (
-              <div style={{ animation: 'fadeSlideUp 0.3s ease-out', marginTop: 8 }}>
+              <div className="animate-fade-in-up">
                 <IdeaCards ideas={pendingIdeas} onSelect={handleSelectIdea} />
               </div>
             )}
-
-            {timeline.filter((e) => e.kind === 'report').length > 0 && (
+            {timeline.some((e) => e.kind === 'report') && (
               <ReportBlock
                 text={(timeline.find((e) => e.kind === 'report') as { text: string } | undefined)?.text ?? ''}
               />
             )}
-
             <div ref={bottomRef} />
           </div>
         )}
+
       </div>
     </>
   );
 
   if (embedded) return content;
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--bg-primary)',
-      color: 'var(--text-primary)',
-      fontFamily: 'Instrument Sans, sans-serif',
-    }}>
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       {content}
     </div>
   );
 }
 
-/** Redirection vers l’app avec la vue Creative Board (pour liens directs / pipeline PLAUD). */
+/** Redirection vers l'app avec la vue Creative Board (liens directs / pipeline PLAUD). */
 export default function ProtoCreativeBoardRedirect() {
   const router = useRouter();
   const navigateToCreativeBoard = useAppStore((s) => s.navigateToCreativeBoard);

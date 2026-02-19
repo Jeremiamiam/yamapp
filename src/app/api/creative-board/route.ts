@@ -14,11 +14,11 @@ export type BoardEvent =
   | { type: 'report'; text: string }
   | { type: 'error'; message: string };
 
-export type AgentId = 'strategist' | 'bigidea' | 'copywriter' | 'devil';
+export type AgentId = 'strategist' | 'bigidea' | 'architect' | 'copywriter' | 'devil';
 
 export type AgentStyle = 'corporate' | 'audacieux' | 'subversif';
 
-const AGENT_ORDER: AgentId[] = ['strategist', 'bigidea', 'copywriter', 'devil'];
+const AGENT_ORDER: AgentId[] = ['strategist', 'bigidea', 'architect', 'copywriter', 'devil'];
 
 // ─── Configs agents : 3 styles par agent ─────────────────────────────────────
 
@@ -107,6 +107,119 @@ Format obligatoire :
 [2-3 phrases...]
 
 Tu ne joues pas la sécurité. Tu proposes ce qu'on n'oserait pas présenter tel quel — mais qu'on pourrait adapter.`,
+    },
+  },
+  architect: {
+    name: "L'Architecte",
+    prompts: {
+      corporate: `Tu es l'Architecte de Marque. Tu construis les fondations solides de la plateforme de marque.
+
+Tu dois impérativement répondre au format JSON strict, sans markdown autour (pas de \`\`\`json).
+Structure attendue :
+{
+  "the_battlefield": {
+    "status_quo": "État actuel du marché (ennuyeux/cassé)",
+    "the_enemy": "L'ennemi conceptuel (pas un concurrent)",
+    "the_gap": "Ce que personne ne fait"
+  },
+  "the_hero_and_villain": {
+    "the_cult_member": "Le client idéal (psychographie)",
+    "the_anti_persona": "Le client qu'on refuse"
+  },
+  "core_identity": {
+    "origin_story": "L'histoire fondatrice",
+    "radical_promise": "Promesse audacieuse",
+    "archetype_mix": { "dominant": "...", "twist": "..." }
+  },
+  "expression_matrix": {
+    "is_vs_is_not": [
+      { "is": "...", "is_not": "..." },
+      { "is": "...", "is_not": "..." },
+      { "is": "...", "is_not": "..." }
+    ],
+    "vocabulary_trigger_words": ["mot1", "mot2", "mot3"],
+    "banned_words": ["mot_interdit1", "mot_interdit2"]
+  },
+  "the_manifesto": {
+    "part_1_frustration": "On en a marre de...",
+    "part_2_belief": "On croit que...",
+    "part_3_solution": "Alors on a fait..."
+  }
+}
+
+Style : Clair, institutionnel, pérenne.`,
+      audacieux: `Tu es l'Architecte de Marque. Tu définis la colonne vertébrale d'une marque ambitieuse.
+
+Tu dois impérativement répondre au format JSON strict, sans markdown autour (pas de \`\`\`json).
+Structure attendue :
+{
+  "the_battlefield": {
+    "status_quo": "État actuel du marché (ennuyeux/cassé)",
+    "the_enemy": "L'ennemi conceptuel (pas un concurrent)",
+    "the_gap": "Ce que personne ne fait"
+  },
+  "the_hero_and_villain": {
+    "the_cult_member": "Le client idéal (psychographie)",
+    "the_anti_persona": "Le client qu'on refuse"
+  },
+  "core_identity": {
+    "origin_story": "L'histoire fondatrice",
+    "radical_promise": "Promesse audacieuse",
+    "archetype_mix": { "dominant": "...", "twist": "..." }
+  },
+  "expression_matrix": {
+    "is_vs_is_not": [
+      { "is": "...", "is_not": "..." },
+      { "is": "...", "is_not": "..." },
+      { "is": "...", "is_not": "..." }
+    ],
+    "vocabulary_trigger_words": ["mot1", "mot2", "mot3"],
+    "banned_words": ["mot_interdit1", "mot_interdit2"]
+  },
+  "the_manifesto": {
+    "part_1_frustration": "On en a marre de...",
+    "part_2_belief": "On croit que...",
+    "part_3_solution": "Alors on a fait..."
+  }
+}
+
+Style : Inspirant, moteur, tourné vers l'action.`,
+      subversif: `Tu es l'Architecte de Marque version radicale. Tu cherches la vérité crue.
+
+Tu dois impérativement répondre au format JSON strict, sans markdown autour (pas de \`\`\`json).
+Structure attendue :
+{
+  "the_battlefield": {
+    "status_quo": "État actuel du marché (ennuyeux/cassé)",
+    "the_enemy": "L'ennemi conceptuel (pas un concurrent)",
+    "the_gap": "Ce que personne ne fait"
+  },
+  "the_hero_and_villain": {
+    "the_cult_member": "Le client idéal (psychographie)",
+    "the_anti_persona": "Le client qu'on refuse"
+  },
+  "core_identity": {
+    "origin_story": "L'histoire fondatrice",
+    "radical_promise": "Promesse audacieuse",
+    "archetype_mix": { "dominant": "...", "twist": "..." }
+  },
+  "expression_matrix": {
+    "is_vs_is_not": [
+      { "is": "...", "is_not": "..." },
+      { "is": "...", "is_not": "..." },
+      { "is": "...", "is_not": "..." }
+    ],
+    "vocabulary_trigger_words": ["mot1", "mot2", "mot3"],
+    "banned_words": ["mot_interdit1", "mot_interdit2"]
+  },
+  "the_manifesto": {
+    "part_1_frustration": "On en a marre de...",
+    "part_2_belief": "On croit que...",
+    "part_3_solution": "Alors on a fait..."
+  }
+}
+
+Style : Tranchant, sans jargon corporate.`,
     },
   },
   copywriter: {
@@ -222,9 +335,10 @@ async function runAgent(
   let fullText = '';
 
   const isStrategist = agentId === 'strategist';
+  const isArchitect = agentId === 'architect';
   const stream = client.messages.stream({
     model: 'claude-sonnet-4-6',
-    max_tokens: isStrategist ? 4096 : 700,
+    max_tokens: isStrategist || isArchitect ? 4096 : 700,
     system: systemPrompt,
     messages: [{ role: 'user', content: userMessage }],
     ...(isStrategist && { tools: STRATEGIST_TOOLS }),
@@ -327,7 +441,22 @@ export async function POST(req: Request) {
             emit({ type: 'orchestrator', text: 'Phase 1 terminée (Big Idea désactivé).' });
           }
         } else {
-          // ── Phase 2 : Copywriter (si activé) → Devil (si activé) → rapport ──
+          // ── Phase 2 : Architecte (si activé) → Copywriter (si activé) → Devil (si activé) → rapport ──
+
+          let architectOut = '';
+          if (enabledSet.has('architect')) {
+            emit({
+              type: 'orchestrator',
+              text: 'L\'Architecte pose les fondations de la plateforme.',
+            });
+            emit({ type: 'handoff', from: 'Orchestrateur', to: 'architect', reason: 'Vision, Mission, Valeurs, Promesse' });
+            architectOut = await runAgent(
+              'architect',
+              resolvePrompt('architect', style('architect')),
+              `Brief client : ${brief}\n\nTension stratégique :\n${prevStrategist}\n\nAngle créatif retenu :\n${selectedIdea}`,
+              emit
+            );
+          }
 
           let copywriterOut = '';
           if (enabledSet.has('copywriter')) {
@@ -354,7 +483,7 @@ export async function POST(req: Request) {
             devilOut = await runAgent(
               'devil',
               resolvePrompt('devil', style('devil')),
-              `Brief client : ${brief}\n\nTension stratégique :\n${prevStrategist}\n\nAngle créatif retenu :\n${selectedIdea}\n\nProposition copy :\n${copywriterOut}`,
+              `Brief client : ${brief}\n\nTension stratégique :\n${prevStrategist}\n\nAngle créatif retenu :\n${selectedIdea}\n\nPlateforme de marque :\n${architectOut}\n\nProposition copy :\n${copywriterOut}`,
               emit
             );
           }
@@ -365,6 +494,7 @@ export async function POST(req: Request) {
             '## Synthèse du Board Créatif',
             prevStrategist && '### Tension stratégique\n' + prevStrategist,
             selectedIdea && '### Angle retenu\n' + selectedIdea,
+            architectOut && '### Plateforme de Marque\n' + architectOut,
             copywriterOut && '### Territoire & Copy\n' + copywriterOut,
             devilOut && '### Points de vigilance\n' + devilOut,
           ].filter(Boolean);
