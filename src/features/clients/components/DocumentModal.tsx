@@ -163,7 +163,7 @@ function parseStrategySections(text: string): { title: string; body: string }[] 
 const STRATEGY_CARD_STYLES: Record<string, { color: string; icon: string; bg: string }> = {
   'Tension stratégique':  { color: 'var(--accent-cyan)',   icon: '◈', bg: 'var(--accent-cyan-dim)'   },
   'Angle retenu':         { color: 'var(--accent-amber)',  icon: '⬡', bg: 'var(--accent-amber-dim)'  },
-  'Plateforme de Marque': { color: 'var(--accent-violet)', icon: '🏛️', bg: 'var(--accent-violet-dim)' },
+  'Plateforme de Marque': { color: 'var(--accent-violet)', icon: '◇', bg: 'var(--accent-violet-dim)' },
   'Territoire & Copy':    { color: 'var(--accent-lime)',   icon: '✦', bg: 'var(--accent-lime-dim)'   },
   'Points de vigilance':  { color: 'var(--accent-coral)', icon: '◉', bg: 'var(--accent-coral-dim)'  },
 };
@@ -182,115 +182,218 @@ interface BrandPlatformData {
   the_manifesto: { part_1_frustration: string; part_2_belief: string; part_3_solution: string };
 }
 
+const TAG_LIMIT = 8;
+
+function TagCloud({ words, color, borderColor, bgColor, label }: {
+  words: string[];
+  color: string;
+  borderColor: string;
+  bgColor: string;
+  label: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasMore = words.length > TAG_LIMIT;
+  const visible = expanded ? words : words.slice(0, TAG_LIMIT);
+
+  return (
+    <div>
+      <span className="text-[10px] font-bold uppercase tracking-wider block mb-2.5" style={{ color }}>{label}</span>
+      <div className="flex flex-wrap gap-1.5">
+        {visible.map((w, i) => (
+          <span
+            key={i}
+            className="px-2.5 py-1 rounded-md text-xs font-medium border"
+            style={{ background: bgColor, color, borderColor }}
+          >
+            {w}
+          </span>
+        ))}
+        {hasMore && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="px-2.5 py-1 rounded-md text-xs font-medium border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-medium)] transition-colors"
+          >
+            {expanded ? 'Moins' : `+${words.length - TAG_LIMIT}`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BrandPlatformView({ data }: { data: BrandPlatformData }) {
   return (
-    <div className="space-y-8 animate-fade-in-up">
-      {/* Introduction : Le Champ de Bataille */}
-      <section className="grid md:grid-cols-3 gap-4">
-        <div className="bg-[var(--bg-tertiary)]/50 p-5 rounded-xl border border-[var(--border-subtle)]">
-          <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Status Quo</h4>
-          <p className="text-sm">{data.the_battlefield.status_quo}</p>
+    <div className="space-y-10 animate-fade-in-up">
+      {/* ── Le Champ de Bataille ── */}
+      <section>
+        <div className="flex items-center gap-2.5 mb-5">
+          <div className="w-1 h-4 rounded-full bg-[var(--accent-coral)]" />
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Le Champ de Bataille</h3>
         </div>
-        <div className="bg-red-500/5 p-5 rounded-xl border border-red-500/20">
-          <h4 className="text-[10px] font-bold uppercase tracking-wider text-red-400 mb-2">L'Ennemi</h4>
-          <p className="text-sm text-red-200/90">{data.the_battlefield.the_enemy}</p>
+        <div className="grid md:grid-cols-3 gap-3">
+          <div className="bg-[var(--bg-tertiary)]/40 p-5 rounded-xl border border-[var(--border-subtle)] relative">
+            <span className="absolute top-3 right-3.5 text-[10px] font-bold text-[var(--text-muted)]/40 md:hidden">1/3</span>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2.5">Status Quo</h4>
+            <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{data.the_battlefield.status_quo}</p>
+          </div>
+          <div className="bg-[var(--accent-coral)]/5 p-5 rounded-xl border border-[var(--accent-coral)]/15 relative">
+            <span className="absolute top-3 right-3.5 text-[10px] font-bold text-[var(--accent-coral)]/30 md:hidden">2/3</span>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-coral)] mb-2.5">L'Ennemi</h4>
+            <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{data.the_battlefield.the_enemy}</p>
+          </div>
+          <div className="bg-[var(--accent-lime)]/5 p-5 rounded-xl border border-[var(--accent-lime)]/15 relative">
+            <span className="absolute top-3 right-3.5 text-[10px] font-bold text-[var(--accent-lime)]/30 md:hidden">3/3</span>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-lime)] mb-2.5">Le Gap</h4>
+            <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{data.the_battlefield.the_gap}</p>
+          </div>
         </div>
-        <div className="bg-[var(--accent-lime)]/5 p-5 rounded-xl border border-[var(--accent-lime)]/20">
-          <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-lime)] mb-2">Le Gap</h4>
-          <p className="text-sm text-[var(--accent-lime)]/90">{data.the_battlefield.the_gap}</p>
+        {/* Flèches de progression (desktop only) */}
+        <div className="hidden md:flex items-center justify-center gap-2 mt-3 text-[var(--text-muted)]/30">
+          <div className="h-px flex-1 bg-[var(--border-subtle)]" />
+          <span className="text-[10px] tracking-widest">DISRUPTION</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-40"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <div className="h-px flex-1 bg-[var(--border-subtle)]" />
         </div>
       </section>
 
-      {/* Identité & Héros */}
+      {/* ── Identité & Casting ── */}
       <section className="grid md:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <h3 className="text-sm font-bold uppercase text-[var(--text-secondary)]">Identité Profonde</h3>
-          <div className="bg-[var(--bg-card)] p-6 rounded-xl border border-[var(--border-subtle)] space-y-4">
+        <div>
+          <div className="flex items-center gap-2.5 mb-5">
+            <div className="w-1 h-4 rounded-full bg-[var(--accent-violet)]" />
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Identite Profonde</h3>
+          </div>
+          <div className="bg-[var(--bg-primary)]/40 p-6 rounded-xl border border-[var(--border-subtle)] space-y-5 h-full">
             <div>
-              <span className="text-xs text-[var(--text-muted)]">Histoire d'origine</span>
-              <p className="text-sm mt-1">{data.core_identity.origin_story}</p>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Histoire d'origine</span>
+              <p className="text-sm leading-relaxed mt-1.5 text-[var(--text-secondary)]">{data.core_identity.origin_story}</p>
+            </div>
+            <div className="py-4 border-y border-[var(--border-subtle)]">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-violet)]">Promesse Radicale</span>
+              <p className="text-lg font-bold text-[var(--text-primary)] mt-2 leading-snug">&ldquo;{data.core_identity.radical_promise}&rdquo;</p>
             </div>
             <div>
-              <span className="text-xs text-[var(--text-muted)]">Promesse Radicale</span>
-              <p className="text-lg font-bold text-[var(--text-primary)] mt-1">"{data.core_identity.radical_promise}"</p>
-            </div>
-            <div>
-              <span className="text-xs text-[var(--text-muted)]">Archétypes</span>
-              <div className="flex gap-2 mt-1">
-                <span className="px-2 py-1 rounded bg-[var(--bg-tertiary)] text-xs font-medium">{data.core_identity.archetype_mix.dominant}</span>
-                <span className="text-xs text-[var(--text-muted)] self-center">+</span>
-                <span className="px-2 py-1 rounded bg-[var(--bg-tertiary)] text-xs font-medium">{data.core_identity.archetype_mix.twist}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Archetypes</span>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="px-3 py-1.5 rounded-lg bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] text-xs font-bold border border-[var(--accent-violet)]/20">
+                  {data.core_identity.archetype_mix.dominant}
+                </span>
+                <span className="text-xs text-[var(--text-muted)]">+</span>
+                <span className="px-3 py-1.5 rounded-lg bg-[var(--bg-tertiary)] text-xs font-medium text-[var(--text-secondary)] border border-[var(--border-subtle)]">
+                  {data.core_identity.archetype_mix.twist}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h3 className="text-sm font-bold uppercase text-[var(--text-secondary)]">Casting</h3>
-          <div className="grid gap-4 h-full">
-            <div className="bg-[var(--accent-cyan)]/5 p-5 rounded-xl border border-[var(--accent-cyan)]/20">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">🤩</span>
-                <h4 className="text-xs font-bold text-[var(--accent-cyan)]">Le Client Idéal</h4>
+        <div>
+          <div className="flex items-center gap-2.5 mb-5">
+            <div className="w-1 h-4 rounded-full bg-[var(--accent-cyan)]" />
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Casting</h3>
+          </div>
+          <div className="grid gap-3 h-[calc(100%-2rem)]">
+            <div className="bg-[var(--accent-cyan)]/5 p-5 rounded-xl border border-[var(--accent-cyan)]/15">
+              <div className="flex items-center gap-2.5 mb-3">
+                <span className="w-7 h-7 rounded-lg bg-[var(--accent-cyan)]/15 flex items-center justify-center text-sm">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </span>
+                <h4 className="text-xs font-bold text-[var(--accent-cyan)]">Le Client Ideal</h4>
               </div>
-              <p className="text-sm text-[var(--text-secondary)]">{data.the_hero_and_villain.the_cult_member}</p>
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{data.the_hero_and_villain.the_cult_member}</p>
             </div>
-            <div className="bg-[var(--bg-tertiary)] p-5 rounded-xl border border-[var(--border-subtle)] opacity-70">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">🚫</span>
+            <div className="bg-[var(--bg-tertiary)]/40 p-5 rounded-xl border border-[var(--border-subtle)]">
+              <div className="flex items-center gap-2.5 mb-3">
+                <span className="w-7 h-7 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center text-sm">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+                </span>
                 <h4 className="text-xs font-bold text-[var(--text-muted)]">L'Anti-Persona</h4>
               </div>
-              <p className="text-sm text-[var(--text-muted)]">{data.the_hero_and_villain.the_anti_persona}</p>
+              <p className="text-sm leading-relaxed text-[var(--text-muted)]">{data.the_hero_and_villain.the_anti_persona}</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Matrice d'Expression */}
+      {/* ── Matrice d'Expression ── */}
       <section>
-        <h3 className="text-sm font-bold uppercase text-[var(--text-secondary)] mb-4">Matrice d'Expression</h3>
+        <div className="flex items-center gap-2.5 mb-5">
+          <div className="w-1 h-4 rounded-full bg-[var(--accent-lime)]" />
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Matrice d'Expression</h3>
+        </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-2">
             {data.expression_matrix.is_vs_is_not.map((item, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-tertiary)]/30 border border-[var(--border-subtle)]">
-                <span className="font-medium text-[var(--accent-lime)]">{item.is}</span>
-                <span className="text-xs text-[var(--text-muted)]">mais pas</span>
-                <span className="font-medium text-[var(--text-muted)] line-through decoration-red-500/50">{item.is_not}</span>
+              <div key={i} className="flex items-center gap-3 p-3.5 rounded-lg bg-[var(--bg-primary)]/40 border border-[var(--border-subtle)] group hover:border-[var(--accent-lime)]/20 transition-colors">
+                <span className="font-medium text-sm text-[var(--accent-lime)] flex-1">{item.is}</span>
+                <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]/50 flex-shrink-0 px-2">vs</span>
+                <span className="font-medium text-sm text-[var(--text-muted)] line-through decoration-[var(--accent-coral)]/40 flex-1 text-right">{item.is_not}</span>
               </div>
             ))}
           </div>
-          <div className="space-y-4">
-            <div>
-              <span className="text-xs text-[var(--text-muted)] block mb-2">Mots Clés</span>
-              <div className="flex flex-wrap gap-2">
-                {data.expression_matrix.vocabulary_trigger_words.map((w, i) => (
-                  <span key={i} className="px-2.5 py-1 rounded-md bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] text-xs border border-[var(--accent-cyan)]/20">{w}</span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <span className="text-xs text-[var(--text-muted)] block mb-2">Mots Interdits</span>
-              <div className="flex flex-wrap gap-2">
-                {data.expression_matrix.banned_words.map((w, i) => (
-                  <span key={i} className="px-2.5 py-1 rounded-md bg-red-500/10 text-red-400 text-xs border border-red-500/20">{w}</span>
-                ))}
-              </div>
-            </div>
+          <div className="space-y-5">
+            <TagCloud
+              words={data.expression_matrix.vocabulary_trigger_words}
+              color="var(--accent-cyan)"
+              borderColor="rgba(34, 211, 238, 0.2)"
+              bgColor="rgba(34, 211, 238, 0.08)"
+              label="Mots-cles"
+            />
+            <TagCloud
+              words={data.expression_matrix.banned_words}
+              color="#f87171"
+              borderColor="rgba(248, 113, 113, 0.2)"
+              bgColor="rgba(248, 113, 113, 0.08)"
+              label="Mots Interdits"
+            />
           </div>
         </div>
       </section>
 
-      {/* Manifeste */}
-      <section className="bg-[var(--bg-card)] p-8 rounded-xl border border-[var(--border-subtle)] relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5 text-4xl">📜</div>
-        <div className="space-y-6 relative z-10 font-serif text-[var(--text-primary)]">
-          <p className="text-lg leading-relaxed border-l-2 border-red-500/50 pl-4">{data.the_manifesto.part_1_frustration}</p>
-          <p className="text-lg leading-relaxed border-l-2 border-[var(--accent-cyan)]/50 pl-4">{data.the_manifesto.part_2_belief}</p>
-          <p className="text-xl font-bold leading-relaxed border-l-4 border-[var(--accent-lime)] pl-4 text-[var(--accent-lime)]">{data.the_manifesto.part_3_solution}</p>
+      {/* ── Manifeste ── */}
+      <section>
+        <div className="flex items-center gap-2.5 mb-5">
+          <div className="w-1 h-4 rounded-full bg-[var(--accent-amber)]" />
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Le Manifeste</h3>
+        </div>
+        <div className="bg-[var(--bg-primary)]/60 p-8 rounded-xl border border-[var(--border-subtle)] relative overflow-hidden">
+          {/* Subtle gradient accent */}
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
+            background: 'linear-gradient(135deg, var(--accent-coral) 0%, transparent 40%, transparent 60%, var(--accent-lime) 100%)'
+          }} />
+          <div className="space-y-6 relative z-10">
+            <div className="border-l-2 border-[var(--accent-coral)]/40 pl-5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-coral)]/60 block mb-2">La Frustration</span>
+              <p className="text-[15px] leading-[1.8] text-[var(--text-secondary)]">{data.the_manifesto.part_1_frustration}</p>
+            </div>
+            <div className="border-l-2 border-[var(--accent-cyan)]/40 pl-5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-cyan)]/60 block mb-2">La Conviction</span>
+              <p className="text-[15px] leading-[1.8] text-[var(--text-secondary)]">{data.the_manifesto.part_2_belief}</p>
+            </div>
+            <div className="border-l-3 border-[var(--accent-lime)] pl-5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-lime)]/60 block mb-2">La Reponse</span>
+              <p className="text-lg font-bold leading-[1.6] text-[var(--accent-lime)]">{data.the_manifesto.part_3_solution}</p>
+            </div>
+          </div>
         </div>
       </section>
     </div>
   );
+}
+
+/** Tente d'extraire du JSON structuré (BrandPlatform) depuis le body markdown */
+function extractPlatformJson(body: string): BrandPlatformData | null {
+  // Nettoyage : enlever les fences markdown
+  const cleaned = body.replace(/```json\n?|\n?```/g, '');
+  // Stratégie 1 : chercher l'objet JSON le plus large
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) return null;
+  try {
+    return JSON.parse(cleaned.substring(firstBrace, lastBrace + 1));
+  } catch {
+    return null;
+  }
 }
 
 function CreativeStrategyView({ content }: { content: string }) {
@@ -298,93 +401,70 @@ function CreativeStrategyView({ content }: { content: string }) {
   const defaultStyle = { color: 'var(--accent-lime)', icon: '◆', bg: 'var(--accent-lime-dim)' };
   const displaySections = sections.length > 0
     ? sections
-    : [{ title: 'Synthèse', body: content.replace(/^##\s+.*\n?/m, '').trim() || content }];
+    : [{ title: 'Synthese', body: content.replace(/^##\s+.*\n?/m, '').trim() || content }];
 
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const activeSection = displaySections[activeTabIndex] || displaySections[0];
   const activeStyle = STRATEGY_CARD_STYLES[activeSection.title] ?? defaultStyle;
 
-  // Détection auto du JSON pour la Plateforme de Marque
   const isPlatformSection = activeSection.title === 'Plateforme de Marque';
-  let platformData: BrandPlatformData | null = null;
-  if (isPlatformSection) {
-    try {
-      // Extraction plus robuste : chercher le premier { et le dernier }
-      const firstBrace = activeSection.body.indexOf('{');
-      const lastBrace = activeSection.body.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1) {
-        const jsonCandidate = activeSection.body.substring(firstBrace, lastBrace + 1);
-        platformData = JSON.parse(jsonCandidate);
-      } else {
-        // Fallback simple
-        const cleanJson = activeSection.body.replace(/```json\n?|\n?```/g, '').trim();
-        platformData = JSON.parse(cleanJson);
-      }
-    } catch {
-      // Pas du JSON valide, on affiche le texte brut
-    }
-  }
+  const platformData = isPlatformSection ? extractPlatformJson(activeSection.body) : null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-1.5 h-4 rounded-full bg-[var(--accent-lime)]" />
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Synthèse du Board</span>
+    <div className="space-y-0">
+      {/* Sticky header: label + tabs unified — negative top to eat parent padding */}
+      <div className="sticky -top-6 z-10 bg-[var(--bg-card)] -mx-6 px-6 pt-4 pb-0">
+        <div className="flex items-center gap-2.5 mb-2">
+          <div className="w-1.5 h-4 rounded-full bg-[var(--accent-lime)]" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Synthese du Board</span>
+        </div>
+        <div className="flex gap-1 overflow-x-auto pb-px scrollbar-none">
+          {displaySections.map((section, i) => {
+            const s = STRATEGY_CARD_STYLES[section.title] ?? defaultStyle;
+            const isActive = i === activeTabIndex;
+            return (
+              <button
+                key={i}
+                onClick={() => setActiveTabIndex(i)}
+                className={`
+                  flex items-center gap-2 px-4 py-2.5 text-sm font-bold transition-all whitespace-nowrap relative flex-shrink-0
+                  ${isActive
+                    ? ''
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}
+                `}
+                style={isActive ? { color: s.color } : {}}
+              >
+                <span className={`text-base ${isActive ? '' : 'opacity-50'}`}>{s.icon}</span>
+                <span className="hidden sm:inline">{section.title}</span>
+                {isActive && (
+                  <span
+                    className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full"
+                    style={{ background: s.color }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="h-px bg-[var(--border-subtle)]" />
       </div>
 
-      {/* Tabs navigation */}
-      <div className="flex flex-wrap gap-2 border-b border-[var(--border-subtle)] pb-2 overflow-x-auto">
-        {displaySections.map((section, i) => {
-          const s = STRATEGY_CARD_STYLES[section.title] ?? defaultStyle;
-          const isActive = i === activeTabIndex;
-          return (
-            <button
-              key={i}
-              onClick={() => setActiveTabIndex(i)}
-              className={`
-                flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-sm font-bold transition-all border-b-2
-                ${isActive 
-                  ? 'bg-[var(--bg-tertiary)]/50' 
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] border-transparent'}
-              `}
-              style={isActive ? { 
-                color: s.color, 
-                borderColor: s.color 
-              } : {}}
-            >
-              <span className={isActive ? '' : 'opacity-70'}>{s.icon}</span>
-              {section.title}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Active Tab Content */}
-      <div 
-        className="rounded-xl p-8 border transition-all animate-fade-in-up"
-        style={{ 
-          background: activeStyle.bg, 
-          borderColor: `${activeStyle.color}20`,
-          minHeight: '400px'
+      {/* Content — no redundant section header, the tab already identifies the section */}
+      <div
+        key={activeTabIndex}
+        className="rounded-xl p-6 sm:p-8 border mt-4 animate-fade-in-up"
+        style={{
+          background: activeStyle.bg,
+          borderColor: `${activeStyle.color}15`,
+          minHeight: platformData ? '500px' : '240px',
+          animationDuration: '0.25s',
         }}
       >
-        <div className="flex items-center gap-4 mb-6 pb-6" style={{ borderBottom: `1px solid ${activeStyle.color}25` }}>
-           <span
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl font-bold flex-shrink-0 shadow-sm"
-            style={{ background: `${activeStyle.color}18`, color: activeStyle.color }}
-          >
-            {activeStyle.icon}
-          </span>
-          <h3 className="text-xl font-bold tracking-tight" style={{ color: activeStyle.color }}>
-            {activeSection.title}
-          </h3>
-        </div>
-        
         <div className="prose prose-invert max-w-none">
           {platformData ? (
             <BrandPlatformView data={platformData} />
           ) : (
-            <p className="text-[16px] text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap font-normal">
+            <p className="text-[15px] text-[var(--text-primary)] leading-[1.8] whitespace-pre-wrap font-normal">
               {activeSection.body}
             </p>
           )}
