@@ -125,6 +125,8 @@ function DocumentModalContent({
   const showTemplated = structured !== null;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [generatingBrief, setGeneratingBrief] = useState(false);
+  const [showTranscriptInput, setShowTranscriptInput] = useState(false);
+  const [fallbackTranscript, setFallbackTranscript] = useState('');
 
   const reportData = structured && selectedDocument.type === 'report' ? (structured as ReportPlaudTemplate) : null;
   const onEventAdded = useCallback(
@@ -144,14 +146,13 @@ function DocumentModalContent({
     [reportData, clientId, selectedDocument.id, updateDocument]
   );
 
-  const handleGenerateBrief = useCallback(async () => {
-    if (!reportData?.rawTranscript) return;
+  const runBriefGeneration = useCallback(async (transcript: string) => {
     setGeneratingBrief(true);
     try {
       const res = await fetch('/api/brief-from-plaud', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawTranscript: reportData.rawTranscript }),
+        body: JSON.stringify({ rawTranscript: transcript }),
       });
       const data = await res.json() as { brief?: string; error?: string };
       if (!res.ok || data.error) {
@@ -166,7 +167,26 @@ function DocumentModalContent({
     } finally {
       setGeneratingBrief(false);
     }
-  }, [reportData, router, onClose]);
+  }, [router, onClose]);
+
+  const handleGenerateBrief = useCallback(() => {
+    const transcript = reportData?.rawTranscript;
+    if (transcript) {
+      runBriefGeneration(transcript);
+    } else {
+      setShowTranscriptInput((v) => !v);
+    }
+  }, [reportData, runBriefGeneration]);
+
+  const handleFallbackSubmit = useCallback(() => {
+    if (!fallbackTranscript.trim()) return;
+    // Persiste rawTranscript dans le document pour les prochaines fois
+    if (reportData && clientId) {
+      const next = { ...reportData, rawTranscript: fallbackTranscript.trim() };
+      updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(next) });
+    }
+    runBriefGeneration(fallbackTranscript.trim());
+  }, [fallbackTranscript, reportData, clientId, selectedDocument.id, updateDocument, runBriefGeneration]);
 
   const handleDeleteClick = () => setShowDeleteConfirm(true);
   const handleDeleteCancel = () => setShowDeleteConfirm(false);
@@ -260,33 +280,64 @@ function DocumentModalContent({
             </div>
           )}
         </div>
-        <div className="flex-shrink-0 px-6 py-4 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
-          <span className="text-xs text-[var(--text-muted)]">
-            Derniere modification : {formatDocDate(selectedDocument.updatedAt)}
-          </span>
-          <div className="flex items-center gap-2">
-            {reportData?.rawTranscript && (
+        <div className="flex-shrink-0 border-t border-[var(--border-subtle)]">
+          {showTranscriptInput && (
+            <div className="px-6 pt-4 pb-3 border-b border-[var(--border-subtle)] space-y-2">
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--accent-violet)]">
+                Colle le transcript PLAUD pour générer le brief
+              </label>
+              <textarea
+                value={fallbackTranscript}
+                onChange={(e) => setFallbackTranscript(e.target.value)}
+                placeholder="Colle ici le texte exporté depuis l'app PLAUD…"
+                rows={4}
+                className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none focus:border-[var(--accent-violet)]/40 transition-colors"
+                autoFocus
+              />
               <button
-                onClick={handleGenerateBrief}
-                disabled={generatingBrief}
-                className="px-4 py-2 rounded-lg bg-[var(--accent-violet)]/15 border border-[var(--accent-violet)]/30 text-sm font-semibold text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                onClick={handleFallbackSubmit}
+                disabled={!fallbackTranscript.trim() || generatingBrief}
+                className="w-full py-2 rounded-lg bg-[var(--accent-violet)] text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
               >
                 {generatingBrief ? (
                   <>
-                    <span className="w-3 h-3 border-2 border-[var(--accent-violet)]/30 border-t-[var(--accent-violet)] rounded-full animate-spin" />
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Génération…
                   </>
                 ) : (
-                  '⬡ Brief Créatif →'
+                  'Générer le brief →'
                 )}
               </button>
-            )}
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-[var(--bg-tertiary)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
-            >
-              Fermer
-            </button>
+            </div>
+          )}
+          <div className="px-6 py-4 flex items-center justify-between gap-3">
+            <span className="text-xs text-[var(--text-muted)]">
+              Derniere modification : {formatDocDate(selectedDocument.updatedAt)}
+            </span>
+            <div className="flex items-center gap-2">
+              {reportData && (
+                <button
+                  onClick={handleGenerateBrief}
+                  disabled={generatingBrief}
+                  className="px-4 py-2 rounded-lg bg-[var(--accent-violet)]/15 border border-[var(--accent-violet)]/30 text-sm font-semibold text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  {generatingBrief ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-[var(--accent-violet)]/30 border-t-[var(--accent-violet)] rounded-full animate-spin" />
+                      Génération…
+                    </>
+                  ) : (
+                    '⬡ Brief Créatif →'
+                  )}
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg bg-[var(--bg-tertiary)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
           </div>
         </div>
       </div>
