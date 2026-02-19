@@ -66,6 +66,12 @@ const BookOpenIcon = () => (
   </svg>
 );
 
+const SparkleIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+  </svg>
+);
+
 /** Affiche le prénom ou la partie avant @ de l'email */
 function displayName(email: string | undefined, fullName: string | undefined): string {
   if (fullName?.trim()) return fullName.trim();
@@ -320,6 +326,15 @@ export function Header() {
             </span>
           )}
           <div className="flex items-center gap-0.5 md:gap-1 pl-2 md:pl-3 border-l border-[var(--border-subtle)]">
+            <button
+              type="button"
+              onClick={() => router.push('/proto/creative-board')}
+              className="p-1.5 md:p-2 rounded-md text-[var(--accent-lime)] hover:bg-[var(--accent-lime)]/10 transition-colors touch-manipulation min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center"
+              title="Creative Board — proto multi-agents"
+              aria-label="Creative Board"
+            >
+              <SparkleIcon />
+            </button>
             <button
               type="button"
               onClick={openDocsYam}
