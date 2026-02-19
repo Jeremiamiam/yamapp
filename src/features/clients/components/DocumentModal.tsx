@@ -162,7 +162,7 @@ function DocumentModalContent({
       }
       if (data.brief && clientId) {
         const briefTitle = `Brief - ${selectedDocument.title}`;
-        addDocument(clientId, { type: 'brief', title: briefTitle, content: data.brief });
+        await addDocument(clientId, { type: 'brief', title: briefTitle, content: data.brief });
       }
       sessionStorage.setItem('creative-board-brief-prefill', data.brief ?? '');
       router.push('/proto/creative-board');

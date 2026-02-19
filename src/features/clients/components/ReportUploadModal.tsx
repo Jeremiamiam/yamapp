@@ -188,7 +188,7 @@ export function ReportUploadModal() {
       }
       if (data.brief && clientId) {
         const briefTitle = `Brief - ${reportData?.title ?? new Date().toLocaleDateString('fr-FR')}`;
-        addDocument(clientId, { type: 'brief', title: briefTitle, content: data.brief });
+        await addDocument(clientId, { type: 'brief', title: briefTitle, content: data.brief });
       }
       sessionStorage.setItem('creative-board-brief-prefill', data.brief ?? '');
       router.push('/proto/creative-board');
