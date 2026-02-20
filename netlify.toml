@@ -1,4 +1,4 @@
-# YAM Dashboard — Netlify (Next.js auto-détecté via OpenNext)
+# YAM Dashboard - Netlify (Next.js)
 
 [build]
   command = "npm run build"
@@ -6,7 +6,6 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# Timeout 26s pour les API routes (web-architect, homepage = appels Claude lents)
-# Par défaut Netlify = 10s → 504 si Claude répond en 15s+
+# Timeout 26s for API routes (web-architect, homepage)
 [functions]
   timeout = 26
