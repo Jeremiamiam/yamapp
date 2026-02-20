@@ -599,6 +599,42 @@ function DocumentModalContent({
     }
   }, [onClose, clientId, reportData?.title, addDocument, openDocument]);
 
+  const consumeStreamResponse = useCallback(
+    async <T,>(res: Response, resultKey: 'architecture' | 'homepage'): Promise<{ data?: T; error?: string }> => {
+      if (!res.ok) return { error: `${resultKey === 'architecture' ? 'Architecte web' : 'Homepage'} : ${res.status}` };
+      const reader = res.body?.getReader();
+      if (!reader) return { error: 'Stream invalide' };
+      const decoder = new TextDecoder();
+      let buffer = '';
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const json = JSON.parse(line.slice(6).trim()) as { t: string; error?: string; architecture?: unknown; homepage?: unknown };
+                if (json.t === 'error') return { error: json.error ?? 'Erreur inconnue' };
+                if (json.t === 'done' && (json.architecture || json.homepage)) {
+                  return { data: (json[resultKey] ?? json.architecture ?? json.homepage) as T };
+                }
+              } catch {
+                /* ignorer lignes invalides */
+              }
+            }
+          }
+        }
+        return { error: 'Réponse incomplète' };
+      } finally {
+        reader.releaseLock();
+      }
+    },
+    []
+  );
+
   const runWebGeneration = useCallback(
     async (payload: { brandPlatform: unknown; strategyText: string; copywriterText: string }) => {
       if (!clientId) {
@@ -618,17 +654,12 @@ function DocumentModalContent({
             copywriterText: payload.copywriterText,
           }),
         });
-        let archData: { architecture?: unknown; error?: string };
-        try {
-          archData = (await archRes.json()) as { architecture?: unknown; error?: string };
-        } catch {
-          showError(`Architecte web : réponse invalide (${archRes.status})`);
+        const archResult = await consumeStreamResponse<WebBriefData['architecture']>(archRes, 'architecture');
+        if (archResult.error) {
+          showError(archResult.error);
           return;
         }
-        if (!archRes.ok || archData.error) {
-          showError(archData.error ?? `Architecte web : ${archRes.status}`);
-          return;
-        }
+        const archData = archResult.data!;
         const homeRes = await fetch('/api/homepage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -636,24 +667,19 @@ function DocumentModalContent({
             reportContent: selectedDocument.content,
             brandPlatform: payload.brandPlatform,
             copywriterText: payload.copywriterText,
-            siteArchitecture: archData.architecture,
+            siteArchitecture: archData,
           }),
         });
-        let homeData: { homepage?: unknown; error?: string };
-        try {
-          homeData = (await homeRes.json()) as { homepage?: unknown; error?: string };
-        } catch {
-          showError(`Homepage : réponse invalide (${homeRes.status})`);
+        const homeResult = await consumeStreamResponse<WebBriefData['homepage']>(homeRes, 'homepage');
+        if (homeResult.error) {
+          showError(homeResult.error);
           return;
         }
-        if (!homeRes.ok || homeData.error) {
-          showError(homeData.error ?? `Homepage : ${homeRes.status}`);
-          return;
-        }
+        const homeData = homeResult.data!;
         const webBrief: WebBriefData = {
           version: 1,
-          architecture: archData.architecture as WebBriefData['architecture'],
-          homepage: homeData.homepage as WebBriefData['homepage'],
+          architecture: archData,
+          homepage: homeData,
           generatedAt: new Date().toISOString(),
         };
         const createdDoc = await addDocument(clientId, {
@@ -671,7 +697,7 @@ function DocumentModalContent({
         setGeneratingWeb(false);
       }
     },
-    [clientId, selectedDocument.content, addDocument, openDocument, onClose]
+    [clientId, selectedDocument.content, addDocument, openDocument, onClose, consumeStreamResponse]
   );
 
   const handleGenerateBrief = useCallback(() => {

@@ -83,10 +83,7 @@ export async function POST(req: Request) {
   };
 
   const { reportContent = '', brandPlatform, strategyText = '', copywriterText = '' } = body;
-
-  // Limiter la taille pour éviter timeout 504 (Netlify 10s par défaut)
   const reportTrimmed = typeof reportContent === 'string' ? reportContent.slice(0, 6000) : '';
-
   const platformStr = brandPlatform
     ? typeof brandPlatform === 'string' ? brandPlatform : JSON.stringify(brandPlatform)
     : '';
@@ -103,20 +100,40 @@ ${reportTrimmed ? `Rapport complet :\n${reportTrimmed}` : ''}
 
 Génère l'arborescence du menu du site (navigation principale + footer) au format JSON demandé.`;
 
-  try {
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      temperature: 0.5,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userContent }],
-    });
+  const encoder = new TextEncoder();
 
-    const text = (message.content[0] as { type: string; text: string }).text;
-    const parsed = extractJsonFromResponse(text);
-    return Response.json({ architecture: parsed });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Erreur inconnue';
-    return Response.json({ error: `Génération échouée : ${msg}` }, { status: 500 });
-  }
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const claudeStream = client.messages.stream({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2000,
+          temperature: 0.5,
+          system: SYSTEM_PROMPT,
+          messages: [{ role: 'user', content: userContent }],
+        });
+
+        let fullText = '';
+        for await (const event of claudeStream) {
+          if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+            const chunk = event.delta.text;
+            fullText += chunk;
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ t: 'chunk', d: chunk })}\n\n`));
+          }
+        }
+
+        const parsed = extractJsonFromResponse(fullText);
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ t: 'done', architecture: parsed })}\n\n`));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ t: 'error', error: msg })}\n\n`));
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
+  });
 }

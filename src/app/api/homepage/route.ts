@@ -99,20 +99,40 @@ ${reportTrimmed ? `Rapport complet :\n${reportTrimmed}` : ''}
 
 Génère le brief de la homepage avec toutes les sections (hero, social proof, value prop, etc.) au format JSON demandé. Contenu rédigé, pas de placeholder.`;
 
-  try {
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2500,
-      temperature: 0.6,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userContent }],
-    });
+  const encoder = new TextEncoder();
 
-    const text = (message.content[0] as { type: string; text: string }).text;
-    const parsed = extractJsonFromResponse(text);
-    return Response.json({ homepage: parsed });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Erreur inconnue';
-    return Response.json({ error: `Génération échouée : ${msg}` }, { status: 500 });
-  }
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const claudeStream = client.messages.stream({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2500,
+          temperature: 0.6,
+          system: SYSTEM_PROMPT,
+          messages: [{ role: 'user', content: userContent }],
+        });
+
+        let fullText = '';
+        for await (const event of claudeStream) {
+          if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+            const chunk = event.delta.text;
+            fullText += chunk;
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ t: 'chunk', d: chunk })}\n\n`));
+          }
+        }
+
+        const parsed = extractJsonFromResponse(fullText);
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ t: 'done', homepage: parsed })}\n\n`));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ t: 'error', error: msg })}\n\n`));
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
+  });
 }
