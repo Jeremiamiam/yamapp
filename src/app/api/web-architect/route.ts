@@ -84,6 +84,9 @@ export async function POST(req: Request) {
 
   const { reportContent = '', brandPlatform, strategyText = '', copywriterText = '' } = body;
 
+  // Limiter la taille pour éviter timeout 504 (Netlify 10s par défaut)
+  const reportTrimmed = typeof reportContent === 'string' ? reportContent.slice(0, 6000) : '';
+
   const platformStr = brandPlatform
     ? typeof brandPlatform === 'string' ? brandPlatform : JSON.stringify(brandPlatform)
     : '';
@@ -96,14 +99,14 @@ ${platformStr ? `Plateforme de marque (JSON) :\n${platformStr}` : ''}
 
 ${copywriterText ? `Territoire & Copy :\n${copywriterText}` : ''}
 
-${reportContent ? `Rapport complet :\n${reportContent}` : ''}
+${reportTrimmed ? `Rapport complet :\n${reportTrimmed}` : ''}
 
 Génère l'arborescence du menu du site (navigation principale + footer) au format JSON demandé.`;
 
   try {
     const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
+      model: 'claude-3-5-haiku-20241022',
+      max_tokens: 1500,
       temperature: 0.5,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],

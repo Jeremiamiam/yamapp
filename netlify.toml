@@ -5,3 +5,8 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Timeout 26s pour les API routes (web-architect, homepage = appels Claude lents)
+# Par défaut Netlify = 10s → 504 si Claude répond en 15s+
+[functions]
+  timeout = 26

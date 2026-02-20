@@ -84,6 +84,7 @@ export async function POST(req: Request) {
     ? typeof brandPlatform === 'string' ? brandPlatform : JSON.stringify(brandPlatform)
     : '';
   const archStr = typeof siteArchitecture === 'string' ? siteArchitecture : JSON.stringify(siteArchitecture);
+  const reportTrimmed = typeof reportContent === 'string' ? reportContent.slice(0, 4000) : '';
 
   const userContent = `Plateforme de marque :
 ${platformStr}
@@ -94,14 +95,14 @@ ${copywriterText}
 Arborescence du site (menu) :
 ${archStr}
 
-${reportContent ? `Rapport complet :\n${reportContent}` : ''}
+${reportTrimmed ? `Rapport complet :\n${reportTrimmed}` : ''}
 
 Génère le brief de la homepage avec toutes les sections (hero, social proof, value prop, etc.) au format JSON demandé. Contenu rédigé, pas de placeholder.`;
 
   try {
     const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 3500,
+      model: 'claude-3-5-haiku-20241022',
+      max_tokens: 2500,
       temperature: 0.6,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
