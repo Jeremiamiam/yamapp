@@ -5,7 +5,7 @@ export type ToastAction = { label: string; onClick: () => void };
 function showToast(
   message: string,
   type: ToastType = 'info',
-  options?: { action?: ToastAction }
+  options?: { action?: ToastAction; duration?: number }
 ): void {
   if (typeof document === 'undefined') return; // SSR guard
 
@@ -67,11 +67,12 @@ function showToast(
   }
 
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), options?.action ? 8000 : 4000);
+  const duration = options?.duration ?? (options?.action ? 8000 : type === 'error' ? 8000 : 4000);
+  setTimeout(() => el.remove(), duration);
 }
 
 export const toast = {
-  error: (msg: string) => showToast(msg, 'error'),
+  error: (msg: string, options?: { duration?: number }) => showToast(msg, 'error', options),
   success: (msg: string, options?: { action?: ToastAction }) => showToast(msg, 'success', options),
   info: (msg: string) => showToast(msg, 'info'),
 };

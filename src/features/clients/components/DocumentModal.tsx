@@ -426,11 +426,36 @@ function CreativeStrategyView({
 
   return (
     <div className="space-y-0">
-      {/* Sticky header: label + tabs unified — negative top to eat parent padding */}
+      {/* Sticky header: label + tabs + bouton web (toujours visible sur mobile) */}
       <div className="sticky -top-6 z-10 bg-[var(--bg-card)] -mx-6 px-6 pt-4 pb-0">
-        <div className="flex items-center gap-2.5 mb-2">
-          <div className="w-1.5 h-4 rounded-full bg-[var(--accent-lime)]" />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Synthese du Board</span>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-1.5 h-4 rounded-full bg-[var(--accent-lime)] flex-shrink-0" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Synthese du Board</span>
+          </div>
+          {platformData && onGenerateWebBrief && (
+            <button
+              type="button"
+              onClick={() =>
+                onGenerateWebBrief({
+                  brandPlatform: platformData,
+                  strategyText: strategySection?.body ?? '',
+                  copywriterText: copySection?.body ?? '',
+                })
+              }
+              disabled={isGeneratingWeb}
+              className="shrink-0 px-3 py-2 rounded-xl bg-[var(--accent-cyan)]/15 border border-[var(--accent-cyan)]/30 text-xs font-semibold text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+            >
+              {isGeneratingWeb ? (
+                <>
+                  <span className="w-2.5 h-2.5 border-2 border-[var(--accent-cyan)]/30 border-t-[var(--accent-cyan)] rounded-full animate-spin" />
+                  <span className="hidden sm:inline">Génération…</span>
+                </>
+              ) : (
+                <>🌐 Menu + Homepage</>
+              )}
+            </button>
+          )}
         </div>
         <div className="flex gap-1 overflow-x-auto pb-px scrollbar-none">
           {displaySections.map((section, i) => {
@@ -476,40 +501,7 @@ function CreativeStrategyView({
       >
         <div className="prose prose-invert max-w-none">
           {platformData ? (
-            <>
-              <BrandPlatformView data={platformData} />
-              {onGenerateWebBrief && (
-                <div className="mt-6 pt-6 border-t border-[var(--border-subtle)]">
-                  <p className="text-sm text-[var(--text-secondary)] mb-3">
-                    Cette plateforme peut servir à générer le menu du site et le brief de la homepage pour l&apos;équipe web.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onGenerateWebBrief({
-                        brandPlatform: platformData,
-                        strategyText: strategySection?.body ?? '',
-                        copywriterText: copySection?.body ?? '',
-                      })
-                    }
-                    disabled={isGeneratingWeb}
-                    className="px-4 py-2.5 rounded-xl bg-[var(--accent-cyan)]/15 border border-[var(--accent-cyan)]/30 text-sm font-semibold text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                  >
-                    {isGeneratingWeb ? (
-                      <>
-                        <span className="w-3 h-3 border-2 border-[var(--accent-cyan)]/30 border-t-[var(--accent-cyan)] rounded-full animate-spin" />
-                        Génération menu + homepage…
-                      </>
-                    ) : (
-                      <>
-                        <span>🌐</span>
-                        Générer menu + homepage
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-            </>
+            <BrandPlatformView data={platformData} />
           ) : (
             <p className="text-[15px] text-[var(--text-primary)] leading-[1.8] whitespace-pre-wrap font-normal">
               {activeSection.body}
@@ -614,6 +606,7 @@ function DocumentModalContent({
         return;
       }
       setGeneratingWeb(true);
+      const showError = (msg: string) => toast.error(msg, { duration: 10000 });
       try {
         const archRes = await fetch('/api/web-architect', {
           method: 'POST',
@@ -625,9 +618,15 @@ function DocumentModalContent({
             copywriterText: payload.copywriterText,
           }),
         });
-        const archData = (await archRes.json()) as { architecture?: unknown; error?: string };
+        let archData: { architecture?: unknown; error?: string };
+        try {
+          archData = (await archRes.json()) as { architecture?: unknown; error?: string };
+        } catch {
+          showError(`Architecte web : réponse invalide (${archRes.status})`);
+          return;
+        }
         if (!archRes.ok || archData.error) {
-          toast.error(archData.error ?? 'Erreur architecte web.');
+          showError(archData.error ?? `Architecte web : ${archRes.status}`);
           return;
         }
         const homeRes = await fetch('/api/homepage', {
@@ -640,9 +639,15 @@ function DocumentModalContent({
             siteArchitecture: archData.architecture,
           }),
         });
-        const homeData = (await homeRes.json()) as { homepage?: unknown; error?: string };
+        let homeData: { homepage?: unknown; error?: string };
+        try {
+          homeData = (await homeRes.json()) as { homepage?: unknown; error?: string };
+        } catch {
+          showError(`Homepage : réponse invalide (${homeRes.status})`);
+          return;
+        }
         if (!homeRes.ok || homeData.error) {
-          toast.error(homeData.error ?? 'Erreur génération homepage.');
+          showError(homeData.error ?? `Homepage : ${homeRes.status}`);
           return;
         }
         const webBrief: WebBriefData = {
@@ -659,8 +664,9 @@ function DocumentModalContent({
         onClose();
         openDocument(createdDoc);
         toast.success('Menu + homepage générés');
-      } catch {
-        toast.error('Impossible de générer l\'architecture web.');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+        showError(`Impossible de générer : ${msg}`);
       } finally {
         setGeneratingWeb(false);
       }
