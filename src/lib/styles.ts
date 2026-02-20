@@ -64,6 +64,11 @@ export const DOCUMENT_TYPE_STYLES: Record<
     text: 'text-[var(--accent-lime)]',
     label: 'Stratégie créative',
   },
+  'web-brief': {
+    bg: 'bg-[var(--accent-cyan)]/10',
+    text: 'text-[var(--accent-cyan)]',
+    label: 'Menu + Homepage',
+  },
 } as const;
 
 export function getDocumentTypeStyle(type: DocumentType) {

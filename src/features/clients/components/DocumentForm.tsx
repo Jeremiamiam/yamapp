@@ -32,6 +32,7 @@ const typeOptions = [
   { value: 'report', label: '🎙️ Report PLAUD' },
   { value: 'note', label: '📝 Note' },
   { value: 'creative-strategy', label: '⬡ Synthèse Creative Board' },
+  { value: 'web-brief', label: '🌐 Menu + Homepage' },
 ] as const;
 
 export function DocumentForm() {

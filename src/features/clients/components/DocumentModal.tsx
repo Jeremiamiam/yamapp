@@ -11,6 +11,8 @@ import type { BriefTemplate, ReportPlaudTemplate } from '@/types/document-templa
 import { toast } from '@/lib/toast';
 import { PlaudLogo } from '@/components/ui';
 import { ReportView } from './ReportView';
+import { WebBriefView } from './WebBriefView';
+import type { WebBriefData } from '@/types/web-brief';
 
 // Icons
 const X = () => (
@@ -141,6 +143,8 @@ function getDocTypeStyle(type: DocumentType) {
     type === 'report' ? <PlaudLogo className="w-4 h-4" /> :
     type === 'creative-strategy' ? (
       <span className="text-base font-bold" style={{ color: 'var(--accent-lime)' }}>⬡</span>
+    ) : type === 'web-brief' ? (
+      <span className="text-base font-bold" style={{ color: 'var(--accent-cyan)' }}>🌐</span>
     ) : <StickyNote />;
   return { ...base, icon };
 }
@@ -396,7 +400,15 @@ function extractPlatformJson(body: string): BrandPlatformData | null {
   }
 }
 
-function CreativeStrategyView({ content }: { content: string }) {
+function CreativeStrategyView({
+  content,
+  onGenerateWebBrief,
+  isGeneratingWeb,
+}: {
+  content: string;
+  onGenerateWebBrief?: (payload: { brandPlatform: unknown; strategyText: string; copywriterText: string }) => void;
+  isGeneratingWeb?: boolean;
+}) {
   const sections = parseStrategySections(content);
   const defaultStyle = { color: 'var(--accent-lime)', icon: '◆', bg: 'var(--accent-lime-dim)' };
   const displaySections = sections.length > 0
@@ -409,6 +421,8 @@ function CreativeStrategyView({ content }: { content: string }) {
 
   const isPlatformSection = activeSection.title === 'Plateforme de Marque';
   const platformData = isPlatformSection ? extractPlatformJson(activeSection.body) : null;
+  const strategySection = displaySections.find((s) => s.title === 'Tension stratégique');
+  const copySection = displaySections.find((s) => s.title === 'Territoire & Copy');
 
   return (
     <div className="space-y-0">
@@ -462,7 +476,40 @@ function CreativeStrategyView({ content }: { content: string }) {
       >
         <div className="prose prose-invert max-w-none">
           {platformData ? (
-            <BrandPlatformView data={platformData} />
+            <>
+              <BrandPlatformView data={platformData} />
+              {onGenerateWebBrief && (
+                <div className="mt-6 pt-6 border-t border-[var(--border-subtle)]">
+                  <p className="text-sm text-[var(--text-secondary)] mb-3">
+                    Cette plateforme peut servir à générer le menu du site et le brief de la homepage pour l&apos;équipe web.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onGenerateWebBrief({
+                        brandPlatform: platformData,
+                        strategyText: strategySection?.body ?? '',
+                        copywriterText: copySection?.body ?? '',
+                      })
+                    }
+                    disabled={isGeneratingWeb}
+                    className="px-4 py-2.5 rounded-xl bg-[var(--accent-cyan)]/15 border border-[var(--accent-cyan)]/30 text-sm font-semibold text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  >
+                    {isGeneratingWeb ? (
+                      <>
+                        <span className="w-3 h-3 border-2 border-[var(--accent-cyan)]/30 border-t-[var(--accent-cyan)] rounded-full animate-spin" />
+                        Génération menu + homepage…
+                      </>
+                    ) : (
+                      <>
+                        <span>🌐</span>
+                        Générer menu + homepage
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <p className="text-[15px] text-[var(--text-primary)] leading-[1.8] whitespace-pre-wrap font-normal">
               {activeSection.body}
@@ -503,6 +550,7 @@ function DocumentModalContent({
   const showTemplated = structured !== null;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [generatingBrief, setGeneratingBrief] = useState(false);
+  const [generatingWeb, setGeneratingWeb] = useState(false);
   const [showTranscriptInput, setShowTranscriptInput] = useState(false);
   const [fallbackTranscript, setFallbackTranscript] = useState('');
 
@@ -559,6 +607,67 @@ function DocumentModalContent({
     }
   }, [onClose, clientId, reportData?.title, addDocument, openDocument]);
 
+  const runWebGeneration = useCallback(
+    async (payload: { brandPlatform: unknown; strategyText: string; copywriterText: string }) => {
+      if (!clientId) {
+        toast.error('Client requis pour générer l\'architecture web.');
+        return;
+      }
+      setGeneratingWeb(true);
+      try {
+        const archRes = await fetch('/api/web-architect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reportContent: selectedDocument.content,
+            brandPlatform: payload.brandPlatform,
+            strategyText: payload.strategyText,
+            copywriterText: payload.copywriterText,
+          }),
+        });
+        const archData = (await archRes.json()) as { architecture?: unknown; error?: string };
+        if (!archRes.ok || archData.error) {
+          toast.error(archData.error ?? 'Erreur architecte web.');
+          return;
+        }
+        const homeRes = await fetch('/api/homepage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reportContent: selectedDocument.content,
+            brandPlatform: payload.brandPlatform,
+            copywriterText: payload.copywriterText,
+            siteArchitecture: archData.architecture,
+          }),
+        });
+        const homeData = (await homeRes.json()) as { homepage?: unknown; error?: string };
+        if (!homeRes.ok || homeData.error) {
+          toast.error(homeData.error ?? 'Erreur génération homepage.');
+          return;
+        }
+        const webBrief: WebBriefData = {
+          version: 1,
+          architecture: archData.architecture as WebBriefData['architecture'],
+          homepage: homeData.homepage as WebBriefData['homepage'],
+          generatedAt: new Date().toISOString(),
+        };
+        const createdDoc = await addDocument(clientId, {
+          type: 'web-brief',
+          title: `Menu + Homepage - ${new Date().toLocaleDateString('fr-FR')}`,
+          content: JSON.stringify(webBrief),
+        });
+        onClose();
+        openDocument(createdDoc);
+        toast.success('Menu + homepage générés');
+      } catch {
+        toast.error('Impossible de générer l\'architecture web.');
+      } finally {
+        setGeneratingWeb(false);
+      }
+    },
+    [clientId, selectedDocument.content, addDocument, openDocument, onClose]
+  );
+
   const handleGenerateBrief = useCallback(() => {
     const transcript = reportData?.rawTranscript;
     if (transcript) {
@@ -593,7 +702,7 @@ function DocumentModalContent({
     >
       <div className="absolute inset-0 bg-black/70" />
       <div
-        className={`relative w-full max-h-[85vh] bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl overflow-hidden animate-fade-in-up flex flex-col ${selectedDocument.type === 'report' || selectedDocument.type === 'creative-strategy' ? 'max-w-4xl' : 'max-w-2xl'}`}
+        className={`relative w-full max-h-[85vh] bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl overflow-hidden animate-fade-in-up flex flex-col ${selectedDocument.type === 'report' || selectedDocument.type === 'creative-strategy' || selectedDocument.type === 'web-brief' ? 'max-w-4xl' : 'max-w-2xl'}`}
         onClick={e => e.stopPropagation()}
         style={{ animationDuration: '0.2s' }}
       >
@@ -651,6 +760,19 @@ function DocumentModalContent({
           {showTemplated && selectedDocument.type === 'brief' && (
             <BriefTemplatedView data={structured as BriefTemplate} />
           )}
+          {selectedDocument.type === 'web-brief' && (() => {
+            try {
+              const data = JSON.parse(selectedDocument.content) as WebBriefData;
+              if (data?.version === 1 && data?.architecture && data?.homepage) {
+                return <WebBriefView data={data} />;
+              }
+            } catch {
+              // Invalid JSON
+            }
+            return (
+              <p className="text-[var(--text-secondary)] text-sm">Contenu invalide.</p>
+            );
+          })()}
           {showTemplated && selectedDocument.type === 'report' && (
             <ReportView
               data={structured as ReportPlaudTemplate}
@@ -666,8 +788,12 @@ function DocumentModalContent({
             selectedDocument.type === 'brief' ? (
               <BriefContentView content={selectedDocument.content} />
             ) : selectedDocument.type === 'creative-strategy' ? (
-              <CreativeStrategyView content={selectedDocument.content} />
-            ) : (
+              <CreativeStrategyView
+                content={selectedDocument.content}
+                onGenerateWebBrief={clientId ? runWebGeneration : undefined}
+                isGeneratingWeb={generatingWeb}
+              />
+            ) : selectedDocument.type === 'web-brief' ? null : (
               <div className="prose prose-invert max-w-none">
                 <p className="text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap text-[15px]">
                   {selectedDocument.content}
