@@ -627,7 +627,7 @@ function DocumentModalContent({
             }
           }
         }
-        return { error: 'Réponse incomplète' };
+        return { error: `Réponse incomplète (${resultKey})` };
       } finally {
         reader.releaseLock();
       }
@@ -656,7 +656,7 @@ function DocumentModalContent({
         });
         const archResult = await consumeStreamResponse<WebBriefData['architecture']>(archRes, 'architecture');
         if (archResult.error) {
-          showError(archResult.error);
+          showError(`Architecte web : ${archResult.error}`);
           return;
         }
         const archData = archResult.data!;
@@ -672,7 +672,7 @@ function DocumentModalContent({
         });
         const homeResult = await consumeStreamResponse<WebBriefData['homepage']>(homeRes, 'homepage');
         if (homeResult.error) {
-          showError(homeResult.error);
+          showError(`Homepage : ${homeResult.error}`);
           return;
         }
         const homeData = homeResult.data!;
