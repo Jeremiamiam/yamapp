@@ -67,7 +67,9 @@ function extractJsonFromResponse(text: string): unknown {
   const firstBrace = raw.indexOf('{');
   const lastBrace = raw.lastIndexOf('}');
   if (firstBrace === -1 || lastBrace <= firstBrace) throw new Error('JSON non trouvé dans la réponse');
-  return JSON.parse(raw.substring(firstBrace, lastBrace + 1));
+  let jsonStr = raw.substring(firstBrace, lastBrace + 1);
+  jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+  return JSON.parse(jsonStr);
 }
 
 export async function POST(req: Request) {
