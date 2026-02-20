@@ -691,8 +691,16 @@ function DocumentModalContent({
         openDocument(createdDoc);
         toast.success('Menu + homepage générés');
       } catch (err) {
-        const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : String(err);
-        showError(`Impossible de générer : ${msg || 'Erreur inconnue'}`);
+        let msg = 'Erreur inconnue';
+        if (err instanceof Error) msg = err.message;
+        else if (typeof err === 'string') msg = err;
+        else if (err && typeof err === 'object') {
+          const o = err as Record<string, unknown>;
+          if (typeof o.message === 'string') msg = o.message;
+          else if (typeof o.error === 'string') msg = o.error;
+          else if (Object.keys(o).length > 0) msg = JSON.stringify(o);
+        }
+        showError(`Impossible de générer : ${msg}`);
       } finally {
         setGeneratingWeb(false);
       }
