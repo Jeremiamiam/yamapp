@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { jsonrepair } from 'jsonrepair';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -59,9 +60,12 @@ function extractJsonFromResponse(text: string): unknown {
   const firstBrace = raw.indexOf('{');
   const lastBrace = raw.lastIndexOf('}');
   if (firstBrace === -1 || lastBrace <= firstBrace) throw new Error('JSON non trouvé dans la réponse');
-  let jsonStr = raw.substring(firstBrace, lastBrace + 1);
-  jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
-  return JSON.parse(jsonStr);
+  const jsonStr = raw.substring(firstBrace, lastBrace + 1);
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    return JSON.parse(jsonrepair(jsonStr));
+  }
 }
 
 export async function POST(req: Request) {
