@@ -31,6 +31,7 @@ const typeOptions = [
   { value: 'brief', label: '📋 Brief' },
   { value: 'report', label: '🎙️ Report PLAUD' },
   { value: 'note', label: '📝 Note' },
+  { value: 'creative-strategy', label: '⬡ Synthèse Creative Board' },
 ] as const;
 
 export function DocumentForm() {

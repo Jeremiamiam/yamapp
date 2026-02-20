@@ -498,6 +498,7 @@ function DocumentModalContent({
   const updateDocument = useAppStore((s) => s.updateDocument);
   const addDocument = useAppStore((s) => s.addDocument);
   const openDocument = useAppStore((s) => s.openDocument);
+  const navigateToCreativeBoard = useAppStore((s) => s.navigateToCreativeBoard);
   const docStyle = getDocTypeStyle(selectedDocument.type);
   const showTemplated = structured !== null;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
