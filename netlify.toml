@@ -1,11 +1,5 @@
-# YAM Dashboard - Netlify (Next.js)
-
 [build]
   command = "npm run build"
 
 [build.environment]
   NODE_VERSION = "20"
-
-# Timeout 26s for API routes (web-architect, homepage)
-[functions]
-  timeout = 26
