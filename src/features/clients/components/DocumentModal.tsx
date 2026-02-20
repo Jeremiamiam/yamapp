@@ -691,8 +691,8 @@ function DocumentModalContent({
         openDocument(createdDoc);
         toast.success('Menu + homepage générés');
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Erreur inconnue';
-        showError(`Impossible de générer : ${msg}`);
+        const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : String(err);
+        showError(`Impossible de générer : ${msg || 'Erreur inconnue'}`);
       } finally {
         setGeneratingWeb(false);
       }

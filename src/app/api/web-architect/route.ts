@@ -71,8 +71,14 @@ function extractJsonFromResponse(text: string): unknown {
   let jsonStr = raw.substring(firstBrace, lastBrace + 1);
   try {
     return JSON.parse(jsonStr);
-  } catch {
-    return JSON.parse(jsonrepair(jsonStr));
+  } catch (e1) {
+    try {
+      return JSON.parse(jsonrepair(jsonStr));
+    } catch (e2) {
+      const m1 = e1 instanceof Error ? e1.message : String(e1);
+      const m2 = e2 instanceof Error ? e2.message : String(e2);
+      throw new Error(`JSON invalide: ${m1}. Repair: ${m2}`);
+    }
   }
 }
 
@@ -131,8 +137,8 @@ Génère l'arborescence du menu du site (navigation principale + footer) au form
         const parsed = extractJsonFromResponse(fullText);
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ t: 'done', architecture: parsed })}\n\n`));
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Erreur inconnue';
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ t: 'error', error: msg })}\n\n`));
+        const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : String(err);
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ t: 'error', error: msg || 'Erreur inconnue' })}\n\n`));
       } finally {
         controller.close();
       }
