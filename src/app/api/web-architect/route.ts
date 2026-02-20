@@ -105,8 +105,8 @@ Génère l'arborescence du menu du site (navigation principale + footer) au form
 
   try {
     const message = await client.messages.create({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 1500,
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
       temperature: 0.5,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
