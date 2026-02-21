@@ -24,6 +24,9 @@ export function WebBriefView({
   onPageSectionYam,
   onSectionContentChange,
   onPageSectionContentChange,
+  editMode: controlledEditMode,
+  onEditModeChange,
+  immersiveMode = false,
 }: {
   data: WebBriefData;
   onSectionRewrite?: (sectionIndex: number, customPrompt: string) => Promise<void>;
@@ -33,6 +36,10 @@ export function WebBriefView({
   onPageSectionYam?: (pageSlug: string, sectionIndex: number) => Promise<void>;
   onSectionContentChange?: (sectionIndex: number, patch: Record<string, unknown>) => void;
   onPageSectionContentChange?: (pageSlug: string, sectionIndex: number, patch: Record<string, unknown>) => void;
+  /** En mode immersif, le parent contrôle l'édition via ces props */
+  editMode?: boolean;
+  onEditModeChange?: (v: boolean) => void;
+  immersiveMode?: boolean;
 }) {
   const { architecture, homepage, pages } = data;
   const [activeTab, setActiveTab] = useState<string>('__homepage__');
@@ -42,7 +49,10 @@ export function WebBriefView({
   const [promptForPageSlug, setPromptForPageSlug] = useState<string | null>(null);
   const [promptValue, setPromptValue] = useState('');
   const [generatingSlug, setGeneratingSlug] = useState<string | null>(null);
-  const [editMode, setEditMode] = useState(false);
+  const [internalEditMode, setInternalEditMode] = useState(false);
+
+  const editMode = controlledEditMode ?? internalEditMode;
+  const setEditMode = onEditModeChange ?? setInternalEditMode;
 
   const primaryNav = architecture.navigation?.primary ?? [];
   const footerNav = architecture.navigation?.footer_only ?? [];
@@ -170,13 +180,13 @@ export function WebBriefView({
   );
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      {/* ── Mode édition : compact sur mobile (icône seule), texte sur desktop ─ */}
-      {hasEditCapability && (
+    <div className={`${immersiveMode ? 'h-full' : 'space-y-3 sm:space-y-4'}`}>
+      {/* ── Mode édition : masqué en mode immersif (contrôlé par le parent), compact sur mobile sinon ─ */}
+      {hasEditCapability && !immersiveMode && (
         <div className="flex justify-end">
           <button
             type="button"
-            onClick={() => setEditMode((v) => !v)}
+            onClick={() => setEditMode(!editMode)}
             className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-medium transition-colors ${
               editMode
                 ? 'bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)] border border-[var(--accent-cyan)]/40'
@@ -191,7 +201,7 @@ export function WebBriefView({
       )}
 
       {/* ── Vue unique : navbar + contenu + footer (navigation par le menu du site) ─ */}
-      <div className="flex flex-col rounded-xl border border-[var(--border-subtle)] overflow-hidden bg-[var(--bg-primary)] min-h-[60vh] sm:min-h-[80vh]">
+      <div className={`flex flex-col overflow-hidden bg-[var(--bg-primary)] ${immersiveMode ? 'flex-1 min-h-0 rounded-none border-0' : 'rounded-xl border border-[var(--border-subtle)] min-h-[60vh] sm:min-h-[80vh]'}`}>
         <LayoutNavbar
           navItems={primaryNav.map((item) => ({ page: item.page, slug: item.slug }))}
           onNavClick={setActiveTab}
