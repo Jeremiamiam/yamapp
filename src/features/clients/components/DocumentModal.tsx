@@ -1529,26 +1529,22 @@ function DocumentModalContent({
     >
       <div className={`absolute inset-0 ${isWebBrief ? 'bg-black/60' : 'bg-black/70'}`} />
       <div
-        className={`relative overflow-hidden animate-fade-in-up flex flex-col ${
-          isWebBrief
-            ? 'inset-4 sm:inset-6 md:inset-10 absolute bg-[var(--bg-card)] rounded-xl touch-pan-y'
-            : 'bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl w-[90vw] max-w-6xl max-h-[90vh] m-4'
-        }`}
+        className="relative overflow-hidden animate-fade-in-up flex flex-col bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl w-[95vw] sm:w-[90vw] max-w-6xl max-h-[90vh] m-4"
         onClick={e => e.stopPropagation()}
         style={{ animationDuration: '0.2s' }}
       >
-        {/* Web-brief immersif : pas de header, juste preview + boutons flottants */}
+        {/* Web-brief : header minimal (X + Edit) + content scrollable + footer minimal — même structure que les autres docs pour scroll iOS */}
         {isWebBrief ? (
           <>
-            <div className="absolute top-3 right-3 z-50 flex items-center gap-1 rounded-lg bg-[var(--bg-primary)]/60 backdrop-blur-sm border border-[var(--border-subtle)]/50 p-1">
+            <div className="flex-shrink-0 flex items-center justify-end gap-1 px-3 py-2 border-b border-[var(--border-subtle)]">
               {onEditDocument && (
                 <button
                   type="button"
                   onClick={() => setWebBriefEditMode((v) => !v)}
-                  className={`p-2 rounded-md transition-colors ${
+                  className={`p-2 rounded-lg transition-colors ${
                     webBriefEditMode
                       ? 'bg-[var(--accent-cyan)]/15 text-[var(--accent-cyan)]'
-                      : 'text-[var(--text-muted)]/80 hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]/50'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
                   }`}
                   title={webBriefEditMode ? 'Désactiver l\'édition' : 'Modifier'}
                 >
@@ -1558,13 +1554,13 @@ function DocumentModalContent({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-md text-[var(--text-muted)]/80 hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                 aria-label="Fermer"
               >
                 <X />
               </button>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-0 scroll-touch-ios">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-3 sm:p-4">
               {(() => {
                 try {
                   const data = JSON.parse(selectedDocument.content) as WebBriefData;
@@ -1573,7 +1569,6 @@ function DocumentModalContent({
                       <WebBriefView
                         data={data}
                         immersiveMode
-                        parentScroll
                         editMode={webBriefEditMode}
                         onEditModeChange={setWebBriefEditMode}
                         onSectionRewrite={clientId ? handleSectionRewrite : undefined}
@@ -1589,8 +1584,17 @@ function DocumentModalContent({
                 } catch {
                   /* invalid */
                 }
-                return <p className="text-[var(--text-secondary)] text-sm p-6">Contenu invalide.</p>;
+                return <p className="text-[var(--text-secondary)] text-sm">Contenu invalide.</p>;
               })()}
+            </div>
+            <div className="flex-shrink-0 px-3 py-2 border-t border-[var(--border-subtle)] flex justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              >
+                Fermer
+              </button>
             </div>
           </>
         ) : (
@@ -1857,33 +1861,13 @@ export function DocumentModal() {
   );
 
   useEffect(() => {
-    const doc = selectedDocument;
-    if (doc) {
+    if (selectedDocument) {
       document.addEventListener('keydown', handleKeyDown);
-      if (doc.type === 'web-brief') {
-        const scrollY = window.scrollY ?? window.pageYOffset;
-        document.body.style.position = 'fixed';
-        document.body.style.top = `-${scrollY}px`;
-        document.body.style.left = '0';
-        document.body.style.right = '0';
-        document.body.style.overflow = 'hidden';
-      } else {
-        document.body.style.overflow = 'hidden';
-      }
+      document.body.style.overflow = 'hidden';
     }
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      if (doc?.type === 'web-brief') {
-        const scrollY = Math.abs(parseInt(document.body.style.top || '0', 10));
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
-        document.body.style.overflow = '';
-        window.scrollTo(0, scrollY);
-      } else {
-        document.body.style.overflow = '';
-      }
+      document.body.style.overflow = '';
     };
   }, [selectedDocument, handleKeyDown]);
 
