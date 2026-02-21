@@ -201,7 +201,7 @@ export function WebBriefView({
       )}
 
       {/* ── Vue unique : navbar + contenu + footer (navigation par le menu du site) ─ */}
-      <div className={`flex flex-col bg-[var(--bg-primary)] ${immersiveMode ? 'flex-1 min-h-0 rounded-none border-0' : 'overflow-hidden rounded-xl border border-[var(--border-subtle)] min-h-[60vh] sm:min-h-[80vh]'}`}>
+      <div className={`flex flex-col overflow-hidden bg-[var(--bg-primary)] ${immersiveMode ? 'flex-1 min-h-0 rounded-none border-0' : 'rounded-xl border border-[var(--border-subtle)] min-h-[60vh] sm:min-h-[80vh]'}`}>
         <LayoutNavbar
           navItems={primaryNav.map((item) => ({ page: item.page, slug: item.slug }))}
           onNavClick={setActiveTab}
@@ -280,18 +280,18 @@ export function WebBriefView({
               </p>
             </div>
           )}
+          <LayoutFooter
+            navItems={[
+              ...primaryNav.map((i) => ({ page: i.page, slug: i.slug })),
+              ...footerNav.map((i) => ({ page: i.page, slug: i.slug })),
+            ]}
+            tabKeys={[
+              ...primaryNav.map((_, i) => (i === 0 ? '__homepage__' : primaryNav[i].slug)),
+              ...footerNav.map((i) => i.slug),
+            ]}
+            onNavClick={setActiveTab}
+          />
         </div>
-        <LayoutFooter
-          navItems={[
-            ...primaryNav.map((i) => ({ page: i.page, slug: i.slug })),
-            ...footerNav.map((i) => ({ page: i.page, slug: i.slug })),
-          ]}
-          tabKeys={[
-            ...primaryNav.map((_, i) => (i === 0 ? '__homepage__' : primaryNav[i].slug)),
-            ...footerNav.map((i) => i.slug),
-          ]}
-          onNavClick={setActiveTab}
-        />
       </div>
     </div>
   );
