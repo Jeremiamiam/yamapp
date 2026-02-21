@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { jsonrepair } from 'jsonrepair';
+import { computeGenerationCost } from '@/lib/api-cost';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -10,11 +12,55 @@ export type BoardEvent =
   | { type: 'agent_start'; agent: AgentId }
   | { type: 'agent_chunk'; agent: AgentId; text: string }
   | { type: 'agent_done'; agent: AgentId }
-  | { type: 'awaiting_selection'; ideas: { title: string; body: string }[] }
-  | { type: 'report'; text: string }
+  | { type: 'awaiting_selection'; ideas: { title: string; body: string }[]; scores?: { index: number; total: number; flags?: string[] }[] }
+  | { type: 'report'; text: string; data?: CreativeStrategyReport }
   | { type: 'error'; message: string };
 
 export type AgentId = 'strategist' | 'bigidea' | 'architect' | 'copywriter' | 'devil';
+
+/** Score de confiance par section (Phase 3 — Confidence Auditor) */
+export interface SectionConfidence {
+  score: number;
+  flags: string[];
+  /** Résumé de la vérification web (uniquement Stratège et Architecte) */
+  factCheck?: string;
+}
+
+export interface CreativeStrategyReport {
+  version: 2;
+  generatedAt: string;
+  strategist: { sections: { heading: string; body: string; quote?: string }[] } | string | null;
+  selectedIdea: { title: string; body: string } | null;
+  architect: Record<string, unknown> | string | null;
+  copywriter: { territory: string; manifesto: string; taglines: { text: string; note?: string }[] } | string | null;
+  devil: { points: string[]; questions: { question: string; piste: string }[] } | string | null;
+  /** Score de confiance par section — Phase 3 (Confidence Auditor + web fact-check) */
+  confidence?: {
+    strategist?: SectionConfidence;
+    architect?: SectionConfidence;
+    copywriter?: SectionConfidence;
+    devil?: SectionConfidence;
+  };
+}
+
+function tryParseJson<T>(text: string, extractFromMarkdown = false): T | null {
+  let raw = text.trim();
+  if (extractFromMarkdown) {
+    const firstBrace = raw.indexOf('{');
+    const lastBrace = raw.lastIndexOf('}');
+    if (firstBrace === -1 || lastBrace <= firstBrace) return null;
+    raw = raw.substring(firstBrace, lastBrace + 1);
+  }
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    try {
+      return JSON.parse(jsonrepair(raw)) as T;
+    } catch {
+      return null;
+    }
+  }
+}
 
 export type AgentStyle = 'corporate' | 'audacieux' | 'subversif';
 
@@ -37,7 +83,10 @@ Tu analyses le brief + les résultats web pour en extraire :
 - Le positionnement recommandé (clair, défendable, différenciant)
 - La proposition de valeur en une phrase
 
-Ton style : professionnel, factuel, rassurant. Livre une synthèse actionnable.`,
+Ton style : professionnel, factuel, rassurant. Livre une synthèse actionnable.
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"sections":[{"heading":"string","body":"string","quote":"string (optionnel)"}]}`,
       audacieux: `Tu es un stratège de marque (brand strategy, positionnement). Posture analytique avec une pointe d'audace : tu cherches la faille — ce que le marché n'a pas encore formulé.
 
 Règle obligatoire : tu DOIS faire au moins une recherche web avant de rédiger. Ta première action : appeler web_search (concurrents, tendances, données récentes en lien avec le brief). Ne rédige ta synthèse qu'après avoir intégré les résultats. Cite tes sources.
@@ -47,7 +96,10 @@ Tu analyses le brief + le web pour en sortir :
 - L'opportunité non-évidente (le positionnement qui déstabilise positivement)
 - La conviction stratégique centrale (une phrase tranchante)
 
-Sois court, radical, utile.`,
+Sois court, radical, utile.
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"sections":[{"heading":"string","body":"string","quote":"string (optionnel)"}]}`,
       subversif: `Tu es un stratège qui assume de tout casser. Tu cherches ce que la marque n'ose pas dire et ce que le marché ne veut pas entendre.
 
 Règle obligatoire : tu DOIS effectuer au moins une recherche web avant de rédiger. Appelle web_search en premier (concurrents, tendances, controverses, données). Ne rédige pas ta thèse sans avoir intégré les résultats. Cite tes sources.
@@ -57,54 +109,31 @@ Tu sors du brief + du web :
 - L'angle qui fâche (mais qui pourrait tout débloquer)
 - Une thèse en une phrase, assumée jusqu'au bout
 
-Ton style : provocateur intelligent. Pas d'édulcorant.`,
+Ton style : provocateur intelligent. Pas d'édulcorant.
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"sections":[{"heading":"string","body":"string","quote":"string (optionnel)"}]}`,
     },
   },
   bigidea: {
     name: 'Le Concepteur',
     prompts: {
-      corporate: `Tu es le concepteur : big idea, territoire de marque. Posture professionnelle. À partir de la tension stratégique, tu proposes 3 directions créatives solides et réalisables.
+      corporate: `Tu es le concepteur : big idea, territoire de marque. Posture professionnelle. À partir de la tension stratégique, tu proposes 10 à 15 directions créatives solides et réalisables, avec des angles variés (tonalité, promesse, cible secondaire, format, etc.).
 
-Format obligatoire — chaque idée :
+Format OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"ideas":[{"title":"Titre en 3-5 mots","body":"2-3 phrases : idée, bénéfice, faisabilité","angle":"optionnel : angle principal"}]}
 
-### IDÉE 1 — [Titre en 3-5 mots]
-[2-3 phrases : idée, bénéfice, faisabilité.]
+Propose entre 10 et 15 idées. Style : professionnel, clair, facile à pitcher en comité.`,
+      audacieux: `Tu es le concepteur : big idea, territoire de marque. Posture visionnaire, abstraite. Ton job : trouver LA grande idée qui dépasse le brief sans le trahir. Tu travailles à partir de la tension stratégique. Tu cherches un angle qui surprend. Propose 10 à 15 idées de rupture avec des angles variés.
 
-### IDÉE 2 — [Titre en 3-5 mots]
-[2-3 phrases...]
-
-### IDÉE 3 — [Titre en 3-5 mots]
-[2-3 phrases...]
-
-Style : professionnel, clair, facile à pitcher en comité.`,
-      audacieux: `Tu es le concepteur : big idea, territoire de marque. Posture visionnaire, abstraite. Ton job : trouver LA grande idée qui dépasse le brief sans le trahir.
-
-Tu travailles à partir de la tension stratégique. Tu cherches un angle qui surprend, qui fait dire "personne n'a encore fait ça".
-
-Tu proposes exactement 3 idées de rupture. Format strict :
-
-### IDÉE 1 — [Titre percutant en 3-5 mots]
-[2-3 phrases. L'idée centrale, ce qu'elle déverrouille, pourquoi c'est inattendu.]
-
-### IDÉE 2 — [Titre percutant en 3-5 mots]
-[2-3 phrases...]
-
-### IDÉE 3 — [Titre percutant en 3-5 mots]
-[2-3 phrases...]
+Format OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"ideas":[{"title":"Titre percutant en 3-5 mots","body":"2-3 phrases. L'idée, ce qu'elle déverrouille, pourquoi c'est inattendu","angle":"optionnel"}]}
 
 Interdits : idées "digitales d'abord", campagnes à hashtag, manifestes vides. Tu vises l'inattendu juste.`,
-      subversif: `Tu es le concepteur d'idées qui dérangent. À partir de la tension stratégique, tu proposes 3 angles volontairement décalés, voire controversés — mais défendables.
+      subversif: `Tu es le concepteur d'idées qui dérangent. À partir de la tension stratégique, tu proposes 10 à 15 angles volontairement décalés, voire controversés — mais défendables. Varié : tonalité, promesse, cible secondaire.
 
-Format obligatoire :
-
-### IDÉE 1 — [Titre percutant, possiblement provocant]
-[2-3 phrases. Pourquoi ça bouscule, pourquoi ça peut marcher malgré tout.]
-
-### IDÉE 2 — [Titre percutant]
-[2-3 phrases...]
-
-### IDÉE 3 — [Titre percutant]
-[2-3 phrases...]
+Format OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"ideas":[{"title":"Titre percutant","body":"2-3 phrases. Pourquoi ça bouscule, pourquoi ça peut marcher","angle":"optionnel"}]}
 
 Tu ne joues pas la sécurité. Tu proposes ce qu'on n'oserait pas présenter tel quel — mais qu'on pourrait adapter.`,
     },
@@ -232,7 +261,10 @@ Tu livres :
 - Un manifeste court (5-7 lignes, clair et inspirant)
 - 3 taglines candidates (mémorables, alignées avec les enjeux)
 
-Style : soigné, positif, sans prise de risque excessive. Pas de second degré déstabilisant.`,
+Style : soigné, positif, sans prise de risque excessive. Pas de second degré déstabilisant.
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"territory":"string","manifesto":"string","taglines":[{"text":"string","note":"string (optionnel)"}]}`,
       audacieux: `Tu es le copywriter : tone of voice, taglines, textes. Posture instinctive, rythme, mots. Tu as un sale goût pour les mots qui font quelque chose — pas les mots qui font bien, les mots qui font vrai (ou faux d'une façon intéressante).
 
 Tu reçois une tension stratégique et un angle créatif retenu. Tu les traduis en langage.
@@ -244,7 +276,10 @@ Tu livres :
 
 Ton registre : intelligent, légèrement taquin — 5% d'ironie sèche. Jamais lourd. Toujours net.
 
-Interdits : "Ensemble, construisons...", "L'humain au cœur de...", "Une nouvelle façon de vivre...".`,
+Interdits : "Ensemble, construisons...", "L'humain au cœur de...", "Une nouvelle façon de vivre...".
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"territory":"string","manifesto":"string","taglines":[{"text":"string","note":"string (optionnel)"}]}`,
       subversif: `Tu es un copywriter qui aime pousser les limites. Tu reçois la stratégie et l'angle créatif. Tu les traduis en langage qui dénote — assumé, parfois dérangeant, jamais neutre.
 
 Tu livres :
@@ -252,7 +287,10 @@ Tu livres :
 - Un manifeste court (5-7 lignes, qui assume ses positions)
 - 3 taglines candidates (dont au moins une qui bouscule)
 
-Tu peux jouer avec l'ironie, le double sens, le ton qui interpelle. Pas de langue de bois.`,
+Tu peux jouer avec l'ironie, le double sens, le ton qui interpelle. Pas de langue de bois.
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"territory":"string","manifesto":"string","taglines":[{"text":"string","note":"string (optionnel)"}]}`,
     },
   },
   devil: {
@@ -263,7 +301,10 @@ Tu peux jouer avec l'ironie, le double sens, le ton qui interpelle. Pas de langu
 - Les risques (perception cible, concurrence)
 - 2 questions que le client pourrait poser, avec des pistes de réponse
 
-Ton ton : cynique en apparence, bienveillant au fond. Tu aides à solidifier le travail.`,
+Ton ton : cynique en apparence, bienveillant au fond. Tu aides à solidifier le travail.
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"points":["string"],"questions":[{"question":"string","piste":"string"}]}`,
       audacieux: `Tu es le Devil's Advocate : tu challenges tout. Posture cynique mais bienveillante — tu as le droit de dire que c'est nul, et tu t'en sers pour faire avancer.
 
 Tu lis tout ce qui précède. Tu cherches :
@@ -272,7 +313,10 @@ Tu lis tout ce qui précède. Tu cherches :
 - Ce que le concurrent le plus malin pourrait s'approprier demain
 - Ce qui manque pour que ça tienne vraiment
 
-Tu conclus avec 2 questions précises que le client va poser — et une piste pour y répondre. Ton ton : direct, un peu sec, cynique mais bienveillant. Tu veux que ça marche.`,
+Tu conclus avec 2 questions précises que le client va poser — et une piste pour y répondre. Ton ton : direct, un peu sec, cynique mais bienveillant. Tu veux que ça marche.
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"points":["string"],"questions":[{"question":"string","piste":"string"}]}`,
       subversif: `Tu es le Devil's Advocate : tu challenges tout. Posture cynique, bienveillante malgré tout. Tu lis tout ce qui précède et tu attaques — proprement mais sans complaisance.
 
 Tu pointes :
@@ -280,7 +324,10 @@ Tu pointes :
 - Les angles morts (ce qu'on n'a pas osé trancher)
 - 2 questions que le client va poser et auxquelles le board n'a pas encore répondu
 
-Cynique en forme, bienveillant en intention : tu vises à ce que le travail tienne face à un client difficile.`,
+Cynique en forme, bienveillant en intention : tu vises à ce que le travail tienne face à un client difficile.
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"points":["string"],"questions":[{"question":"string","piste":"string"}]}`,
     },
   },
 };
@@ -299,9 +346,18 @@ function getPrompt(
   return AGENTS[agentId].prompts[style];
 }
 
-// ─── Parser BigIdea output → 3 idées structurées ─────────────────────────────
+// ─── Parser BigIdea output → idées structurées ────────────────────────────────
 
+/** Phase 2 : parse JSON (10-15 idées), fallback Markdown (3 idées) */
 function parseBigIdeas(text: string): { title: string; body: string }[] {
+  const parsed = tryParseJson<{ ideas: { title: string; body?: string; angle?: string }[] }>(text, true);
+  if (parsed?.ideas && Array.isArray(parsed.ideas) && parsed.ideas.length > 0) {
+    return parsed.ideas.map((i) => ({
+      title: String(i.title ?? '').trim(),
+      body: String(i.body ?? '').trim(),
+    })).filter((i) => i.title.length > 0);
+  }
+  // Fallback : ancien format Markdown (3 idées)
   const sections = text.split(/###\s*IDÉE\s*\d+\s*[—–-]/i);
   return sections
     .slice(1, 4)
@@ -322,23 +378,63 @@ const STRATEGIST_TOOLS = [
   { name: 'web_search' as const, type: 'web_search_20260209' as const },
 ];
 
+const SCORER_SYSTEM_PROMPT = `Tu es un Scorer pour un board créatif. Tu évalues chaque idée créative proposée selon :
+- Alignement brief (40 pts) : cohérence avec la tension stratégique et le brief client
+- Différenciation (30 pts) : originalité, angle non-évident
+- Exécutabilité (30 pts) : faisabilité, clarté
+
+Détecte aussi le bullshit, les clichés, les formules vides. Ajoute des flags si pertinent : [BULLSHIT], [CLICHÉ], [TROP VAQUE], etc.
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{"scores":[{"index":0,"total":number,"breakdown":{"alignement":number,"differentiation":number,"executabilite":number},"flags":["optionnel"]}]}
+
+index = indice de l'idée (0-based). total = score final 0-100.`;
+
+const AUDITOR_SYSTEM_PROMPT = `Tu es un Confidence Auditor pour un board créatif d'agence. Tu évalues chaque section du rapport (Stratège, Architecte, Copywriter, Devil) et tu vérifies les faits via recherche web quand pertinent.
+
+**1. Analyse textuelle** : pour chaque section, score 0-100 (densité info, cohérence, complétude). Flags possibles : [À COMPLÉTER], [HYPOTHÈSE], [BESOIN VALIDATION], [BULLSHIT POTENTIEL].
+
+**2. Fact-checking web** : UNIQUEMENT pour Stratège et Architecte. Tu DOIS faire au moins 1-2 recherches web pour :
+- Stratège : vérifier les affirmations sur le marché, la concurrence, les chiffres mentionnés
+- Architecte : vérifier le positionnement, la promesse, les tendances citées
+- Détecter si données ou tendances obsolètes
+- Confirmer ou infirmer les éléments vérifiables
+
+**3. Flags additionnels** si web : [FAIT NON VÉRIFIÉ], [DÉPASSÉ], [CONTREDIT PAR SOURCES], [OK - SOURCES]
+
+**4. factCheck** : pour Stratège et Architecte, fournis un résumé court en français (1-2 phrases) du résultat de ta vérification web. Ex. "Concurrence vérifiée, 2 sources alignées" ou "Positionnement X non trouvé dans les sources".
+
+**Format de sortie** : réponds UNIQUEMENT avec un JSON valide, sans markdown :
+{
+  "sections": {
+    "strategist": { "score": number, "flags": string[], "factCheck": "string (optionnel)" },
+    "architect": { "score": number, "flags": string[], "factCheck": "string (optionnel)" },
+    "copywriter": { "score": number, "flags": string[] },
+    "devil": { "score": number, "flags": string[] }
+  }
+}`;
+
 // ─── Helper : stream un agent et émet ses chunks ──────────────────────────────
+
+type TokenUsage = { input_tokens: number; output_tokens: number };
 
 async function runAgent(
   agentId: AgentId,
   systemPrompt: string,
   userMessage: string,
   emit: (event: BoardEvent) => void
-): Promise<string> {
+): Promise<{ fullText: string; usage?: TokenUsage }> {
   emit({ type: 'agent_start', agent: agentId });
 
   let fullText = '';
+  let usage: TokenUsage | undefined;
 
   const isStrategist = agentId === 'strategist';
   const isArchitect = agentId === 'architect';
+  const isBigidea = agentId === 'bigidea';
   const stream = client.messages.stream({
     model: 'claude-sonnet-4-6',
-    max_tokens: isStrategist || isArchitect ? 4096 : 700,
+    max_tokens: isStrategist || isArchitect ? 4096 : isBigidea ? 2500 : 700,
     system: systemPrompt,
     messages: [{ role: 'user', content: userMessage }],
     ...(isStrategist && { tools: STRATEGIST_TOOLS }),
@@ -353,10 +449,117 @@ async function runAgent(
       fullText += chunk;
       emit({ type: 'agent_chunk', agent: agentId, text: chunk });
     }
+    if (event.type === 'message_delta' && 'usage' in event) {
+      const u = (event as { usage?: { input_tokens?: number; output_tokens?: number } }).usage;
+      if (u) usage = { input_tokens: u.input_tokens ?? 0, output_tokens: u.output_tokens ?? 0 };
+    }
   }
 
   emit({ type: 'agent_done', agent: agentId });
-  return fullText;
+  return { fullText, usage };
+}
+
+/** Phase 2 : Scorer — évalue les idées, retourne scores triés (top 5) */
+async function runScorerAgent(
+  brief: string,
+  strategistOutput: string,
+  ideas: { title: string; body: string }[]
+): Promise<{ topIdeas: { title: string; body: string }[]; scores: { index: number; total: number; flags?: string[] }[] }> {
+  if (ideas.length === 0) return { topIdeas: [], scores: [] };
+  const ideasStr = ideas.map((i, idx) => `[${idx}] ${i.title}\n${i.body}`).join('\n\n');
+
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 2048,
+    system: SCORER_SYSTEM_PROMPT,
+    messages: [{
+      role: 'user',
+      content: `Brief : ${brief.slice(0, 1500)}\n\nTension stratégique :\n${strategistOutput.slice(0, 2000)}\n\n--- Idées à scorer ---\n${ideasStr}\n\nScore chaque idée. Retourne le JSON.`,
+    }],
+  });
+
+  const textBlock = message.content.find((b) => b.type === 'text');
+  const rawText = (textBlock && 'text' in textBlock ? (textBlock as { text: string }).text : '') ?? '';
+  const parsed = tryParseJson<{ scores: { index: number; total: number; breakdown?: Record<string, number>; flags?: string[] }[] }>(rawText, true);
+  if (!parsed?.scores?.length) return { topIdeas: ideas.slice(0, 5), scores: [] };
+
+  const withScores = parsed.scores
+    .filter((s) => s.index >= 0 && s.index < ideas.length)
+    .map((s) => ({ idea: ideas[s.index], score: s.total, flags: s.flags ?? [] }));
+  withScores.sort((a, b) => b.score - a.score);
+  const top5 = withScores.slice(0, 5);
+
+  return {
+    topIdeas: top5.map((x) => x.idea),
+    scores: top5.map((x) => ({
+      index: ideas.indexOf(x.idea),
+      total: x.score,
+      flags: x.flags.length ? x.flags : undefined,
+    })),
+  };
+}
+
+/** Exécute le Confidence Auditor avec web fact-checking. Indépendant du Devil. Retourne { confidence, usage }. */
+async function runConfidenceAuditor(
+  brief: string,
+  reportData: Omit<CreativeStrategyReport, 'confidence'>
+): Promise<{ confidence: CreativeStrategyReport['confidence']; usage?: { input_tokens: number; output_tokens: number } }> {
+  const strategistText =
+    typeof reportData.strategist === 'object' && reportData.strategist?.sections
+      ? reportData.strategist.sections.map((s) => `### ${s.heading}\n${s.body}`).join('\n\n')
+      : String(reportData.strategist ?? '');
+  const architectText =
+    typeof reportData.architect === 'object'
+      ? JSON.stringify(reportData.architect)
+      : String(reportData.architect ?? '');
+  const copy = reportData.copywriter;
+  const copywriterText =
+    copy && typeof copy === 'object' && 'territory' in copy
+      ? `${copy.territory}\n${copy.manifesto}\n${(copy.taglines ?? []).map((t) => t.text).join('\n')}`
+      : String(copy ?? '');
+  const dev = reportData.devil;
+  const devilText =
+    dev && typeof dev === 'object' && 'points' in dev
+      ? `${(dev.points ?? []).join('\n')}\n${(dev.questions ?? []).map((q) => `${q.question}\n${q.piste}`).join('\n\n')}`
+      : String(dev ?? '');
+
+  const userContent = `Brief client : ${brief.slice(0, 2000)}
+
+--- STRATÈGE ---
+${strategistText || '(vide)'}
+
+--- ARCHITECTE ---
+${architectText || '(vide)'}
+
+--- COPYWRITER ---
+${copywriterText || '(vide)'}
+
+--- DEVIL ---
+${devilText || '(vide)'}
+
+Évalue chaque section. Pour Stratège et Architecte, effectue des recherches web pour vérifier les faits (marché, concurrence, positionnement). Retourne le JSON requis.`;
+
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 2048,
+    system: AUDITOR_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: userContent }],
+    tools: STRATEGIST_TOOLS,
+  });
+
+  const textParts = message.content.filter((b) => b.type === 'text' && 'text' in b).map((b) => (b as { text: string }).text);
+  const rawText = textParts.join('\n').trim();
+  const parsed = tryParseJson<{ sections: Record<string, { score: number; flags: string[]; factCheck?: string }> }>(rawText, true);
+  if (!parsed?.sections) return { confidence: undefined };
+
+  const conf = parsed.sections;
+  const confidence: CreativeStrategyReport['confidence'] = {
+    ...(conf.strategist && { strategist: { score: conf.strategist.score, flags: conf.strategist.flags ?? [], factCheck: conf.strategist.factCheck } }),
+    ...(conf.architect && { architect: { score: conf.architect.score, flags: conf.architect.flags ?? [], factCheck: conf.architect.factCheck } }),
+    ...(conf.copywriter && { copywriter: { score: conf.copywriter.score, flags: conf.copywriter.flags ?? [] } }),
+    ...(conf.devil && { devil: { score: conf.devil.score, flags: conf.devil.flags ?? [] } }),
+  };
+  return { confidence, usage: message.usage };
 }
 
 // ─── Route POST ───────────────────────────────────────────────────────────────
@@ -414,28 +617,41 @@ export async function POST(req: Request) {
               '',
               `Brief client : ${brief}`,
             ].join('\n');
-            strategistOut = await runAgent(
+            const strategistRes = await runAgent(
               'strategist',
               resolvePrompt('strategist', style('strategist')),
               strategistMessage,
               emit
             );
+            strategistOut = strategistRes.fullText;
           }
 
           if (enabledSet.has('bigidea')) {
             emit({
               type: 'orchestrator',
-              text: 'Tension posée. Trois angles possibles — à vous de choisir.',
+              text: 'Tension posée. Génération des directions créatives…',
             });
-            emit({ type: 'handoff', from: 'Orchestrateur', to: 'bigidea', reason: '3 directions' });
-            const bigideaOut = await runAgent(
+            emit({ type: 'handoff', from: 'Orchestrateur', to: 'bigidea', reason: '10-15 directions' });
+            const bigideaRes = await runAgent(
               'bigidea',
               resolvePrompt('bigidea', style('bigidea')),
               `Brief client : ${brief}\n\nTension stratégique :\n${strategistOut || '(non fournie)'}`,
               emit
             );
-            const ideas = parseBigIdeas(bigideaOut);
-            emit({ type: 'awaiting_selection', ideas });
+            const allIdeas = parseBigIdeas(bigideaRes.fullText);
+            let ideasToShow = allIdeas;
+            let scores: { index: number; total: number; flags?: string[] }[] | undefined;
+            if (allIdeas.length > 5) {
+              emit({ type: 'orchestrator', text: 'Scoring des idées… Top 5 bientôt prêt.' });
+              const { topIdeas, scores: scorerScores } = await runScorerAgent(brief, strategistOut, allIdeas);
+              ideasToShow = topIdeas;
+              scores = scorerScores;
+            }
+            emit({
+              type: 'orchestrator',
+              text: ideasToShow.length <= 5 ? 'À vous de choisir.' : 'Top 5 — à vous de choisir.',
+            });
+            emit({ type: 'awaiting_selection', ideas: ideasToShow, scores });
           } else {
             // Pas de Big Idea : pas de sélection, on considère phase 1 terminée sans idées
             emit({ type: 'orchestrator', text: 'Phase 1 terminée (Big Idea désactivé).' });
@@ -444,18 +660,22 @@ export async function POST(req: Request) {
           // ── Phase 2 : Architecte (si activé) → Copywriter (si activé) → Devil (si activé) → rapport ──
 
           let architectOut = '';
+          let architectRes: { fullText: string; usage?: TokenUsage } | null = null;
+          let copywriterRes: { fullText: string; usage?: TokenUsage } | null = null;
+          let devilRes: { fullText: string; usage?: TokenUsage } | null = null;
           if (enabledSet.has('architect')) {
             emit({
               type: 'orchestrator',
               text: 'L\'Architecte pose les fondations de la plateforme.',
             });
             emit({ type: 'handoff', from: 'Orchestrateur', to: 'architect', reason: 'Vision, Mission, Valeurs, Promesse' });
-            architectOut = await runAgent(
+            architectRes = await runAgent(
               'architect',
               resolvePrompt('architect', style('architect')),
               `Brief client : ${brief}\n\nTension stratégique :\n${prevStrategist}\n\nAngle créatif retenu :\n${selectedIdea}`,
               emit
             );
+            architectOut = architectRes.fullText;
           }
 
           let copywriterOut = '';
@@ -465,12 +685,13 @@ export async function POST(req: Request) {
               text: 'Direction retenue. Au copywriter de lui donner sa voix.',
             });
             emit({ type: 'handoff', from: 'Orchestrateur', to: 'copywriter', reason: 'Territoire de ton, manifeste, taglines' });
-            copywriterOut = await runAgent(
+            copywriterRes = await runAgent(
               'copywriter',
               resolvePrompt('copywriter', style('copywriter')),
               `Brief client : ${brief}\n\nTension stratégique :\n${prevStrategist}\n\nAngle créatif retenu :\n${selectedIdea}`,
               emit
             );
+            copywriterOut = copywriterRes.fullText;
           }
 
           let devilOut = '';
@@ -480,15 +701,74 @@ export async function POST(req: Request) {
               text: 'Le Devil passe tout au crible.',
             });
             emit({ type: 'handoff', from: 'Orchestrateur', to: 'devil', reason: 'Bullshit audit + questions client' });
-            devilOut = await runAgent(
+            devilRes = await runAgent(
               'devil',
               resolvePrompt('devil', style('devil')),
               `Brief client : ${brief}\n\nTension stratégique :\n${prevStrategist}\n\nAngle créatif retenu :\n${selectedIdea}\n\nPlateforme de marque :\n${architectOut}\n\nProposition copy :\n${copywriterOut}`,
               emit
             );
+            devilOut = devilRes.fullText;
           }
 
           emit({ type: 'orchestrator', text: 'Board terminé.' });
+
+          const parsedStrategist = prevStrategist
+            ? tryParseJson<{ sections: { heading: string; body: string; quote?: string }[] }>(prevStrategist, true)
+            : null;
+          const parsedArchitect = architectOut
+            ? tryParseJson<Record<string, unknown>>(architectOut, true) ?? architectOut
+            : null;
+          const parsedCopywriter = copywriterOut
+            ? tryParseJson<{ territory: string; manifesto: string; taglines: { text: string; note?: string }[] }>(copywriterOut, true)
+            : null;
+          const parsedDevil = devilOut
+            ? tryParseJson<{ points: string[]; questions: { question: string; piste: string }[] }>(devilOut, true)
+            : null;
+
+          const selectedIdeaParts = typeof selectedIdea === 'string' && selectedIdea
+            ? (() => {
+                const idx = selectedIdea.indexOf('\n\n');
+                return idx === -1
+                  ? { title: selectedIdea.trim(), body: '' }
+                  : { title: selectedIdea.slice(0, idx).trim(), body: selectedIdea.slice(idx + 2).trim() };
+              })()
+            : null;
+
+          const reportData: CreativeStrategyReport = {
+            version: 2,
+            generatedAt: new Date().toISOString(),
+            strategist: parsedStrategist ?? prevStrategist ?? null,
+            selectedIdea: selectedIdeaParts,
+            architect: parsedArchitect,
+            copywriter: parsedCopywriter ?? copywriterOut ?? null,
+            devil: parsedDevil ?? devilOut ?? null,
+          };
+
+          // Phase 3 : Confidence Auditor (web fact-check) — s'exécute même si Devil désactivé
+          emit({
+            type: 'orchestrator',
+            text: 'Vérification des sources et scoring de confiance… (30-60 s)',
+          });
+          let totalInput = 0;
+          let totalOutput = 0;
+          [architectRes, copywriterRes, devilRes].forEach((r) => {
+            if (r?.usage) {
+              totalInput += r.usage.input_tokens;
+              totalOutput += r.usage.output_tokens;
+            }
+          });
+          try {
+            const auditorResult = await runConfidenceAuditor(brief, reportData);
+            if (auditorResult.confidence) reportData.confidence = auditorResult.confidence;
+            if (auditorResult.usage) {
+              totalInput += auditorResult.usage.input_tokens;
+              totalOutput += auditorResult.usage.output_tokens;
+            }
+          } catch {
+            // Ne pas bloquer le rapport si l'Auditor échoue
+          }
+          const cost = computeGenerationCost(totalInput, totalOutput);
+          (reportData as unknown as Record<string, unknown>)._meta = { generationCost: cost };
 
           const reportParts = [
             '## Synthèse du Board Créatif',
@@ -498,7 +778,7 @@ export async function POST(req: Request) {
             copywriterOut && '### Territoire & Copy\n' + copywriterOut,
             devilOut && '### Points de vigilance\n' + devilOut,
           ].filter(Boolean);
-          emit({ type: 'report', text: reportParts.join('\n\n') });
+          emit({ type: 'report', text: reportParts.join('\n\n'), data: reportData });
         }
 
       } catch (err) {

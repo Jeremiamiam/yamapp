@@ -34,9 +34,9 @@ export interface HomepageSection {
 
 export interface HomepageOutput {
   page: string;
-  strategic_intent: string;
   target_visitor: string;
-  narrative_arc?: string;
+  strategic_intent?: string; // conservé pour rétrocompat, non affiché
+  narrative_arc?: string; // idem
   sections: HomepageSection[];
   cross_links?: { from_section: string; to_page: string; purpose: string }[];
   seo_notes?: {

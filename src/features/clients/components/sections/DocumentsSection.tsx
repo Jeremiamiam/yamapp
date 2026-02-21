@@ -44,6 +44,7 @@ function getDocTypeIcon(type: DocumentType) {
     case 'report': return <PlaudLogo className="w-3 h-3" />;
     case 'creative-strategy': return <span className="text-[var(--accent-lime)] font-bold text-xs">⬡</span>;
     case 'web-brief': return <span className="text-[var(--accent-cyan)] font-bold text-xs">🌐</span>;
+    case 'social-brief': return <span className="text-[var(--accent-magenta)] font-bold text-xs">📱</span>;
     default: return <StickyNote />;
   }
 }

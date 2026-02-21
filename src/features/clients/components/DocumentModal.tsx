@@ -6,13 +6,20 @@ import { formatDocDate } from '@/lib/date-utils';
 import { getDocumentTypeStyle } from '@/lib/styles';
 import { DocumentType } from '@/types';
 import type { Call, ClientDocument, Deliverable } from '@/types';
-import { parseStructuredDocument } from '@/types/document-templates';
-import type { BriefTemplate, ReportPlaudTemplate } from '@/types/document-templates';
+import {
+  parseStructuredDocument,
+  isBriefTemplate,
+  isCreativeBriefTemplate,
+  creativeBriefToBoardInput,
+} from '@/types/document-templates';
+import type { BriefTemplate, CreativeBriefTemplate, ReportPlaudTemplate } from '@/types/document-templates';
 import { toast } from '@/lib/toast';
 import { PlaudLogo } from '@/components/ui';
 import { ReportView } from './ReportView';
 import { WebBriefView } from './WebBriefView';
+import { SocialBriefView } from './SocialBriefView';
 import type { WebBriefData } from '@/types/web-brief';
+import type { SocialBriefData } from '@/types/social-brief';
 
 // Icons
 const X = () => (
@@ -111,6 +118,79 @@ function parseBriefSections(content: string): { title: string; body: string }[] 
   return sections;
 }
 
+const CREATIVE_BRIEF_FIELDS: { key: keyof CreativeBriefTemplate; label: string }[] = [
+  { key: 'marque', label: 'Marque' },
+  { key: 'personnalitePerque', label: 'Personnalité perçue' },
+  { key: 'cible', label: 'Cible' },
+  { key: 'tensionComportementale', label: 'Tension comportementale' },
+  { key: 'projet', label: 'Projet' },
+  { key: 'vraiProbleme', label: 'Le vrai problème' },
+  { key: 'contexteConcurrentiel', label: 'Contexte concurrentiel' },
+  { key: 'contraintes', label: 'Contraintes' },
+  { key: 'ambition', label: 'Ambition' },
+  { key: 'tonInterdit', label: 'Ton interdit' },
+  { key: 'supports', label: 'Supports / canaux' },
+  { key: 'contraintesOperationnelles', label: 'Contraintes opérationnelles' },
+  { key: 'angleSecteur', label: 'Angle secteur' },
+];
+
+function CreativeBriefView({ data }: { data: CreativeBriefTemplate }) {
+  return (
+    <div className="space-y-5 text-[var(--text-secondary)]">
+      {CREATIVE_BRIEF_FIELDS.map(({ key, label }) => {
+        const val = data[key];
+        if (val == null || val === '') return null;
+        const content = Array.isArray(val) ? (
+          <ul className="text-[15px] leading-[1.7] list-disc list-inside space-y-1">
+            {val.map((item, i) => (
+              <li key={i}>{typeof item === 'object' ? JSON.stringify(item) : String(item)}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[15px] leading-[1.7] whitespace-pre-wrap">{String(val)}</p>
+        );
+        return (
+          <section key={key}>
+            <h3 className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">{label}</h3>
+            {content}
+          </section>
+        );
+      })}
+      {data.competitiveLandscape && (
+        <section>
+          <h3 className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-cyan)] mb-2">Paysage concurrentiel (web)</h3>
+          <div className="bg-[var(--accent-cyan)]/5 p-4 rounded-xl border border-[var(--accent-cyan)]/15">
+            <p className="text-[15px] leading-[1.7] mb-3">{data.competitiveLandscape.resume}</p>
+            {data.competitiveLandscape.tendances?.length ? (
+              <div className="mb-2">
+                <span className="text-[10px] font-bold uppercase text-[var(--text-muted)]">Tendances</span>
+                <ul className="mt-1 list-disc list-inside text-sm">{data.competitiveLandscape.tendances.map((t, i) => <li key={i}>{t}</li>)}</ul>
+              </div>
+            ) : null}
+            {data.competitiveLandscape.sources?.length ? (
+              <p className="text-[11px] text-[var(--text-muted)]">Sources : {data.competitiveLandscape.sources.slice(0, 3).join(', ')}</p>
+            ) : null}
+          </div>
+        </section>
+      )}
+      {data.targetSegments?.length ? (
+        <section>
+          <h3 className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-cyan)] mb-2">Segments cibles</h3>
+          <div className="space-y-3">
+            {data.targetSegments.map((seg, i) => (
+              <div key={i} className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)]/40">
+                <p className="font-semibold text-[var(--text-primary)]">{seg.segment}</p>
+                {seg.besoin && <p className="text-sm mt-1">Besoin : {seg.besoin}</p>}
+                {seg.objection && <p className="text-sm text-[var(--text-muted)]">Objection : {seg.objection}</p>}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
 function BriefContentView({ content }: { content: string }) {
   const sections = parseBriefSections(content);
   if (sections.length === 0) {
@@ -145,6 +225,8 @@ function getDocTypeStyle(type: DocumentType) {
       <span className="text-base font-bold" style={{ color: 'var(--accent-lime)' }}>⬡</span>
     ) : type === 'web-brief' ? (
       <span className="text-base font-bold" style={{ color: 'var(--accent-cyan)' }}>🌐</span>
+    ) : type === 'social-brief' ? (
+      <span className="text-base font-bold" style={{ color: 'var(--accent-magenta)' }}>📱</span>
     ) : <StickyNote />;
   return { ...base, icon };
 }
@@ -385,6 +467,219 @@ function BrandPlatformView({ data }: { data: BrandPlatformData }) {
   );
 }
 
+/** Map section title -> confidence key */
+const SECTION_TO_CONFIDENCE: Record<string, 'strategist' | 'architect' | 'copywriter' | 'devil'> = {
+  'Tension stratégique': 'strategist',
+  'Plateforme de Marque': 'architect',
+  'Territoire & Copy': 'copywriter',
+  'Points de vigilance': 'devil',
+};
+
+interface SectionConfidence {
+  score: number;
+  flags: string[];
+  factCheck?: string;
+}
+
+interface CreativeStrategyData {
+  version?: number;
+  strategist?: { sections: { heading: string; body: string; quote?: string }[] } | string | null;
+  selectedIdea?: { title: string; body: string } | null;
+  architect?: Record<string, unknown> | string | null;
+  copywriter?: { territory: string; manifesto: string; taglines: { text: string; note?: string }[] } | string | null;
+  devil?: { points: string[]; questions: { question: string; piste: string }[] } | string | null;
+  confidence?: {
+    strategist?: SectionConfidence;
+    architect?: SectionConfidence;
+    copywriter?: SectionConfidence;
+    devil?: SectionConfidence;
+  };
+}
+
+// ─── Vues structurées JSON (style Plateforme de marque) ───
+
+function StrategistStructuredView({ data }: { data: { sections: { heading: string; body: string; quote?: string }[] } }) {
+  return (
+    <div className="space-y-8 animate-fade-in-up">
+      {data.sections.map((sec, i) => (
+        <section key={i}>
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-1 h-4 rounded-full" style={{ background: 'var(--accent-cyan)' }} />
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">{sec.heading}</h3>
+          </div>
+          <div className="bg-[var(--bg-primary)]/40 p-6 rounded-xl border border-[var(--border-subtle)]">
+            <p className="text-[15px] leading-[1.8] text-[var(--text-secondary)] whitespace-pre-wrap">{sec.body}</p>
+            {sec.quote && (
+              <blockquote className="mt-5 pl-5 border-l-2 border-[var(--accent-cyan)]/40 italic text-[var(--text-secondary)]">
+                {sec.quote}
+              </blockquote>
+            )}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function SelectedIdeaStructuredView({ data }: { data: { title: string; body: string } }) {
+  return (
+    <div className="animate-fade-in-up">
+      <div className="flex items-center gap-2.5 mb-5">
+        <div className="w-1 h-4 rounded-full" style={{ background: 'var(--accent-amber)' }} />
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Angle retenu</h3>
+      </div>
+      <div className="bg-[var(--accent-amber)]/5 p-8 rounded-xl border border-[var(--accent-amber)]/20">
+        <h4 className="text-xl font-bold text-[var(--accent-amber)] mb-4 leading-snug">{data.title}</h4>
+        <p className="text-[15px] leading-[1.8] text-[var(--text-secondary)] whitespace-pre-wrap">{data.body}</p>
+      </div>
+    </div>
+  );
+}
+
+function CopywriterStructuredView({ data }: { data: { territory: string; manifesto: string; taglines: { text: string; note?: string }[] } }) {
+  return (
+    <div className="space-y-8 animate-fade-in-up">
+      <section>
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-1 h-4 rounded-full" style={{ background: 'var(--accent-lime)' }} />
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Territoire de ton</h3>
+        </div>
+        <div className="bg-[var(--bg-primary)]/40 p-6 rounded-xl border border-[var(--border-subtle)]">
+          <p className="text-[15px] leading-[1.8] text-[var(--text-secondary)] whitespace-pre-wrap">{data.territory}</p>
+        </div>
+      </section>
+      <section>
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-1 h-4 rounded-full" style={{ background: 'var(--accent-lime)' }} />
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Manifeste</h3>
+        </div>
+        <div className="bg-[var(--accent-lime)]/5 p-6 rounded-xl border border-[var(--accent-lime)]/20">
+          <p className="text-[15px] leading-[1.8] text-[var(--text-primary)] whitespace-pre-wrap font-medium">{data.manifesto}</p>
+        </div>
+      </section>
+      {data.taglines && data.taglines.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-1 h-4 rounded-full" style={{ background: 'var(--accent-lime)' }} />
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Taglines</h3>
+          </div>
+          <div className="space-y-3">
+            {data.taglines.map((t, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-3 p-4 rounded-xl bg-[var(--bg-primary)]/40 border border-[var(--border-subtle)]"
+              >
+                <span className="text-lg font-bold text-[var(--accent-lime)] flex-shrink-0">&ldquo;</span>
+                <div>
+                  <p className="text-[15px] font-semibold text-[var(--text-primary)]">{t.text}</p>
+                  {t.note && <p className="text-[13px] text-[var(--text-muted)] mt-1">{t.note}</p>}
+                </div>
+                <span className="text-lg font-bold text-[var(--accent-lime)] flex-shrink-0">&rdquo;</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function DevilStructuredView({ data }: { data: { points: string[]; questions: { question: string; piste: string }[] } }) {
+  return (
+    <div className="space-y-8 animate-fade-in-up">
+      {data.points && data.points.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-1 h-4 rounded-full" style={{ background: 'var(--accent-coral)' }} />
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Points de vigilance</h3>
+          </div>
+          <ul className="space-y-2">
+            {data.points.map((p, i) => (
+              <li key={i} className="flex items-start gap-3 p-3 rounded-lg bg-[var(--accent-coral)]/5 border border-[var(--accent-coral)]/15">
+                <span className="text-[var(--accent-coral)] mt-0.5">◉</span>
+                <span className="text-[15px] text-[var(--text-secondary)]">{p}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {data.questions && data.questions.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-1 h-4 rounded-full" style={{ background: 'var(--accent-coral)' }} />
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Questions pour le client</h3>
+          </div>
+          <div className="space-y-4">
+            {data.questions.map((q, i) => (
+              <div key={i} className="p-5 rounded-xl bg-[var(--bg-primary)]/40 border border-[var(--border-subtle)]">
+                <p className="text-[15px] font-semibold text-[var(--text-primary)] mb-2">{q.question}</p>
+                <p className="text-[14px] text-[var(--text-secondary)] pl-3 border-l-2 border-[var(--accent-coral)]/30">
+                  <span className="text-[var(--text-muted)]">Piste : </span>
+                  {q.piste}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function strategyDataToDisplaySections(data: CreativeStrategyData): { title: string; body: string }[] {
+  const sections: { title: string; body: string }[] = [];
+  const strat = data.strategist;
+  if (strat) {
+    if (typeof strat === 'object' && strat.sections?.length) {
+      sections.push({
+        title: 'Tension stratégique',
+        body: strat.sections.map((s) => `### ${s.heading}\n${s.body}${s.quote ? `\n> ${s.quote}` : ''}`).join('\n\n'),
+      });
+    } else {
+      sections.push({ title: 'Tension stratégique', body: String(strat) });
+    }
+  }
+  const idea = data.selectedIdea;
+  if (idea) {
+    sections.push({ title: 'Angle retenu', body: `${idea.title}\n\n${idea.body}` });
+  }
+  const arch = data.architect;
+  if (arch) {
+    sections.push({
+      title: 'Plateforme de Marque',
+      body: typeof arch === 'object' ? JSON.stringify(arch) : String(arch),
+    });
+  }
+  const copy = data.copywriter;
+  if (copy) {
+    if (typeof copy === 'object') {
+      sections.push({
+        title: 'Territoire & Copy',
+        body: `${copy.territory}\n\n**Manifeste**\n${copy.manifesto}\n\n**Taglines**\n${(copy.taglines ?? []).map((t) => `- ${t.text}${t.note ? ` (${t.note})` : ''}`).join('\n')}`,
+      });
+    } else {
+      sections.push({ title: 'Territoire & Copy', body: String(copy) });
+    }
+  }
+  const dev = data.devil;
+  if (dev) {
+    if (typeof dev === 'object') {
+      const pts = (dev.points ?? []).map((p) => `- ${p}`).join('\n');
+      const qs = (dev.questions ?? []).map((q) => `**${q.question}**\n${q.piste}`).join('\n\n');
+      sections.push({ title: 'Points de vigilance', body: `${pts}\n\n${qs}` });
+    } else {
+      sections.push({ title: 'Points de vigilance', body: String(dev) });
+    }
+  }
+  return sections;
+}
+
+function extractPlatformFromData(data: CreativeStrategyData): BrandPlatformData | null {
+  const arch = data.architect;
+  if (!arch || typeof arch !== 'object') return null;
+  return arch as unknown as BrandPlatformData;
+}
+
 /** Tente d'extraire du JSON structuré (BrandPlatform) depuis le body markdown */
 function extractPlatformJson(body: string): BrandPlatformData | null {
   // Nettoyage : enlever les fences markdown
@@ -400,71 +695,144 @@ function extractPlatformJson(body: string): BrandPlatformData | null {
   }
 }
 
+function strategyDataToText(data: CreativeStrategyData, field: 'strategist' | 'copywriter'): string {
+  const val = field === 'strategist' ? data.strategist : data.copywriter;
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (field === 'strategist' && 'sections' in val) {
+    return (val as { sections: { heading: string; body: string; quote?: string }[] }).sections
+      .map((s) => `### ${s.heading}\n${s.body}${s.quote ? `\n> ${s.quote}` : ''}`)
+      .join('\n\n');
+  }
+  if (field === 'copywriter' && 'territory' in val) {
+    const c = val as { territory: string; manifesto: string; taglines?: { text: string; note?: string }[] };
+    return `${c.territory}\n\n${c.manifesto}\n\n${(c.taglines ?? []).map((t) => `- ${t.text}`).join('\n')}`;
+  }
+  return '';
+}
+
 function CreativeStrategyView({
   content,
   onGenerateWebBrief,
+  onGenerateSmmBrief,
   isGeneratingWeb,
+  isGeneratingSmm,
 }: {
   content: string;
   onGenerateWebBrief?: (payload: { brandPlatform: unknown; strategyText: string; copywriterText: string }) => void;
+  onGenerateSmmBrief?: (payload: { brandPlatform: unknown; strategyText: string; copywriterText: string; reportContent?: string }) => void;
   isGeneratingWeb?: boolean;
+  isGeneratingSmm?: boolean;
 }) {
-  const sections = parseStrategySections(content);
-  const defaultStyle = { color: 'var(--accent-lime)', icon: '◆', bg: 'var(--accent-lime-dim)' };
-  const displaySections = sections.length > 0
-    ? sections
-    : [{ title: 'Synthese', body: content.replace(/^##\s+.*\n?/m, '').trim() || content }];
+  let displaySections: { title: string; body: string }[];
+  let platformData: BrandPlatformData | null;
+  let strategyText: string;
+  let copywriterText: string;
+  let parsedData: CreativeStrategyData | null = null;
 
+  try {
+    const parsed = JSON.parse(content) as CreativeStrategyData;
+    if (parsed?.version === 2) {
+      parsedData = parsed;
+      displaySections = strategyDataToDisplaySections(parsed);
+      platformData = extractPlatformFromData(parsed);
+      strategyText = strategyDataToText(parsed, 'strategist');
+      copywriterText = strategyDataToText(parsed, 'copywriter');
+    } else {
+      throw new Error('Not v2');
+    }
+  } catch {
+    const sections = parseStrategySections(content);
+    displaySections = sections.length > 0
+      ? sections
+      : [{ title: 'Synthese', body: content.replace(/^##\s+.*\n?/m, '').trim() || content }];
+    const strategySection = sections.find((s) => s.title === 'Tension stratégique');
+    const copySection = sections.find((s) => s.title === 'Territoire & Copy');
+    strategyText = strategySection?.body ?? '';
+    copywriterText = copySection?.body ?? '';
+    const activeSectionForPlatform = displaySections.find((s) => s.title === 'Plateforme de Marque');
+    platformData = activeSectionForPlatform ? extractPlatformJson(activeSectionForPlatform.body) : null;
+  }
+
+  const defaultStyle = { color: 'var(--accent-lime)', icon: '◆', bg: 'var(--accent-lime-dim)' };
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const activeSection = displaySections[activeTabIndex] || displaySections[0];
   const activeStyle = STRATEGY_CARD_STYLES[activeSection.title] ?? defaultStyle;
 
   const isPlatformSection = activeSection.title === 'Plateforme de Marque';
-  const platformData = isPlatformSection ? extractPlatformJson(activeSection.body) : null;
-  const strategySection = displaySections.find((s) => s.title === 'Tension stratégique');
-  const copySection = displaySections.find((s) => s.title === 'Territoire & Copy');
+  const effectivePlatformData = platformData ?? (isPlatformSection ? extractPlatformJson(activeSection.body) : null);
 
   return (
     <div className="space-y-0">
-      {/* Sticky header: label + tabs + bouton web (toujours visible sur mobile) */}
-      <div className="sticky -top-6 z-10 bg-[var(--bg-card)] -mx-6 px-6 pt-4 pb-0">
+      {/* Sticky header: bg opaque (évite flickering au scroll) */}
+      <div className="sticky -top-6 z-10 bg-[var(--bg-card)] -mx-6 px-6 pt-4 pb-0" style={{ backfaceVisibility: 'hidden' }}>
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-1.5 h-4 rounded-full bg-[var(--accent-lime)] flex-shrink-0" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Synthese du Board</span>
           </div>
-          {platformData && onGenerateWebBrief && (
-            <button
-              type="button"
-              onClick={() =>
-                onGenerateWebBrief({
-                  brandPlatform: platformData,
-                  strategyText: strategySection?.body ?? '',
-                  copywriterText: copySection?.body ?? '',
-                })
-              }
-              disabled={isGeneratingWeb}
-              className="shrink-0 px-3 py-2 rounded-xl bg-[var(--accent-cyan)]/15 border border-[var(--accent-cyan)]/30 text-xs font-semibold text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-            >
-              {isGeneratingWeb ? (
-                <>
-                  <span className="w-2.5 h-2.5 border-2 border-[var(--accent-cyan)]/30 border-t-[var(--accent-cyan)] rounded-full animate-spin" />
-                  <span className="hidden sm:inline">Génération…</span>
-                </>
-              ) : (
-                <>🌐 Menu + Homepage</>
-              )}
-            </button>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {effectivePlatformData && onGenerateWebBrief && (
+              <button
+                type="button"
+                onClick={() =>
+                  onGenerateWebBrief({
+                    brandPlatform: effectivePlatformData,
+                    strategyText,
+                    copywriterText,
+                  })
+                }
+                disabled={isGeneratingWeb || isGeneratingSmm}
+                className="px-3 py-2 rounded-xl bg-[var(--accent-cyan)]/15 border border-[var(--accent-cyan)]/30 text-xs font-semibold text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+              >
+                {isGeneratingWeb ? (
+                  <>
+                    <span className="w-2.5 h-2.5 border-2 border-[var(--accent-cyan)]/30 border-t-[var(--accent-cyan)] rounded-full animate-spin" />
+                    <span className="hidden sm:inline">Génération…</span>
+                  </>
+                ) : (
+                  <>🌐 Menu + Homepage</>
+                )}
+              </button>
+            )}
+            {onGenerateSmmBrief && (
+              <button
+                type="button"
+                onClick={() =>
+                  onGenerateSmmBrief({
+                    brandPlatform: effectivePlatformData ?? undefined,
+                    strategyText,
+                    copywriterText,
+                    reportContent: content,
+                  })
+                }
+                disabled={isGeneratingWeb || isGeneratingSmm}
+                className="px-3 py-2 rounded-xl bg-[var(--accent-magenta)]/15 border border-[var(--accent-magenta)]/30 text-xs font-semibold text-[var(--accent-magenta)] hover:bg-[var(--accent-magenta)]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+              >
+                {isGeneratingSmm ? (
+                  <>
+                    <span className="w-2.5 h-2.5 border-2 border-[var(--accent-magenta)]/30 border-t-[var(--accent-magenta)] rounded-full animate-spin" />
+                    <span className="hidden sm:inline">Génération…</span>
+                  </>
+                ) : (
+                  <>📱 Brief Social</>
+                )}
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex gap-1 overflow-x-auto pb-px scrollbar-none">
           {displaySections.map((section, i) => {
             const s = STRATEGY_CARD_STYLES[section.title] ?? defaultStyle;
             const isActive = i === activeTabIndex;
+            const confKey = SECTION_TO_CONFIDENCE[section.title];
+            const conf = confKey && parsedData?.confidence?.[confKey];
+            const hasFlags = (conf?.flags?.length ?? 0) > 0;
             return (
               <button
                 key={i}
                 onClick={() => setActiveTabIndex(i)}
+                title={conf?.factCheck ?? (hasFlags ? conf?.flags?.join(', ') : undefined)}
                 className={`
                   flex items-center gap-2 px-4 py-2.5 text-sm font-bold transition-all whitespace-nowrap relative flex-shrink-0
                   ${isActive
@@ -475,6 +843,15 @@ function CreativeStrategyView({
               >
                 <span className={`text-base ${isActive ? '' : 'opacity-50'}`}>{s.icon}</span>
                 <span className="hidden sm:inline">{section.title}</span>
+                {conf && (
+                  <span
+                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${hasFlags ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}
+                    title={hasFlags ? conf.flags.join(', ') : undefined}
+                  >
+                    {conf.score}/100
+                    {hasFlags ? ' ⚠' : ''}
+                  </span>
+                )}
                 {isActive && (
                   <span
                     className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full"
@@ -488,25 +865,59 @@ function CreativeStrategyView({
         <div className="h-px bg-[var(--border-subtle)]" />
       </div>
 
-      {/* Content — no redundant section header, the tab already identifies the section */}
+      {/* Content — pas d'animation au switch tab (évite flickering) */}
       <div
         key={activeTabIndex}
-        className="rounded-xl p-6 sm:p-8 border mt-4 animate-fade-in-up"
+        className="rounded-xl p-6 sm:p-8 border mt-4"
         style={{
           background: activeStyle.bg,
           borderColor: `${activeStyle.color}15`,
-          minHeight: platformData ? '500px' : '240px',
-          animationDuration: '0.25s',
+          minHeight: (isPlatformSection && effectivePlatformData) || (parsedData && activeSection.title !== 'Synthese') ? '320px' : '240px',
+          contain: 'layout paint',
         }}
       >
         <div className="prose prose-invert max-w-none">
-          {platformData ? (
-            <BrandPlatformView data={platformData} />
-          ) : (
-            <p className="text-[15px] text-[var(--text-primary)] leading-[1.8] whitespace-pre-wrap font-normal">
-              {activeSection.body}
-            </p>
-          )}
+          {(() => {
+            const confKey = SECTION_TO_CONFIDENCE[activeSection.title];
+            const factCheck = confKey && parsedData?.confidence?.[confKey]?.factCheck;
+            const FactCheckBlock = factCheck ? (
+              <div className="mb-6 p-4 rounded-xl bg-[var(--accent-cyan)]/10 border border-[var(--accent-cyan)]/20">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-cyan)]">Vérification web</span>
+                <p className="text-[14px] text-[var(--text-secondary)] mt-1.5">{factCheck}</p>
+              </div>
+            ) : null;
+
+            if (activeSection.title === 'Tension stratégique' && parsedData?.strategist && typeof parsedData.strategist === 'object' && parsedData.strategist.sections?.length) {
+              return (
+                <>
+                  {FactCheckBlock}
+                  <StrategistStructuredView data={parsedData.strategist} />
+                </>
+              );
+            }
+            if (activeSection.title === 'Angle retenu' && parsedData?.selectedIdea) {
+              return <SelectedIdeaStructuredView data={parsedData.selectedIdea} />;
+            }
+            if (isPlatformSection && effectivePlatformData) {
+              return (
+                <>
+                  {FactCheckBlock}
+                  <BrandPlatformView data={effectivePlatformData} />
+                </>
+              );
+            }
+            if (activeSection.title === 'Territoire & Copy' && parsedData?.copywriter && typeof parsedData.copywriter === 'object') {
+              return <CopywriterStructuredView data={parsedData.copywriter} />;
+            }
+            if (activeSection.title === 'Points de vigilance' && parsedData?.devil && typeof parsedData.devil === 'object' && (parsedData.devil.points?.length || parsedData.devil.questions?.length)) {
+              return <DevilStructuredView data={parsedData.devil} />;
+            }
+            return (
+              <p className="text-[15px] text-[var(--text-primary)] leading-[1.8] whitespace-pre-wrap font-normal">
+                {activeSection.body}
+              </p>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -525,7 +936,7 @@ function DocumentModalContent({
   onDeleteDocument,
 }: {
   document: ClientDocument;
-  structured: BriefTemplate | ReportPlaudTemplate | null;
+  structured: BriefTemplate | CreativeBriefTemplate | ReportPlaudTemplate | null;
   onClose: () => void;
   clientId?: string;
   onAddDeliverable?: (d: Omit<Deliverable, 'id' | 'createdAt'>) => void;
@@ -543,6 +954,7 @@ function DocumentModalContent({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [generatingBrief, setGeneratingBrief] = useState(false);
   const [generatingWeb, setGeneratingWeb] = useState(false);
+  const [generatingSmm, setGeneratingSmm] = useState(false);
   const [showTranscriptInput, setShowTranscriptInput] = useState(false);
   const [fallbackTranscript, setFallbackTranscript] = useState('');
 
@@ -708,6 +1120,132 @@ function DocumentModalContent({
     [clientId, selectedDocument.content, addDocument, openDocument, onClose, consumeStreamResponse]
   );
 
+  const runSmmGeneration = useCallback(
+    async (payload: { brandPlatform?: unknown; strategyText: string; copywriterText: string; reportContent?: string }) => {
+      if (!clientId) {
+        toast.error('Client requis pour générer le brief social.');
+        return;
+      }
+      setGeneratingSmm(true);
+      const showError = (msg: string) => toast.error(msg, { duration: 10000 });
+      try {
+        const res = await fetch('/api/smm-brief', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            brandPlatform: payload.brandPlatform,
+            strategyText: payload.strategyText,
+            copywriterText: payload.copywriterText,
+            reportContent: payload.reportContent ?? '',
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({})) as { error?: string };
+          showError(err.error ?? 'Erreur API');
+          return;
+        }
+        const reader = res.body?.getReader();
+        if (!reader) {
+          showError('Réponse vide');
+          return;
+        }
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let socialBrief: SocialBriefData | null = null;
+        let errorMessage: string | null = null;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const obj = JSON.parse(line.slice(6)) as { t?: string; socialBrief?: SocialBriefData; message?: string };
+                if (obj.t === 'done' && obj.socialBrief) {
+                  socialBrief = obj.socialBrief;
+                } else if (obj.t === 'error' && obj.message) {
+                  errorMessage = obj.message;
+                }
+              } catch {
+                // ignore malformed lines
+              }
+            }
+          }
+        }
+        if (errorMessage) {
+          showError(errorMessage);
+          return;
+        }
+        if (!socialBrief) {
+          showError('Réponse incomplète');
+          return;
+        }
+        const createdDoc = await addDocument(clientId, {
+          type: 'social-brief',
+          title: `Brief Social - ${new Date().toLocaleDateString('fr-FR')}`,
+          content: JSON.stringify(socialBrief),
+        });
+        onClose();
+        openDocument(createdDoc);
+        toast.success('Brief social généré');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+        showError(`Impossible de générer : ${msg}`);
+      } finally {
+        setGeneratingSmm(false);
+      }
+    },
+    [clientId, addDocument, openDocument, onClose]
+  );
+
+  const handleSectionRewrite = useCallback(
+    async (sectionIndex: number, customPrompt: string) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        if (!data?.homepage?.sections?.length) {
+          toast.error('Aucune section à modifier.');
+          return;
+        }
+        const sections = [...data.homepage.sections].sort((a, b) => a.order - b.order);
+        const section = sections[sectionIndex];
+        if (!section) {
+          toast.error('Section introuvable.');
+          return;
+        }
+        const res = await fetch('/api/web-section-rewrite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: { order: section.order, role: section.role, intent: section.intent, content: section.content },
+            customPrompt,
+            architecture: data.architecture,
+          }),
+        });
+        const json = (await res.json()) as { content?: Record<string, unknown>; error?: string };
+        if (!res.ok || json.error) {
+          toast.error(json.error ?? 'Erreur lors de la réécriture.');
+          return;
+        }
+        const newContent = json.content ?? section.content;
+        const updatedSections = sections.map((s, i) =>
+          i === sectionIndex ? { ...s, content: newContent } : s
+        );
+        const updatedData: WebBriefData = {
+          ...data,
+          homepage: { ...data.homepage, sections: updatedSections },
+        };
+        await updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        toast.success('Section mise à jour');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la réécriture.');
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
   const handleGenerateBrief = useCallback(() => {
     const transcript = reportData?.rawTranscript;
     if (transcript) {
@@ -742,7 +1280,7 @@ function DocumentModalContent({
     >
       <div className="absolute inset-0 bg-black/70" />
       <div
-        className={`relative w-full max-h-[85vh] bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl overflow-hidden animate-fade-in-up flex flex-col ${selectedDocument.type === 'report' || selectedDocument.type === 'creative-strategy' || selectedDocument.type === 'web-brief' ? 'max-w-4xl' : 'max-w-2xl'}`}
+        className="relative w-[90vw] max-w-6xl max-h-[90vh] bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl overflow-hidden animate-fade-in-up flex flex-col"
         onClick={e => e.stopPropagation()}
         style={{ animationDuration: '0.2s' }}
       >
@@ -752,7 +1290,7 @@ function DocumentModalContent({
               {docStyle.icon}
             </span>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className={`text-[10px] font-bold uppercase tracking-wider ${docStyle.text}`}>
                   {docStyle.label}
                 </span>
@@ -760,6 +1298,20 @@ function DocumentModalContent({
                 <span className="text-[10px] text-[var(--text-muted)]">
                   {formatDocDate(selectedDocument.createdAt)}
                 </span>
+                {(() => {
+                  try {
+                    const parsed = JSON.parse(selectedDocument.content) as { _meta?: { generationCost?: { estimatedUsd?: number } } };
+                    const usd = parsed?._meta?.generationCost?.estimatedUsd;
+                    if (typeof usd === 'number' && usd > 0) {
+                      return (
+                        <span className="text-[10px] text-[var(--text-muted)]" title="Coût estimé de génération">
+                          ~{(usd < 0.01 ? '<0.01' : usd.toFixed(2))} $
+                        </span>
+                      );
+                    }
+                  } catch { /* non-JSON content */ }
+                  return null;
+                })()}
               </div>
               <h2 className="text-xl font-bold text-[var(--text-primary)] truncate">
                 {selectedDocument.title}
@@ -797,14 +1349,38 @@ function DocumentModalContent({
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-6">
-          {showTemplated && selectedDocument.type === 'brief' && (
-            <BriefTemplatedView data={structured as BriefTemplate} />
+          {showTemplated && selectedDocument.type === 'brief' && structured && (
+            isCreativeBriefTemplate(structured) ? (
+              <CreativeBriefView data={structured} />
+            ) : isBriefTemplate(structured) ? (
+              <BriefTemplatedView data={structured} />
+            ) : (
+              <BriefContentView content={selectedDocument.content} />
+            )
           )}
           {selectedDocument.type === 'web-brief' && (() => {
             try {
               const data = JSON.parse(selectedDocument.content) as WebBriefData;
               if (data?.version === 1 && data?.architecture && data?.homepage) {
-                return <WebBriefView data={data} />;
+                return (
+                  <WebBriefView
+                    data={data}
+                    onSectionRewrite={clientId ? handleSectionRewrite : undefined}
+                  />
+                );
+              }
+            } catch {
+              // Invalid JSON
+            }
+            return (
+              <p className="text-[var(--text-secondary)] text-sm">Contenu invalide.</p>
+            );
+          })()}
+          {selectedDocument.type === 'social-brief' && (() => {
+            try {
+              const data = JSON.parse(selectedDocument.content) as SocialBriefData;
+              if (data?.version === 1 && Array.isArray(data?.content_pillars) && Array.isArray(data?.channels)) {
+                return <SocialBriefView data={data} />;
               }
             } catch {
               // Invalid JSON
@@ -831,9 +1407,11 @@ function DocumentModalContent({
               <CreativeStrategyView
                 content={selectedDocument.content}
                 onGenerateWebBrief={clientId ? runWebGeneration : undefined}
+                onGenerateSmmBrief={clientId ? runSmmGeneration : undefined}
                 isGeneratingWeb={generatingWeb}
+                isGeneratingSmm={generatingSmm}
               />
-            ) : selectedDocument.type === 'web-brief' ? null : (
+            ) : selectedDocument.type === 'web-brief' || selectedDocument.type === 'social-brief' ? null : (
               <div className="prose prose-invert max-w-none">
                 <p className="text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap text-[15px]">
                   {selectedDocument.content}
@@ -881,7 +1459,14 @@ function DocumentModalContent({
                 <button
                   type="button"
                   onClick={() => {
-                    sessionStorage.setItem('creative-board-brief-prefill', selectedDocument.content);
+                    const briefForBoard = (() => {
+                      const parsed = parseStructuredDocument(selectedDocument.content, 'brief');
+                      if (parsed && isCreativeBriefTemplate(parsed)) {
+                        return creativeBriefToBoardInput(parsed);
+                      }
+                      return selectedDocument.content;
+                    })();
+                    sessionStorage.setItem('creative-board-brief-prefill', briefForBoard);
                     if (clientId) sessionStorage.setItem('creative-board-client-id', clientId);
                     navigateToCreativeBoard();
                     onClose();

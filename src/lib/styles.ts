@@ -69,6 +69,11 @@ export const DOCUMENT_TYPE_STYLES: Record<
     text: 'text-[var(--accent-cyan)]',
     label: 'Menu + Homepage',
   },
+  'social-brief': {
+    bg: 'bg-[var(--accent-magenta)]/10',
+    text: 'text-[var(--accent-magenta)]',
+    label: 'Brief Social',
+  },
 } as const;
 
 export function getDocumentTypeStyle(type: DocumentType) {

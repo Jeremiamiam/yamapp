@@ -8,7 +8,13 @@ import { useAppStore } from '@/lib/store';
 import { getDocumentTypeStyle } from '@/lib/styles';
 import { DocumentSchema, type DocumentFormData } from '@/lib/validation';
 import { DocumentType, ClientDocument } from '@/types';
-import { parseStructuredDocument, ReportPlaudTemplate } from '@/types/document-templates';
+import {
+  parseStructuredDocument,
+  isBriefTemplate,
+  isCreativeBriefTemplate,
+  isReportPlaudTemplate,
+  type ReportPlaudTemplate,
+} from '@/types/document-templates';
 
 const Upload = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -33,6 +39,7 @@ const typeOptions = [
   { value: 'note', label: '📝 Note' },
   { value: 'creative-strategy', label: '⬡ Synthèse Creative Board' },
   { value: 'web-brief', label: '🌐 Menu + Homepage' },
+  { value: 'social-brief', label: '📱 Brief Social' },
 ] as const;
 
 export function DocumentForm() {
@@ -164,12 +171,20 @@ export function DocumentForm() {
           setUploadError('Le JSON ne respecte pas le template attendu. Voir docs/json-templates-ia.md');
           return;
         }
-        if (type === 'report' && mode === 'create' && clientId) {
+        if (type === 'report' && mode === 'create' && clientId && isReportPlaudTemplate(parsed)) {
           addDocument(clientId, { type: 'report', title: parsed.title, content: text });
           closeModal();
           return;
         }
-        setValue('title', parsed.title);
+        const docTitle =
+          type === 'report' && isReportPlaudTemplate(parsed)
+            ? parsed.title
+            : type === 'brief' && isCreativeBriefTemplate(parsed)
+              ? `Brief - ${parsed.marque}`
+              : type === 'brief' && isBriefTemplate(parsed)
+                ? parsed.title
+                : 'Document';
+        setValue('title', docTitle);
         setValue('content', text);
       } catch {
         setUploadError('Fichier JSON invalide.');
@@ -336,6 +351,7 @@ export function DocumentForm() {
                 placeholder={
                   type === 'brief' ? 'Ex: Brief identité visuelle 2026' :
                   type === 'report' ? 'Ex: Call kick-off 13/02' :
+                  type === 'social-brief' ? 'Ex: Brief social - Stratégie 2026' :
                   'Ex: Notes réunion stratégie'
                 }
                 autoFocus
@@ -347,6 +363,7 @@ export function DocumentForm() {
                 placeholder={
                   type === 'brief' ? 'Objectifs, contexte, produits attendus...' :
                   type === 'report' ? "Transcription de l'appel, points clés discutés..." :
+                  type === 'social-brief' ? 'Généré depuis la stratégie créative...' :
                   'Contenu de la note...'
                 }
                 rows={8}

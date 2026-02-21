@@ -13,7 +13,7 @@ export const ContactSchema = z.object({
 });
 
 export const DocumentSchema = z.object({
-  type: z.enum(['brief', 'report', 'note', 'creative-strategy', 'web-brief']),
+  type: z.enum(['brief', 'report', 'note', 'creative-strategy', 'web-brief', 'social-brief']),
   title: z.string().min(1, 'Le titre est requis'),
   content: z.string().min(1, 'Le contenu est requis'),
 });

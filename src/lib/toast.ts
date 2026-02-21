@@ -91,6 +91,7 @@ function showToast(
 export const toast = {
   error: (msg: string, options?: { duration?: number; action?: ToastAction }) =>
     showToast(msg, 'error', options),
-  success: (msg: string, options?: { action?: ToastAction }) => showToast(msg, 'success', options),
-  info: (msg: string) => showToast(msg, 'info'),
+  success: (msg: string, options?: { action?: ToastAction; duration?: number }) =>
+    showToast(msg, 'success', options),
+  info: (msg: string, options?: { duration?: number }) => showToast(msg, 'info', options),
 };

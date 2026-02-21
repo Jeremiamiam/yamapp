@@ -240,9 +240,11 @@ function SelectionBadge({ title }: { title: string }) {
 
 function IdeaCards({
   ideas,
+  scores,
   onSelect,
 }: {
   ideas: { title: string; body: string }[];
+  scores?: { index: number; total: number; flags?: string[] }[];
   onSelect: (idea: { title: string; body: string }) => void;
 }) {
   return (
@@ -256,22 +258,35 @@ function IdeaCards({
           Choisissez votre angle de rupture
         </span>
       </div>
-      <div className="flex flex-col gap-3">
-        {ideas.map((idea, i) => (
-          <button
-            key={i}
-            onClick={() => onSelect(idea)}
-            className="group w-full text-left bg-[var(--bg-card)] border border-[var(--accent-amber)]/20 rounded-xl px-5 py-4 hover:border-[var(--accent-amber)]/50 hover:bg-[var(--accent-amber-dim)] transition-all"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <span className="flex-shrink-0 w-6 h-6 rounded-full border border-[var(--accent-amber)]/40 flex items-center justify-center text-xs text-[var(--accent-amber)] font-bold">
-                {i + 1}
-              </span>
-              <span className="text-sm font-bold text-[var(--accent-amber)]">{idea.title}</span>
-            </div>
-            <p className="text-sm text-[var(--text-secondary)] leading-relaxed pl-9">{idea.body}</p>
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 max-h-[320px] overflow-y-auto pr-1">
+        {ideas.map((idea, i) => {
+          const sc = scores?.[i] ? { total: scores[i].total, flags: scores[i].flags } : null;
+          return (
+            <button
+              key={i}
+              onClick={() => onSelect(idea)}
+              className="group w-full text-left bg-[var(--bg-card)] border border-[var(--accent-amber)]/20 rounded-xl px-5 py-4 hover:border-[var(--accent-amber)]/50 hover:bg-[var(--accent-amber-dim)] transition-all"
+            >
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full border border-[var(--accent-amber)]/40 flex items-center justify-center text-xs text-[var(--accent-amber)] font-bold">
+                    {i + 1}
+                  </span>
+                  <span className="text-sm font-bold text-[var(--accent-amber)] truncate">{idea.title}</span>
+                </div>
+                {sc && (
+                  <span
+                    className="flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-muted)]"
+                    title={sc.flags?.join(', ')}
+                  >
+                    {sc.total}/100{sc.flags?.length ? ' ⚠' : ''}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed pl-9">{idea.body}</p>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -378,6 +393,7 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
   const [boardPhase, setBoardPhase] = useState<BoardPhase>('idle');
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [pendingIdeas, setPendingIdeas] = useState<{ title: string; body: string }[]>([]);
+  const [pendingIdeaScores, setPendingIdeaScores] = useState<{ index: number; total: number; flags?: string[] }[]>([]);
 
   const [enabledAgents, setEnabledAgents] = useState<AgentId[]>(['strategist', 'bigidea', 'architect', 'copywriter', 'devil']);
   const [agentStyles, setAgentStyles] = useState<Record<AgentId, AgentStyle>>({
@@ -395,6 +411,7 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
 
   const counterRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const userScrolledUpRef = useRef(false);
   const phase1OutputsRef = useRef({ strategist: '', bigidea: '' });
   const storedOutputsRef = useRef<{ strategist: string; bigidea: string } | null>(null);
   const savedReportRef = useRef(false);
@@ -425,9 +442,37 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
       .catch(() => {});
   }, []);
 
+  const getScrollContainer = useCallback(() => {
+    let el = bottomRef.current?.parentElement;
+    while (el) {
+      const s = getComputedStyle(el);
+      const ov = s.overflow + s.overflowY;
+      if (/(auto|scroll|overlay)/.test(ov)) return el;
+      el = el.parentElement;
+    }
+    return document.scrollingElement ?? document.documentElement;
+  }, []);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [timeline, pendingIdeas]);
+    const container = getScrollContainer();
+    const el = container instanceof Element ? container : (document.scrollingElement ?? document.documentElement);
+    const onScroll = () => {
+      const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      userScrolledUpRef.current = distFromBottom > 80;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [getScrollContainer, timeline.length]);
+
+  useEffect(() => {
+    if (userScrolledUpRef.current) return;
+    const container = getScrollContainer();
+    const el = container instanceof Element ? container : (document.scrollingElement ?? document.documentElement);
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distFromBottom < 80) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [timeline, pendingIdeas, getScrollContainer]);
 
   const addEntry = useCallback((entry: TimelineEntryInput) => {
     setTimeline((prev) => [...prev, { ...entry, id: ++counterRef.current } as TimelineEntry]);
@@ -464,8 +509,12 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
   const handleBoardEvent = useCallback((event: BoardEvent) => {
     if (event.type === 'orchestrator') {
       addEntry({ kind: 'orchestrator', text: event.text });
+      if (event.text.includes('Vérification des sources')) {
+        toast.info(event.text, { duration: 10000 });
+      }
     } else if (event.type === 'handoff') {
       addEntry({ kind: 'handoff', to: event.to, reason: event.reason });
+      toast.info(`${AGENT_CONFIG[event.to].label} travaille…`);
     } else if (event.type === 'agent_start') {
       addEntry({ kind: 'agent', agent: event.agent, text: '', done: false });
       setActiveAgentTab(event.agent);
@@ -478,17 +527,22 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
     } else if (event.type === 'awaiting_selection') {
       storedOutputsRef.current = { ...phase1OutputsRef.current };
       setPendingIdeas(event.ideas);
+      setPendingIdeaScores(event.scores ?? []);
       setBoardPhase('selecting');
+      toast.info('Choisissez une direction créative ↓');
     } else if (event.type === 'report') {
       addEntry({ kind: 'report', text: event.text });
-      const cid = clientIdRef.current;
+      const cid = clientIdRef.current ?? useAppStore.getState().selectedClientId;
       if (cid && !savedReportRef.current) {
         savedReportRef.current = true;
         sessionStorage.removeItem('creative-board-client-id');
         const title = `Stratégie créative - ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
-        addDocument(cid, { type: 'creative-strategy', title, content: event.text })
+        const content = event.data ? JSON.stringify(event.data) : event.text;
+        addDocument(cid, { type: 'creative-strategy', title, content })
           .then(() => toast.success('Stratégie enregistrée dans la fiche client'))
-          .catch(() => {});
+          .catch((err) => toast.error(`Impossible d'enregistrer : ${err instanceof Error ? err.message : 'Erreur inconnue'}`));
+      } else {
+        toast.success('Board terminé — Stratégie prête');
       }
     } else if (event.type === 'error') {
       addEntry({ kind: 'orchestrator', text: `Erreur : ${event.message}` });
@@ -525,6 +579,7 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
     setBoardPhase('phase1');
     setTimeline([]);
     setPendingIdeas([]);
+    setPendingIdeaScores([]);
     phase1OutputsRef.current = { strategist: '', bigidea: '' };
     storedOutputsRef.current = null;
     counterRef.current = 0;
@@ -848,7 +903,7 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
             )}
             {boardPhase === 'selecting' && pendingIdeas.length > 0 && (
               <div className="animate-fade-in-up">
-                <IdeaCards ideas={pendingIdeas} onSelect={handleSelectIdea} />
+                <IdeaCards ideas={pendingIdeas} scores={pendingIdeaScores} onSelect={handleSelectIdea} />
               </div>
             )}
             {timeline.some((e) => e.kind === 'report') && (

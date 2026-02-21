@@ -3,6 +3,8 @@
 L’IA doit produire un fichier JSON qui respecte **exactement** un des schémas ci-dessous.  
 Ces JSON peuvent être importés dans YAM Dashboard (Documents > Brief ou Report PLAUD > Importer JSON).
 
+> Contexte du flux : [CREATIVE-PIPELINE.md](CREATIVE-PIPELINE.md) (Plaud → Brief → Creative Board → Web). Note : le brief généré par `brief-from-plaud` est du **texte brut** (MARQUE/CIBLE/PROJET…), pas un BriefTemplate JSON.
+
 ---
 
 ## 1. Brief (créatif / projet)

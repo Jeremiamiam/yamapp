@@ -97,7 +97,8 @@ export const createUiSlice: StateCreator<AppState, [], [], Pick<AppState, UiSlic
   navigateToCreativeBoard: () => {
     const current = get().currentView;
     persistView('creative-board');
-    set({ currentView: 'creative-board', previousView: current, selectedClientId: null });
+    set({ currentView: 'creative-board', previousView: current });
+    // On garde selectedClientId pour que le board puisse sauver la stratégie au bon client
   },
 
   navigateBack: () => {

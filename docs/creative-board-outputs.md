@@ -1,5 +1,7 @@
 # Creative Board — Rendu des sorties agents
 
+> Documentation du pipeline complet : [CREATIVE-PIPELINE.md](CREATIVE-PIPELINE.md) (Plaud → Brief → Creative Board → Web)
+
 ## Actuel : Markdown stylé
 
 Les agents (Stratège, Big Idea, Copywriter, Devil's Advocate) renvoient du **texte en Markdown**.  
