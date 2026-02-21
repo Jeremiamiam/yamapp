@@ -12,9 +12,11 @@ interface LayoutFooterProps {
   /** tabKey par index (__homepage__ pour homepage, slug sinon) — requis si onNavClick fourni */
   tabKeys?: string[];
   onNavClick?: (tabKey: string) => void;
+  /** Padding réduit pour aperçu dans une modale */
+  compact?: boolean;
 }
 
-export function LayoutFooter({ content, navItems, tabKeys, onNavClick }: LayoutFooterProps) {
+export function LayoutFooter({ content, navItems, tabKeys, onNavClick, compact = false }: LayoutFooterProps) {
   const links = navItems?.length
     ? navItems.map((i, idx) => ({ label: i.page, href: `#${i.slug}`, tabKey: tabKeys?.[idx] ?? i.slug }))
     : [
@@ -49,7 +51,7 @@ export function LayoutFooter({ content, navItems, tabKeys, onNavClick }: LayoutF
   };
 
   return (
-    <footer className="border-t border-[var(--border-subtle)] bg-[var(--bg-primary)] px-6 py-16">
+    <footer className={`border-t border-[var(--border-subtle)] bg-[var(--bg-primary)] px-6 ${compact ? 'py-8' : 'py-16'}`}>
       <div className="mx-auto max-w-6xl">
         <div className="grid gap-12 md:grid-cols-4">
           <div>
