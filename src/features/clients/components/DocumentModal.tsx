@@ -1531,7 +1531,7 @@ function DocumentModalContent({
       <div
         className={`relative overflow-hidden animate-fade-in-up flex flex-col ${
           isWebBrief
-            ? 'inset-2 sm:inset-4 md:inset-6 absolute bg-[var(--bg-card)] rounded-xl touch-pan-y'
+            ? 'inset-4 sm:inset-6 md:inset-10 absolute bg-[var(--bg-card)] rounded-xl touch-pan-y'
             : 'bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl w-[90vw] max-w-6xl max-h-[90vh] m-4'
         }`}
         onClick={e => e.stopPropagation()}
