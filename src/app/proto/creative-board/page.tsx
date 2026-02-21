@@ -398,7 +398,7 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
   const [pendingIdeas, setPendingIdeas] = useState<{ title: string; body: string }[]>([]);
   const [pendingIdeaScores, setPendingIdeaScores] = useState<{ index: number; total: number; flags?: string[] }[]>([]);
 
-  const [enabledAgents, setEnabledAgents] = useState<AgentId[]>(['strategist', 'bigidea', 'architect', 'copywriter', 'devil']);
+  const [enabledAgents, setEnabledAgents] = useState<AgentId[]>(['strategist', 'bigidea', 'architect', 'copywriter', 'devil', 'yam']);
   const [agentStyles, setAgentStyles] = useState<Record<AgentId, AgentStyle>>({
     strategist: 'audacieux',
     bigidea: 'audacieux',
