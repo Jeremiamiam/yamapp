@@ -16,7 +16,7 @@ export type BoardEvent =
   | { type: 'report'; text: string; data?: CreativeStrategyReport }
   | { type: 'error'; message: string };
 
-export type AgentId = 'strategist' | 'bigidea' | 'architect' | 'copywriter' | 'devil';
+export type AgentId = 'strategist' | 'bigidea' | 'architect' | 'copywriter' | 'devil' | 'yam';
 
 /** Score de confiance par section (Phase 3 — Confidence Auditor) */
 export interface SectionConfidence {
@@ -34,12 +34,14 @@ export interface CreativeStrategyReport {
   architect: Record<string, unknown> | string | null;
   copywriter: { territory: string; manifesto: string; taglines: { text: string; note?: string }[] } | string | null;
   devil: { points: string[]; questions: { question: string; piste: string }[] } | string | null;
+  yam: Record<string, unknown> | string | null;
   /** Score de confiance par section — Phase 3 (Confidence Auditor + web fact-check) */
   confidence?: {
     strategist?: SectionConfidence;
     architect?: SectionConfidence;
     copywriter?: SectionConfidence;
     devil?: SectionConfidence;
+    yam?: SectionConfidence;
   };
 }
 
@@ -64,7 +66,7 @@ function tryParseJson<T>(text: string, extractFromMarkdown = false): T | null {
 
 export type AgentStyle = 'corporate' | 'audacieux' | 'subversif';
 
-const AGENT_ORDER: AgentId[] = ['strategist', 'bigidea', 'architect', 'copywriter', 'devil'];
+const AGENT_ORDER: AgentId[] = ['strategist', 'bigidea', 'architect', 'copywriter', 'devil', 'yam'];
 
 // ─── Configs agents : 3 styles par agent ─────────────────────────────────────
 
@@ -330,6 +332,53 @@ Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans mar
 {"points":["string"],"questions":[{"question":"string","piste":"string"}]}`,
     },
   },
+  yam: {
+    name: 'Yam',
+    prompts: {
+      corporate: `Tu es Yam — directeur de création publicitaire, concepteur-rédacteur de haut niveau. Tu penses en concepts, pas en mots. Tu n'es pas un assistant : tu es un partenaire créatif avec un point de vue fort.
+
+Tu reçois le travail complet du board (stratégie, angle, plateforme de marque, copy, points Devil). Ta mission : relire le tout et apporter ta touche. **Adapte ton niveau d'intervention** :
+- **Mode concept complet** : concept + visuel + accroche + pourquoi (quand une idée visuelle s'impose)
+- **Mode copywriter secondaire** : accroches, variantes de taglines, affinages de formulation — sans visuel ni concept détaillé (quand le board a surtout besoin d'un coup de polish sur le copy)
+
+Tu n'es jamais forcé de produire un visuel. Si le board a surtout besoin d'un second regard copy, propose des touches légères (accroche + optionnellement pourquoi ou note).
+
+**Règles** : Économie maximale. Pas de superlatif vide. Propose avec conviction, pas d'anxiété.
+
+**Style corporate** : Ton professionnel, rassurant. La provocation est légère, calculée.
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown. Chaque touche doit avoir au minimum "accroche". concept, visuel, pourquoi sont optionnels :
+{"touches":[{"accroche":"string obligatoire","concept":"string (optionnel)","visuel":"string (optionnel)","pourquoi":"string (optionnel)"}],"commentaire":"string (optionnel)"}`,
+      audacieux: `Tu es Yam — directeur de création publicitaire, concepteur-rédacteur de haut niveau. Tu penses en concepts, pas en mots. Tu n'es pas un assistant : tu es un partenaire créatif avec un point de vue fort.
+
+Tu reçois le travail complet du board (stratégie, angle, plateforme de marque, copy, points Devil). Ta mission : relire le tout et apporter ta touche. **Adapte ton niveau d'intervention** :
+- **Mode concept complet** : concept + visuel + accroche + pourquoi (quand une idée visuelle s'impose)
+- **Mode copywriter secondaire** : accroches, variantes de taglines, affinages — sans visuel ni concept (quand le board a besoin d'un coup de polish sur le copy)
+
+Tu n'es jamais forcé de produire un visuel. Si le board a surtout besoin d'un second regard copy, propose des touches légères (accroche + optionnellement pourquoi).
+
+**Règles** : Économie maximale. La provocation dosée : un mot inattendu, un registre décalé — assez pour piquer, jamais assez pour brûler. Propose avec conviction.
+
+**Style audacieux** : Tu prends des micro-risques calculés. Le décalé est assumé.
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown. Chaque touche : accroche obligatoire ; concept, visuel, pourquoi optionnels :
+{"touches":[{"accroche":"string obligatoire","concept":"string (optionnel)","visuel":"string (optionnel)","pourquoi":"string (optionnel)"}],"commentaire":"string (optionnel)"}`,
+      subversif: `Tu es Yam — directeur de création publicitaire, concepteur-rédacteur de haut niveau. Tu penses en concepts, pas en mots. Tu n'es pas un assistant : tu es un partenaire créatif avec un point de vue fort.
+
+Tu reçois le travail complet du board (stratégie, angle, plateforme de marque, copy, points Devil). Ta mission : relire le tout et apporter ta touche. **Adapte ton niveau d'intervention** :
+- **Mode concept complet** : concept + visuel + accroche + pourquoi (quand une idée visuelle s'impose)
+- **Mode copywriter secondaire** : accroches, variantes, affinages — sans visuel ni concept (quand le board a besoin d'un second regard copy)
+
+Tu n'es jamais forcé de produire un visuel. Si le board a surtout besoin d'un coup de polish sur le copy, propose des touches légères.
+
+**Règles** : Économie maximale. Jamais illustrer le brief au premier degré. La collision de registres est un outil. Propose avec conviction. Ne jamais expliquer l'humour.
+
+**Style subversif** : Tu pousses la provocation plus loin. Irrévérencieux envers les conventions, respectueux envers l'intelligence du lecteur.
+
+Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans markdown. Chaque touche : accroche obligatoire ; concept, visuel, pourquoi optionnels :
+{"touches":[{"accroche":"string obligatoire","concept":"string (optionnel)","visuel":"string (optionnel)","pourquoi":"string (optionnel)"}],"commentaire":"string (optionnel)"}`,
+    },
+  },
 };
 
 export type AgentPresetsPayload = Partial<Record<AgentId, Partial<Record<AgentStyle, string>>>>;
@@ -410,7 +459,8 @@ const AUDITOR_SYSTEM_PROMPT = `Tu es un Confidence Auditor pour un board créati
     "strategist": { "score": number, "flags": string[], "factCheck": "string (optionnel)" },
     "architect": { "score": number, "flags": string[], "factCheck": "string (optionnel)" },
     "copywriter": { "score": number, "flags": string[] },
-    "devil": { "score": number, "flags": string[] }
+    "devil": { "score": number, "flags": string[] },
+    "yam": { "score": number, "flags": string[] }
   }
 }`;
 
@@ -432,9 +482,10 @@ async function runAgent(
   const isStrategist = agentId === 'strategist';
   const isArchitect = agentId === 'architect';
   const isBigidea = agentId === 'bigidea';
+  const isYam = agentId === 'yam';
   const stream = client.messages.stream({
     model: 'claude-sonnet-4-6',
-    max_tokens: isStrategist || isArchitect ? 4096 : isBigidea ? 2500 : 700,
+    max_tokens: isStrategist || isArchitect ? 4096 : isBigidea ? 2500 : isYam ? 2048 : 700,
     system: systemPrompt,
     messages: [{ role: 'user', content: userMessage }],
     ...(isStrategist && { tools: STRATEGIST_TOOLS }),
@@ -522,6 +573,8 @@ async function runConfidenceAuditor(
     dev && typeof dev === 'object' && 'points' in dev
       ? `${(dev.points ?? []).join('\n')}\n${(dev.questions ?? []).map((q) => `${q.question}\n${q.piste}`).join('\n\n')}`
       : String(dev ?? '');
+  const yam = reportData.yam;
+  const yamText = yam && typeof yam === 'object' ? JSON.stringify(yam) : String(yam ?? '');
 
   const userContent = `Brief client : ${brief.slice(0, 2000)}
 
@@ -536,6 +589,9 @@ ${copywriterText || '(vide)'}
 
 --- DEVIL ---
 ${devilText || '(vide)'}
+
+--- YAM ---
+${yamText || '(vide)'}
 
 Évalue chaque section. Pour Stratège et Architecte, effectue des recherches web pour vérifier les faits (marché, concurrence, positionnement). Retourne le JSON requis.`;
 
@@ -558,6 +614,7 @@ ${devilText || '(vide)'}
     ...(conf.architect && { architect: { score: conf.architect.score, flags: conf.architect.flags ?? [], factCheck: conf.architect.factCheck } }),
     ...(conf.copywriter && { copywriter: { score: conf.copywriter.score, flags: conf.copywriter.flags ?? [] } }),
     ...(conf.devil && { devil: { score: conf.devil.score, flags: conf.devil.flags ?? [] } }),
+    ...(conf.yam && { yam: { score: conf.yam.score, flags: conf.yam.flags ?? [] } }),
   };
   return { confidence, usage: message.usage };
 }
@@ -710,6 +767,31 @@ export async function POST(req: Request) {
             devilOut = devilRes.fullText;
           }
 
+          let yamOut = '';
+          let yamRes: { fullText: string; usage?: TokenUsage } | null = null;
+          if (enabledSet.has('yam')) {
+            emit({
+              type: 'orchestrator',
+              text: 'Yam relit le tout et apporte sa touche.',
+            });
+            emit({ type: 'handoff', from: 'Orchestrateur', to: 'yam', reason: 'Relecture finale et touche Yam' });
+            const fullContext = [
+              `Brief client : ${brief}`,
+              `Tension stratégique :\n${prevStrategist}`,
+              `Angle créatif retenu :\n${selectedIdea}`,
+              architectOut && `Plateforme de marque :\n${architectOut}`,
+              copywriterOut && `Proposition copy :\n${copywriterOut}`,
+              devilOut && `Points Devil :\n${devilOut}`,
+            ].filter(Boolean).join('\n\n---\n\n');
+            yamRes = await runAgent(
+              'yam',
+              resolvePrompt('yam', style('yam')),
+              fullContext,
+              emit
+            );
+            yamOut = yamRes.fullText;
+          }
+
           emit({ type: 'orchestrator', text: 'Board terminé.' });
 
           const parsedStrategist = prevStrategist
@@ -723,6 +805,9 @@ export async function POST(req: Request) {
             : null;
           const parsedDevil = devilOut
             ? tryParseJson<{ points: string[]; questions: { question: string; piste: string }[] }>(devilOut, true)
+            : null;
+          const parsedYam = yamOut
+            ? tryParseJson<Record<string, unknown>>(yamOut, true) ?? yamOut
             : null;
 
           const selectedIdeaParts = typeof selectedIdea === 'string' && selectedIdea
@@ -742,6 +827,7 @@ export async function POST(req: Request) {
             architect: parsedArchitect,
             copywriter: parsedCopywriter ?? copywriterOut ?? null,
             devil: parsedDevil ?? devilOut ?? null,
+            yam: parsedYam ?? yamOut ?? null,
           };
 
           // Phase 3 : Confidence Auditor (web fact-check) — s'exécute même si Devil désactivé
@@ -751,7 +837,7 @@ export async function POST(req: Request) {
           });
           let totalInput = 0;
           let totalOutput = 0;
-          [architectRes, copywriterRes, devilRes].forEach((r) => {
+          [architectRes, copywriterRes, devilRes, yamRes].forEach((r) => {
             if (r?.usage) {
               totalInput += r.usage.input_tokens;
               totalOutput += r.usage.output_tokens;
@@ -777,6 +863,7 @@ export async function POST(req: Request) {
             architectOut && '### Plateforme de Marque\n' + architectOut,
             copywriterOut && '### Territoire & Copy\n' + copywriterOut,
             devilOut && '### Points de vigilance\n' + devilOut,
+            yamOut && '### Touche Yam\n' + yamOut,
           ].filter(Boolean);
           emit({ type: 'report', text: reportParts.join('\n\n'), data: reportData });
         }

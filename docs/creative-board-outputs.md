@@ -57,6 +57,24 @@ Si on veut un rendu encore plus maîtrisé (cartes, sections repliables, tagline
 }
 ```
 
+### Schéma Yam (touche créative)
+
+Yam peut travailler en **mode concept complet** (concept + visuel + accroche) ou en **mode copywriter secondaire** (accroches seules, sans visuel). Tous les champs sauf `accroche` sont optionnels.
+
+```json
+{
+  "touches": [
+    {
+      "accroche": "Obligatoire — 4 à 7 mots",
+      "concept": "Optionnel — la mécanique de fond",
+      "visuel": "Optionnel — ce qu'on voit / ce qu'on découvre",
+      "pourquoi": "Optionnel — 1-2 phrases"
+    }
+  ],
+  "commentaire": "Optionnel"
+}
+```
+
 ### Schéma possible (ex. Copywriter)
 
 ```json

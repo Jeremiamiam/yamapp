@@ -12,6 +12,7 @@ import {
   isCreativeBriefTemplate,
   creativeBriefToBoardInput,
 } from '@/types/document-templates';
+import { downloadDocumentAsMarkdown } from '@/lib/document-to-markdown';
 import type { BriefTemplate, CreativeBriefTemplate, ReportPlaudTemplate } from '@/types/document-templates';
 import { toast } from '@/lib/toast';
 import { PlaudLogo } from '@/components/ui';
@@ -56,6 +57,14 @@ const Trash = () => (
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
     <line x1="10" y1="11" x2="10" y2="17"/>
     <line x1="14" y1="11" x2="14" y2="17"/>
+  </svg>
+);
+
+const Download = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="7 10 12 15 17 10"/>
+    <line x1="12" y1="15" x2="12" y2="3"/>
   </svg>
 );
 
@@ -252,6 +261,7 @@ const STRATEGY_CARD_STYLES: Record<string, { color: string; icon: string; bg: st
   'Plateforme de Marque': { color: 'var(--accent-violet)', icon: '◇', bg: 'var(--accent-violet-dim)' },
   'Territoire & Copy':    { color: 'var(--accent-lime)',   icon: '✦', bg: 'var(--accent-lime-dim)'   },
   'Points de vigilance':  { color: 'var(--accent-coral)', icon: '◉', bg: 'var(--accent-coral-dim)'  },
+  'Touche Yam':           { color: 'var(--accent-magenta)', icon: '◆', bg: 'var(--accent-magenta-dim)'  },
 };
 
 // ─── Brand Platform Types & Component ───
@@ -468,11 +478,12 @@ function BrandPlatformView({ data }: { data: BrandPlatformData }) {
 }
 
 /** Map section title -> confidence key */
-const SECTION_TO_CONFIDENCE: Record<string, 'strategist' | 'architect' | 'copywriter' | 'devil'> = {
+const SECTION_TO_CONFIDENCE: Record<string, 'strategist' | 'architect' | 'copywriter' | 'devil' | 'yam'> = {
   'Tension stratégique': 'strategist',
   'Plateforme de Marque': 'architect',
   'Territoire & Copy': 'copywriter',
   'Points de vigilance': 'devil',
+  'Touche Yam': 'yam',
 };
 
 interface SectionConfidence {
@@ -488,11 +499,13 @@ interface CreativeStrategyData {
   architect?: Record<string, unknown> | string | null;
   copywriter?: { territory: string; manifesto: string; taglines: { text: string; note?: string }[] } | string | null;
   devil?: { points: string[]; questions: { question: string; piste: string }[] } | string | null;
+  yam?: Record<string, unknown> | string | null;
   confidence?: {
     strategist?: SectionConfidence;
     architect?: SectionConfidence;
     copywriter?: SectionConfidence;
     devil?: SectionConfidence;
+    yam?: SectionConfidence;
   };
 }
 
@@ -584,6 +597,51 @@ function CopywriterStructuredView({ data }: { data: { territory: string; manifes
   );
 }
 
+function YamStructuredView({
+  data,
+}: {
+  data: {
+    touches?: { concept?: string; visuel?: string; accroche?: string; pourquoi?: string }[];
+    commentaire?: string;
+  };
+}) {
+  const touches = data.touches ?? [];
+  if (touches.length === 0) return null;
+  return (
+    <div className="space-y-8 animate-fade-in-up">
+      {touches.map((t, i) => {
+        const hasAccroche = t.accroche?.trim();
+        if (!hasAccroche) return null;
+        return (
+          <section key={i} className="p-6 rounded-xl bg-[var(--accent-magenta)]/5 border border-[var(--accent-magenta)]/15">
+            {t.concept?.trim() && (
+              <>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-magenta)] mb-2">Concept</p>
+                <p className="text-[15px] text-[var(--text-secondary)] mb-4">{t.concept}</p>
+              </>
+            )}
+            {t.visuel?.trim() && (
+              <>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Visuel</p>
+                <p className="text-[14px] text-[var(--text-secondary)] mb-4">{t.visuel}</p>
+              </>
+            )}
+            <p className="text-lg font-bold text-[var(--accent-magenta)] mb-3">&ldquo;{t.accroche}&rdquo;</p>
+            {t.pourquoi?.trim() && (
+              <p className="text-[13px] text-[var(--text-muted)] italic">{t.pourquoi}</p>
+            )}
+          </section>
+        );
+      })}
+      {data.commentaire && (
+        <p className="text-[14px] text-[var(--text-secondary)] pt-4 border-t border-[var(--border-subtle)]">
+          {data.commentaire}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function DevilStructuredView({ data }: { data: { points: string[]; questions: { question: string; piste: string }[] } }) {
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -670,6 +728,13 @@ function strategyDataToDisplaySections(data: CreativeStrategyData): { title: str
     } else {
       sections.push({ title: 'Points de vigilance', body: String(dev) });
     }
+  }
+  const yam = data.yam;
+  if (yam) {
+    sections.push({
+      title: 'Touche Yam',
+      body: typeof yam === 'object' ? JSON.stringify(yam) : String(yam),
+    });
   }
   return sections;
 }
@@ -912,6 +977,9 @@ function CreativeStrategyView({
             if (activeSection.title === 'Points de vigilance' && parsedData?.devil && typeof parsedData.devil === 'object' && (parsedData.devil.points?.length || parsedData.devil.questions?.length)) {
               return <DevilStructuredView data={parsedData.devil} />;
             }
+            if (activeSection.title === 'Touche Yam' && parsedData?.yam && typeof parsedData.yam === 'object' && 'touches' in parsedData.yam && Array.isArray((parsedData.yam as { touches?: unknown[] }).touches) && (parsedData.yam as { touches: unknown[] }).touches.length > 0) {
+              return <YamStructuredView data={parsedData.yam as { touches: { concept: string; visuel: string; accroche: string; pourquoi: string }[]; commentaire?: string }} />;
+            }
             return (
               <p className="text-[15px] text-[var(--text-primary)] leading-[1.8] whitespace-pre-wrap font-normal">
                 {activeSection.body}
@@ -984,7 +1052,17 @@ function DocumentModalContent({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rawTranscript: transcript }),
       });
-      const data = await res.json() as { brief?: string; error?: string };
+      const raw = await res.text();
+      let data: { brief?: string; error?: string };
+      try {
+        data = JSON.parse(raw) as { brief?: string; error?: string };
+      } catch {
+        if (!res.ok) {
+          toast.error(`Erreur serveur (${res.status}). Vérifier ANTHROPIC_API_KEY dans Netlify.`);
+          return;
+        }
+        throw new Error('Réponse API invalide');
+      }
       if (!res.ok || data.error) {
         toast.error(data.error ?? 'Erreur lors de la génération du brief.');
         return;
@@ -1004,8 +1082,9 @@ function DocumentModalContent({
           action: { label: 'Voir le brief', onClick: () => openDocument(createdDoc!) },
         });
       }
-    } catch {
-      toast.error('Impossible de générer le brief.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      toast.error(`Impossible de générer le brief. ${msg}`);
     } finally {
       setGeneratingBrief(false);
     }
@@ -1200,6 +1279,8 @@ function DocumentModalContent({
     [clientId, addDocument, openDocument, onClose]
   );
 
+  const YAM_PROMPT = `Applique la touche Yam — directeur de création, concepteur-rédacteur. Économie maximale, accroches punchy (4-7 mots). Micro-risque calculé : un mot inattendu, un registre décalé, une insolence légère — assez pour piquer, jamais assez pour brûler. Deux niveaux de lecture si possible. Pas de superlatif vide. Propose avec conviction. Garde la structure et l'intention de la section, rends le copy plus percutant.`;
+
   const handleSectionRewrite = useCallback(
     async (sectionIndex: number, customPrompt: string) => {
       if (!clientId) return;
@@ -1244,6 +1325,13 @@ function DocumentModalContent({
       }
     },
     [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
+  const handleSectionYam = useCallback(
+    async (sectionIndex: number) => {
+      await handleSectionRewrite(sectionIndex, YAM_PROMPT);
+    },
+    [handleSectionRewrite]
   );
 
   const handleGenerateBrief = useCallback(() => {
@@ -1319,6 +1407,14 @@ function DocumentModalContent({
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => downloadDocumentAsMarkdown(selectedDocument)}
+              className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--accent-cyan)] transition-colors"
+              title="Télécharger en .md"
+            >
+              <Download />
+            </button>
             {onEditDocument && (
               <button
                 type="button"
@@ -1366,6 +1462,7 @@ function DocumentModalContent({
                   <WebBriefView
                     data={data}
                     onSectionRewrite={clientId ? handleSectionRewrite : undefined}
+                    onSectionYam={clientId ? handleSectionYam : undefined}
                   />
                 );
               }

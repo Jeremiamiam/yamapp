@@ -4,6 +4,8 @@ import type { CreativeBriefTemplate } from '@/types/document-templates';
 import { runBriefResearch } from '@/lib/brief-research';
 import { computeGenerationCost } from '@/lib/api-cost';
 
+export const maxDuration = 60;
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const SYSTEM_PROMPT = `Tu es un stratège créatif qui prépare des briefs pour un board créatif IA.
@@ -67,14 +69,20 @@ export async function POST(req: Request) {
   try {
     let researchContext = '';
     try {
-      const research = await runBriefResearch(rawTranscript.trim());
+      const RESEARCH_TIMEOUT_MS = 25_000; // 25s max pour la recherche (Netlify : 60s total pour la route)
+      const research = await Promise.race([
+        runBriefResearch(rawTranscript.trim()),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Recherche timeout')), RESEARCH_TIMEOUT_MS)
+        ),
+      ]);
       researchContext = [
         research.landscapeConcurrentiel,
         research.tendancesMarche?.length ? `Tendances : ${research.tendancesMarche.join(' ; ')}` : '',
         research.sources?.length ? `Sources : ${research.sources.slice(0, 5).join(', ')}` : '',
       ].filter(Boolean).join('\n\n');
     } catch {
-      // Ne pas bloquer si la recherche échoue
+      // Ne pas bloquer si la recherche échoue ou timeout
     }
 
     const message = await client.messages.create({

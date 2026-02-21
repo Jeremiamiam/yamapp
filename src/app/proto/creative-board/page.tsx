@@ -9,7 +9,7 @@ import type { BoardEvent, AgentId, AgentStyle } from '@/app/api/creative-board/r
 import { useAppStore } from '@/lib/store';
 import { toast } from '@/lib/toast';
 
-const AGENT_IDS: AgentId[] = ['strategist', 'bigidea', 'architect', 'copywriter', 'devil'];
+const AGENT_IDS: AgentId[] = ['strategist', 'bigidea', 'architect', 'copywriter', 'devil', 'yam'];
 
 const STYLE_LABELS: Record<AgentStyle, string> = {
   corporate: 'Corporate',
@@ -25,6 +25,7 @@ const AGENT_CONFIG: Record<AgentId, { label: string; icon: string; description: 
   architect:  { label: "L'Architecte",    icon: '🏛️', description: 'Vision, Mission, Valeurs',      rawColor: 'var(--accent-violet)', rawDim: 'var(--accent-violet-dim)' },
   copywriter: { label: 'Le Copywriter',   icon: '✦', description: 'Smart, net, légèrement taquin', rawColor: 'var(--accent-lime)',   rawDim: 'var(--accent-lime-dim)'   },
   devil:      { label: "Devil's Advocate",icon: '◉', description: 'Bullshit audit',                rawColor: 'var(--accent-coral)',  rawDim: 'var(--accent-coral-dim)'  },
+  yam:        { label: 'Yam',             icon: '◆', description: 'Relecture et touche Yam',       rawColor: 'var(--accent-magenta)', rawDim: 'var(--accent-magenta-dim)' },
 };
 
 // Tailwind literal strings for JIT
@@ -34,6 +35,7 @@ const AGENT_TEXT: Record<AgentId, string> = {
   architect:  'text-[var(--accent-violet)]',
   copywriter: 'text-[var(--accent-lime)]',
   devil:      'text-[var(--accent-coral)]',
+  yam:        'text-[var(--accent-magenta)]',
 };
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -314,6 +316,7 @@ const REPORT_CARD_STYLES: Record<string, { color: string; icon: string; bg: stri
   'Plateforme de Marque': { color: 'var(--accent-violet)', icon: '🏛️', bg: 'var(--accent-violet-dim)' },
   'Territoire & Copy':    { color: 'var(--accent-lime)',   icon: '✦', bg: 'var(--accent-lime-dim)'   },
   'Points de vigilance':  { color: 'var(--accent-coral)',  icon: '◉', bg: 'var(--accent-coral-dim)'  },
+  'Touche Yam':           { color: 'var(--accent-magenta)', icon: '◆', bg: 'var(--accent-magenta-dim)'  },
 };
 
 function ReportBlock({ text }: { text: string }) {
@@ -402,6 +405,7 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
     architect: 'audacieux',
     copywriter: 'audacieux',
     devil: 'audacieux',
+    yam: 'audacieux',
   });
   const [agentPrompts, setAgentPrompts] = useState<Partial<Record<AgentId, string>>>({});
   const [openCustomFor, setOpenCustomFor] = useState<AgentId | null>(null);

@@ -12,9 +12,11 @@ import type { HomepageSection } from '@/types/web-brief';
 export function WebBriefView({
   data,
   onSectionRewrite,
+  onSectionYam,
 }: {
   data: WebBriefData;
   onSectionRewrite?: (sectionIndex: number, customPrompt: string) => Promise<void>;
+  onSectionYam?: (sectionIndex: number) => Promise<void>;
 }) {
   const { architecture, homepage } = data;
   const [rewritingIndex, setRewritingIndex] = useState<number | null>(null);
@@ -47,6 +49,19 @@ export function WebBriefView({
       }
     },
     [onSectionRewrite, promptValue]
+  );
+
+  const handleYamClick = useCallback(
+    async (index: number) => {
+      if (!onSectionYam) return;
+      setRewritingIndex(index);
+      try {
+        await onSectionYam(index);
+      } finally {
+        setRewritingIndex(null);
+      }
+    },
+    [onSectionYam]
   );
 
   const sections = [...(homepage.sections ?? [])].sort((a, b) => a.order - b.order);
@@ -130,6 +145,7 @@ export function WebBriefView({
                   ? () => handleRewriteClick(i)
                   : undefined
               }
+              onYam={onSectionYam ? () => handleYamClick(i) : undefined}
               isExpanded={promptForIndex === i}
               isRewriting={rewritingIndex === i}
               promptValue={promptForIndex === i ? promptValue : ''}
@@ -161,6 +177,7 @@ function HomepageSectionBlock({
   section,
   index,
   onRewrite,
+  onYam,
   isExpanded,
   isRewriting,
   promptValue,
@@ -171,6 +188,7 @@ function HomepageSectionBlock({
   section: HomepageSection;
   index: number;
   onRewrite?: () => void;
+  onYam?: () => void;
   isExpanded?: boolean;
   isRewriting?: boolean;
   promptValue?: string;
@@ -191,16 +209,30 @@ function HomepageSectionBlock({
           </span>
           <span className="text-[10px] text-[var(--text-muted)] truncate">{section.intent}</span>
         </div>
-        {onRewrite && (
-          <button
-            type="button"
-            onClick={onRewrite}
-            disabled={isRewriting}
-            className="shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-semibold border border-[var(--accent-cyan)]/30 bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isRewriting ? '…' : 'Réécrire'}
-          </button>
-        )}
+        <div className="shrink-0 flex items-center gap-1.5">
+          {onYam && (
+            <button
+              type="button"
+              onClick={onYam}
+              disabled={isRewriting}
+              className="px-2.5 py-1 rounded-lg text-[10px] font-semibold border border-[var(--accent-magenta)]/30 bg-[var(--accent-magenta)]/10 text-[var(--accent-magenta)] hover:bg-[var(--accent-magenta)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Touche Yam — copywriting punchy"
+            >
+              {isRewriting ? '…' : '◆ Yam'}
+            </button>
+          )}
+          {onRewrite && (
+            <button
+              type="button"
+              onClick={onRewrite}
+              disabled={isRewriting}
+              className="px-2.5 py-1 rounded-lg text-[10px] font-semibold border border-[var(--accent-cyan)]/30 bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Réécrire avec un prompt personnalisé"
+            >
+              {isRewriting ? '…' : 'Réécrire'}
+            </button>
+          )}
+        </div>
       </div>
       <div className="p-4 md:p-5 space-y-3">
         <h3 className="text-base font-semibold text-[var(--text-primary)]">{title}</h3>

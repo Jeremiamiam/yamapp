@@ -180,7 +180,17 @@ export function ReportUploadModal() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rawTranscript: transcriptContent.trim() }),
       });
-      const data = (await res.json()) as { brief?: string; error?: string };
+      const raw = await res.text();
+      let data: { brief?: string; error?: string };
+      try {
+        data = JSON.parse(raw) as { brief?: string; error?: string };
+      } catch {
+        if (!res.ok) {
+          setAnalyzeError(`Erreur serveur (${res.status}). Vérifier ANTHROPIC_API_KEY dans Netlify.`);
+          return;
+        }
+        throw new Error('Réponse API invalide');
+      }
       if (!res.ok || data.error) {
         setAnalyzeError(data.error ?? 'Erreur lors de la génération du brief.');
         return;
@@ -195,8 +205,9 @@ export function ReportUploadModal() {
       toast.success('Brief généré', {
         action: { label: 'Voir le brief', onClick: () => openDocument(createdDoc) },
       });
-    } catch {
-      setAnalyzeError('Impossible de générer le brief.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      setAnalyzeError(`Impossible de générer le brief. ${msg}`);
     } finally {
       setGeneratingBrief(false);
     }

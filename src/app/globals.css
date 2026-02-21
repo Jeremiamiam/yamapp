@@ -24,6 +24,8 @@
   --accent-violet-dim: rgba(167, 139, 250, 0.15);
   --accent-amber: #fbbf24;
   --accent-amber-dim: rgba(251, 191, 36, 0.15);
+  --accent-magenta: #e879f9;
+  --accent-magenta-dim: rgba(232, 121, 249, 0.15);
   
   /* Status */
   --status-client: var(--accent-cyan);

@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useClient, useModal } from '@/hooks';
 import { formatDocDate } from '@/lib/date-utils';
 import { getDocumentTypeStyle } from '@/lib/styles';
 import { DocumentType } from '@/types';
 import { PlaudLogo } from '@/components/ui';
+import { downloadDocumentsAsZip } from '@/lib/document-to-markdown';
 
 const FileText = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -21,6 +23,14 @@ const Plus = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" y1="5" x2="12" y2="19"/>
     <line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+);
+
+const Download = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="7 10 12 15 17 10"/>
+    <line x1="12" y1="15" x2="12" y2="3"/>
   </svg>
 );
 
@@ -62,6 +72,16 @@ export function DocumentsSection({ clientId }: DocumentsSectionProps) {
   const openDocument = useAppStore((state) => state.openDocument);
   const client = useClient(clientId);
   const { openDocumentModal, openReportUploadModal } = useModal();
+  const [downloadingZip, setDownloadingZip] = useState(false);
+  const handleDownloadZip = async () => {
+    if (!client || client.documents.length === 0) return;
+    setDownloadingZip(true);
+    try {
+      await downloadDocumentsAsZip(client.documents, client.name);
+    } finally {
+      setDownloadingZip(false);
+    }
+  };
   if (!client) return null;
 
   return (
@@ -75,6 +95,20 @@ export function DocumentsSection({ clientId }: DocumentsSectionProps) {
           {client.documents.length}
         </span>
         <div className="ml-auto flex items-center gap-1">
+          {client.documents.length > 0 && (
+            <button
+              onClick={handleDownloadZip}
+              disabled={downloadingZip}
+              className="p-1.5 rounded-lg bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 disabled:opacity-50 transition-colors"
+              title="Télécharger tout en Markdown (.zip)"
+            >
+              {downloadingZip ? (
+                <span className="w-4 h-4 inline-block border-2 border-[var(--accent-cyan)]/30 border-t-[var(--accent-cyan)] rounded-full animate-spin" />
+              ) : (
+                <Download />
+              )}
+            </button>
+          )}
           <button
             onClick={() => openReportUploadModal(clientId)}
             className="p-1.5 rounded-lg bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/20 transition-colors"
