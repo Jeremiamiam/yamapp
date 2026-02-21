@@ -164,25 +164,34 @@ export function WebBriefView({
   const isPromptExpanded = (i: number) =>
     promptForIndex === i && (promptForPageSlug ?? '__homepage__') === (pageSlug ?? '__homepage__');
 
+  const hasEditCapability = Boolean(
+    onSectionRewrite || onSectionYam || onSectionContentChange ||
+    onPageSectionRewrite || onPageSectionYam || onPageSectionContentChange
+  );
+
   return (
-    <div className="space-y-4">
-      {/* ── Barre compacte : mode édition uniquement (la nav est dans LayoutNavbar) ─ */}
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setEditMode((v) => !v)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            editMode
-              ? 'bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)] border border-[var(--accent-cyan)]/40'
-              : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-[var(--border-subtle)]'
-          }`}
-        >
-          {editMode ? 'Mode édition actif' : 'Mode édition'}
-        </button>
-      </div>
+    <div className="space-y-3 sm:space-y-4">
+      {/* ── Mode édition : compact sur mobile (icône seule), texte sur desktop ─ */}
+      {hasEditCapability && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setEditMode((v) => !v)}
+            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              editMode
+                ? 'bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)] border border-[var(--accent-cyan)]/40'
+                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-[var(--border-subtle)]'
+            }`}
+            title={editMode ? 'Mode édition actif' : 'Mode édition'}
+          >
+            <span className="sm:hidden">{editMode ? '✓' : '✎'}</span>
+            <span className="hidden sm:inline">{editMode ? 'Mode édition actif' : 'Mode édition'}</span>
+          </button>
+        </div>
+      )}
 
       {/* ── Vue unique : navbar + contenu + footer (navigation par le menu du site) ─ */}
-      <div className="flex flex-col rounded-xl border border-[var(--border-subtle)] overflow-hidden bg-[var(--bg-primary)] min-h-[80vh]">
+      <div className="flex flex-col rounded-xl border border-[var(--border-subtle)] overflow-hidden bg-[var(--bg-primary)] min-h-[60vh] sm:min-h-[80vh]">
         <LayoutNavbar
           navItems={primaryNav.map((item) => ({ page: item.page, slug: item.slug }))}
           onNavClick={setActiveTab}

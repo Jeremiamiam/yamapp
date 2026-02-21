@@ -68,6 +68,14 @@ const Download = () => (
   </svg>
 );
 
+const MoreVertical = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="1"/>
+    <circle cx="12" cy="5" r="1"/>
+    <circle cx="12" cy="19" r="1"/>
+  </svg>
+);
+
 function BriefTemplatedView({ data }: { data: BriefTemplate }) {
   return (
     <div className="space-y-5 text-[var(--text-secondary)]">
@@ -1025,6 +1033,12 @@ function DocumentModalContent({
   const [generatingSmm, setGeneratingSmm] = useState(false);
   const [showTranscriptInput, setShowTranscriptInput] = useState(false);
   const [fallbackTranscript, setFallbackTranscript] = useState('');
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const isWebBrief = selectedDocument.type === 'web-brief';
+
+  useEffect(() => {
+    setShowActionsMenu(false);
+  }, [selectedDocument.id]);
 
   const reportData = structured && selectedDocument.type === 'report' ? (structured as ReportPlaudTemplate) : null;
   const onEventAdded = useCallback(
@@ -1531,13 +1545,13 @@ function DocumentModalContent({
         onClick={e => e.stopPropagation()}
         style={{ animationDuration: '0.2s' }}
       >
-        <div className="flex-shrink-0 px-6 py-5 border-b border-[var(--border-subtle)] flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4 min-w-0">
-            <span className={`p-2.5 rounded-xl ${docStyle.bg} ${docStyle.text} flex-shrink-0`}>
+        <div className={`flex-shrink-0 border-b border-[var(--border-subtle)] flex items-start justify-between gap-4 ${isWebBrief ? 'px-3 py-3 sm:px-6 sm:py-5' : 'px-6 py-5'}`}>
+          <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+            <span className={`p-2 sm:p-2.5 rounded-xl ${docStyle.bg} ${docStyle.text} flex-shrink-0 ${isWebBrief ? 'hidden sm:flex' : ''}`}>
               {docStyle.icon}
             </span>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <div className="min-w-0 flex-1">
+              <div className={`flex items-center gap-2 mb-1 flex-wrap ${isWebBrief ? 'hidden sm:flex' : ''}`}>
                 <span className={`text-[10px] font-bold uppercase tracking-wider ${docStyle.text}`}>
                   {docStyle.label}
                 </span>
@@ -1560,50 +1574,148 @@ function DocumentModalContent({
                   return null;
                 })()}
               </div>
-              <h2 id="document-modal-title" className="text-xl font-bold text-[var(--text-primary)] truncate">
+              <h2 id="document-modal-title" className={`font-bold text-[var(--text-primary)] truncate ${isWebBrief ? 'text-base sm:text-xl' : 'text-xl'}`}>
                 {selectedDocument.title}
               </h2>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => downloadDocumentAsMarkdown(selectedDocument)}
-              className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--accent-cyan)] transition-colors"
-              title="Télécharger en .md"
-            >
-              <Download />
-            </button>
-            {onEditDocument && (
-              <button
-                type="button"
-                onClick={onEditDocument}
-                className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                title="Modifier"
-              >
-                <Edit />
-              </button>
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 relative">
+            {/* Mobile web-brief : menu déroulant pour les actions secondaires */}
+            {isWebBrief ? (
+              <>
+                <div className="hidden sm:flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => downloadDocumentAsMarkdown(selectedDocument)}
+                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--accent-cyan)] transition-colors"
+                    title="Télécharger en .md"
+                  >
+                    <Download />
+                  </button>
+                  {onEditDocument && (
+                    <button
+                      type="button"
+                      onClick={onEditDocument}
+                      className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                      title="Modifier"
+                    >
+                      <Edit />
+                    </button>
+                  )}
+                  {onDeleteDocument && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteClick}
+                      className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-red-400 transition-colors"
+                      title="Supprimer"
+                    >
+                      <Trash />
+                    </button>
+                  )}
+                </div>
+                <div className="sm:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowActionsMenu((v) => !v)}
+                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] transition-colors"
+                    aria-expanded={showActionsMenu}
+                    aria-haspopup="true"
+                  >
+                    <MoreVertical />
+                  </button>
+                  {showActionsMenu && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowActionsMenu(false)}
+                        aria-hidden="true"
+                      />
+                      <div
+                        className="absolute right-0 top-full mt-1 py-1 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-subtle)] shadow-xl z-50 min-w-[160px]"
+                        role="menu"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => { downloadDocumentAsMarkdown(selectedDocument); setShowActionsMenu(false); }}
+                          className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-[var(--bg-tertiary)]"
+                          role="menuitem"
+                        >
+                          <Download /> Télécharger
+                        </button>
+                        {onEditDocument && (
+                          <button
+                            type="button"
+                            onClick={() => { onEditDocument(); setShowActionsMenu(false); }}
+                            className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-[var(--bg-tertiary)]"
+                            role="menuitem"
+                          >
+                            <Edit /> Modifier
+                          </button>
+                        )}
+                        {onDeleteDocument && (
+                          <button
+                            type="button"
+                            onClick={() => { handleDeleteClick(); setShowActionsMenu(false); }}
+                            className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-[var(--bg-tertiary)] text-red-400"
+                            role="menuitem"
+                          >
+                            <Trash /> Supprimer
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  <X />
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => downloadDocumentAsMarkdown(selectedDocument)}
+                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--accent-cyan)] transition-colors"
+                  title="Télécharger en .md"
+                >
+                  <Download />
+                </button>
+                {onEditDocument && (
+                  <button
+                    type="button"
+                    onClick={onEditDocument}
+                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                    title="Modifier"
+                  >
+                    <Edit />
+                  </button>
+                )}
+                {onDeleteDocument && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteClick}
+                    className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-red-400 transition-colors"
+                    title="Supprimer"
+                  >
+                    <Trash />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  <X />
+                </button>
+              </>
             )}
-            {onDeleteDocument && (
-              <button
-                type="button"
-                onClick={handleDeleteClick}
-                className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                title="Supprimer"
-              >
-                <Trash />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-            >
-              <X />
-            </button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className={`flex-1 overflow-y-auto ${isWebBrief ? 'p-3 sm:p-6' : 'p-6'}`}>
           {showTemplated && selectedDocument.type === 'brief' && structured && (
             isCreativeBriefTemplate(structured) ? (
               <CreativeBriefView data={structured} />
@@ -1711,11 +1823,11 @@ function DocumentModalContent({
               </button>
             </div>
           )}
-          <div className="px-6 py-4 flex items-center justify-between gap-3 flex-wrap">
-            <span className="text-xs text-[var(--text-muted)]">
+          <div className={`flex items-center justify-between gap-3 flex-wrap ${isWebBrief ? 'px-3 py-3 sm:px-6 sm:py-4' : 'px-6 py-4'}`}>
+            <span className={`text-xs text-[var(--text-muted)] ${isWebBrief ? 'hidden sm:inline' : ''}`}>
               Dernière modification : {formatDocDate(selectedDocument.updatedAt)}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1 sm:flex-initial justify-end">
               {selectedDocument.type === 'brief' && (
                 <button
                   type="button"
