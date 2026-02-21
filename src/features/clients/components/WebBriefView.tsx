@@ -458,11 +458,11 @@ function StableField({
     onChange(v);
   };
 
-  const common = { ref, value: local, onChange: handleChange, className, placeholder };
+  const common = { value: local, onChange: handleChange, className, placeholder };
   if (as === 'textarea') {
-    return <textarea rows={rows ?? 3} {...common} {...rest} />;
+    return <textarea ref={ref as React.RefObject<HTMLTextAreaElement>} rows={rows ?? 3} {...common} {...rest} />;
   }
-  return <input type="text" {...common} {...rest} />;
+  return <input ref={ref as React.RefObject<HTMLInputElement>} type="text" {...common} {...rest} />;
 }
 
 /** Champs d'édition d'une section — utilisé dans PreviewSectionWithEdit. */
