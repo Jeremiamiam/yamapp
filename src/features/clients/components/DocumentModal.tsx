@@ -1529,75 +1529,91 @@ function DocumentModalContent({
     >
       <div className={`absolute inset-0 ${isWebBrief ? 'bg-black/60' : 'bg-black/70'}`} />
       <div
-        className="relative overflow-hidden animate-fade-in-up flex flex-col bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl w-[95vw] sm:w-[90vw] max-w-6xl max-h-[90vh] m-4"
+        className={`relative overflow-hidden animate-fade-in-up flex flex-col bg-[var(--bg-card)] shadow-2xl ${isWebBrief ? 'max-sm:w-full max-sm:h-full max-sm:m-0 max-sm:rounded-none max-sm:border-0 sm:rounded-2xl sm:border sm:border-[var(--border-subtle)] sm:w-[90vw] sm:max-w-6xl sm:max-h-[90vh] sm:m-4' : 'rounded-2xl border border-[var(--border-subtle)] w-[95vw] sm:w-[90vw] max-w-6xl max-h-[90vh] m-4'}`}
         onClick={e => e.stopPropagation()}
         style={{ animationDuration: '0.2s' }}
       >
-        {/* Web-brief : header minimal (X + Edit) + content scrollable + footer minimal — même structure que les autres docs pour scroll iOS */}
-        {isWebBrief ? (
-          <>
-            <div className="flex-shrink-0 flex items-center justify-end gap-1 px-3 py-2 border-b border-[var(--border-subtle)]">
-              {onEditDocument && (
-                <button
-                  type="button"
-                  onClick={() => setWebBriefEditMode((v) => !v)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    webBriefEditMode
-                      ? 'bg-[var(--accent-cyan)]/15 text-[var(--accent-cyan)]'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
-                  }`}
-                  title={webBriefEditMode ? 'Désactiver l\'édition' : 'Modifier'}
-                >
-                  <Edit />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                aria-label="Fermer"
-              >
-                <X />
-              </button>
-            </div>
-            <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-3 sm:p-4">
-              {(() => {
-                try {
-                  const data = JSON.parse(selectedDocument.content) as WebBriefData;
-                  if (data?.version === 1 && data?.architecture && data?.homepage) {
-                    return (
-                      <WebBriefView
-                        data={data}
-                        immersiveMode
-                        editMode={webBriefEditMode}
-                        onEditModeChange={setWebBriefEditMode}
-                        onSectionRewrite={clientId ? handleSectionRewrite : undefined}
-                        onSectionYam={clientId ? handleSectionYam : undefined}
-                        onGeneratePageZoning={clientId ? handleGeneratePageZoning : undefined}
-                        onPageSectionRewrite={clientId ? handlePageSectionRewrite : undefined}
-                        onPageSectionYam={clientId ? handlePageSectionYam : undefined}
-                        onSectionContentChange={clientId ? handleSectionContentChange : undefined}
-                        onPageSectionContentChange={clientId ? handlePageSectionContentChange : undefined}
-                      />
-                    );
-                  }
-                } catch {
-                  /* invalid */
-                }
-                return <p className="text-[var(--text-secondary)] text-sm">Contenu invalide.</p>;
-              })()}
-            </div>
-            <div className="flex-shrink-0 px-3 py-2 border-t border-[var(--border-subtle)] flex justify-end">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-3 py-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                Fermer
-              </button>
-            </div>
-          </>
-        ) : (
+        {/* Web-brief : header enrichi + content full-height scrollable (pas de footer redondant) */}
+        {isWebBrief ? (() => {
+          let webBriefData: WebBriefData | null = null;
+          try {
+            const parsed = JSON.parse(selectedDocument.content) as WebBriefData;
+            if (parsed?.version === 1 && parsed?.architecture && parsed?.homepage) {
+              webBriefData = parsed;
+            }
+          } catch { /* invalid */ }
+          const arch = webBriefData?.architecture;
+          return (
+            <>
+              {/* Header enrichi : titre + site_type + cible + actions */}
+              <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b border-[var(--border-subtle)]">
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                  <span className="text-sm font-semibold text-[var(--text-primary)] truncate">{selectedDocument.title}</span>
+                  {arch?.site_type && (
+                    <span className="hidden sm:inline-flex flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] font-bold uppercase tracking-wider">
+                      {arch.site_type}
+                    </span>
+                  )}
+                  {arch?.target_visitor && (
+                    <span className="hidden md:block text-[10px] text-[var(--text-muted)] truncate">→ {arch.target_visitor}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => downloadDocumentAsMarkdown(selectedDocument)}
+                    className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                    title="Exporter en Markdown"
+                  >
+                    <Download />
+                  </button>
+                  {onEditDocument && (
+                    <button
+                      type="button"
+                      onClick={() => setWebBriefEditMode((v) => !v)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        webBriefEditMode
+                          ? 'bg-[var(--accent-cyan)]/15 text-[var(--accent-cyan)]'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+                      }`}
+                      title={webBriefEditMode ? 'Désactiver l\'édition' : 'Modifier'}
+                    >
+                      <Edit />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                    aria-label="Fermer"
+                  >
+                    <X />
+                  </button>
+                </div>
+              </div>
+              {/* Content — pas d'overflow-hidden ni de padding pour laisser le scroll iOS fonctionner */}
+              <div className="flex-1 min-h-0 flex flex-col">
+                {webBriefData ? (
+                  <WebBriefView
+                    data={webBriefData}
+                    immersiveMode
+                    editMode={webBriefEditMode}
+                    onEditModeChange={setWebBriefEditMode}
+                    onSectionRewrite={clientId ? handleSectionRewrite : undefined}
+                    onSectionYam={clientId ? handleSectionYam : undefined}
+                    onGeneratePageZoning={clientId ? handleGeneratePageZoning : undefined}
+                    onPageSectionRewrite={clientId ? handlePageSectionRewrite : undefined}
+                    onPageSectionYam={clientId ? handlePageSectionYam : undefined}
+                    onSectionContentChange={clientId ? handleSectionContentChange : undefined}
+                    onPageSectionContentChange={clientId ? handlePageSectionContentChange : undefined}
+                  />
+                ) : (
+                  <p className="text-[var(--text-secondary)] text-sm p-4">Contenu invalide.</p>
+                )}
+              </div>
+            </>
+          );
+        })() : (
           <>
         <div className="flex-shrink-0 border-b border-[var(--border-subtle)] flex items-start justify-between gap-4 px-6 py-5">
           <div className="flex items-start gap-4 min-w-0 flex-1">

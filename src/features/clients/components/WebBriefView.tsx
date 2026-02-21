@@ -201,10 +201,11 @@ export function WebBriefView({
       )}
 
       {/* ── Vue unique : navbar + contenu + footer (navigation par le menu du site) ─ */}
-      <div className={`flex flex-col overflow-hidden bg-[var(--bg-primary)] ${immersiveMode ? 'flex-1 min-h-0 rounded-none border-0' : 'rounded-xl border border-[var(--border-subtle)] min-h-[60vh] sm:min-h-[80vh]'}`}>
+      <div className={`flex flex-col bg-[var(--bg-primary)] ${immersiveMode ? 'flex-1 min-h-0 rounded-none border-0' : 'overflow-hidden rounded-xl border border-[var(--border-subtle)] min-h-[60vh] sm:min-h-[80vh]'}`}>
         <LayoutNavbar
           navItems={primaryNav.map((item) => ({ page: item.page, slug: item.slug }))}
           onNavClick={setActiveTab}
+          generatedSlugs={Object.keys(pages ?? {})}
         />
         <div className="flex-1 min-h-0 scroll-touch-ios">
           {!isHomepage && !pageData && onGeneratePageZoning && pageSlug ? (
@@ -365,6 +366,17 @@ function PreviewSectionWithEdit({
               intent={section.intent}
             />
           ) : null}
+          {editMode && hasActions && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--accent-cyan)]/5 border-t border-[var(--accent-cyan)]/15">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-cyan)] flex-shrink-0">{section.role}</span>
+              {section.intent && (
+                <>
+                  <span className="text-[10px] text-[var(--border-medium)]">—</span>
+                  <span className="text-[10px] text-[var(--text-muted)] line-clamp-1">{section.intent}</span>
+                </>
+              )}
+            </div>
+          )}
           {editMode && hasActions && (
             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
               <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg-primary)]/95 border border-[var(--border-subtle)] shadow-lg backdrop-blur-sm">

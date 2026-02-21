@@ -13,9 +13,11 @@ interface LayoutNavbarProps {
   navItems?: NavItem[];
   /** Si fourni, les liens du menu déclenchent ce callback au lieu de naviguer. tabKey = '__homepage__' ou slug */
   onNavClick?: (tabKey: string) => void;
+  /** Slugs de pages dont le zoning a été généré (pour afficher le badge statut). Homepage toujours considérée générée. */
+  generatedSlugs?: string[];
 }
 
-export function LayoutNavbar({ topOffset = 0, navItems, onNavClick }: LayoutNavbarProps) {
+export function LayoutNavbar({ topOffset = 0, navItems, onNavClick, generatedSlugs }: LayoutNavbarProps) {
   const [burgerOpen, setBurgerOpen] = useState(false);
   const items = navItems ?? [
     { page: 'Services', slug: 'services' },
@@ -52,15 +54,20 @@ export function LayoutNavbar({ topOffset = 0, navItems, onNavClick }: LayoutNavb
         <nav className="hidden md:flex items-center gap-8">
           {items.map((item, i) => {
             const tabKey = i === 0 ? '__homepage__' : item.slug;
+            const isHomepage = i === 0;
+            const isGenerated = isHomepage || !generatedSlugs || generatedSlugs.includes(item.slug);
+            const statusDot = generatedSlugs && !isHomepage ? (
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isGenerated ? 'bg-[var(--accent-lime)]' : 'bg-[var(--border-medium)]'}`} title={isGenerated ? 'Zoning généré' : 'Zoning non généré'} />
+            ) : null;
             if (onNavClick) {
               return (
                 <button
                   key={item.slug}
                   type="button"
                   onClick={() => onNavClick(tabKey)}
-                  className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                  className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
-                  {item.page}
+                  {item.page}{statusDot}
                 </button>
               );
             }
@@ -68,9 +75,9 @@ export function LayoutNavbar({ topOffset = 0, navItems, onNavClick }: LayoutNavb
               <a
                 key={item.slug}
                 href={`#${item.slug}`}
-                className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               >
-                {item.page}
+                {item.page}{statusDot}
               </a>
             );
           })}
@@ -124,15 +131,20 @@ export function LayoutNavbar({ topOffset = 0, navItems, onNavClick }: LayoutNavb
             <ul className="py-3 px-4 space-y-1">
               {items.map((item, i) => {
                 const tabKey = i === 0 ? '__homepage__' : item.slug;
+                const isHomepage = i === 0;
+                const isGenerated = isHomepage || !generatedSlugs || generatedSlugs.includes(item.slug);
+                const statusDot = generatedSlugs && !isHomepage ? (
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isGenerated ? 'bg-[var(--accent-lime)]' : 'bg-[var(--border-medium)]'}`} />
+                ) : null;
                 if (onNavClick) {
                   return (
                     <li key={item.slug}>
                       <button
                         type="button"
                         onClick={() => handleNavItemClick(tabKey)}
-                        className="block w-full text-left px-4 py-3 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                        className="flex items-center gap-2 w-full text-left px-4 py-3 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                       >
-                        {item.page}
+                        {item.page}{statusDot}
                       </button>
                     </li>
                   );
@@ -142,9 +154,9 @@ export function LayoutNavbar({ topOffset = 0, navItems, onNavClick }: LayoutNavb
                     <a
                       href={`#${item.slug}`}
                       onClick={() => setBurgerOpen(false)}
-                      className="block px-4 py-3 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                      className="flex items-center gap-2 px-4 py-3 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                     >
-                      {item.page}
+                      {item.page}{statusDot}
                     </a>
                   </li>
                 );
