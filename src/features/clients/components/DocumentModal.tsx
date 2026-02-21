@@ -19,7 +19,7 @@ import { PlaudLogo } from '@/components/ui';
 import { ReportView } from './ReportView';
 import { WebBriefView } from './WebBriefView';
 import { SocialBriefView } from './SocialBriefView';
-import type { WebBriefData } from '@/types/web-brief';
+import type { WebBriefData, PageOutput } from '@/types/web-brief';
 import type { SocialBriefData } from '@/types/social-brief';
 
 // Icons
@@ -856,7 +856,7 @@ function CreativeStrategyView({
                     <span className="hidden sm:inline">Génération…</span>
                   </>
                 ) : (
-                  <>🌐 Menu + Homepage</>
+                  <>🌐 Générer structure du site</>
                 )}
               </button>
             )}
@@ -1175,12 +1175,12 @@ function DocumentModalContent({
         };
         const createdDoc = await addDocument(clientId, {
           type: 'web-brief',
-          title: `Menu + Homepage - ${new Date().toLocaleDateString('fr-FR')}`,
+          title: `Structure site - ${new Date().toLocaleDateString('fr-FR')}`,
           content: JSON.stringify(webBrief),
         });
         onClose();
         openDocument(createdDoc);
-        toast.success('Menu + homepage générés');
+        toast.success('Structure du site générée');
       } catch (err) {
         let msg = 'Erreur inconnue';
         if (err instanceof Error) msg = err.message;
@@ -1334,6 +1334,158 @@ function DocumentModalContent({
     [handleSectionRewrite]
   );
 
+  const handleGeneratePageZoning = useCallback(
+    async (pageSlug: string) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const res = await fetch('/api/page-zoning', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            siteArchitecture: data.architecture,
+            pageSlug,
+            reportContent: '',
+            brandPlatform: undefined,
+            copywriterText: '',
+          }),
+        });
+        const json = (await res.json()) as {
+          page?: string;
+          slug?: string;
+          target_visitor?: string;
+          sections?: unknown[];
+          error?: string;
+        };
+        if (!res.ok || json.error) {
+          toast.error(json.error ?? 'Erreur lors de la génération.');
+          return;
+        }
+        const pageOutput: PageOutput = {
+          page: json.page ?? pageSlug,
+          slug: json.slug ?? pageSlug,
+          target_visitor: json.target_visitor,
+          sections: (json.sections ?? []) as PageOutput['sections'],
+        };
+        const updatedData: WebBriefData = {
+          ...data,
+          pages: { ...(data.pages ?? {}), [pageSlug]: pageOutput },
+        };
+        await updateDocument(clientId, selectedDocument.id, {
+          content: JSON.stringify(updatedData),
+        });
+        toast.success(`Zoning de "${pageOutput.page}" généré`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la génération.');
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
+  const handlePageSectionRewrite = useCallback(
+    async (pageSlug: string, sectionIndex: number, customPrompt: string) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const pageData = data.pages?.[pageSlug];
+        if (!pageData?.sections?.length) {
+          toast.error('Aucune section à modifier.');
+          return;
+        }
+        const sections = [...pageData.sections].sort((a, b) => a.order - b.order);
+        const section = sections[sectionIndex];
+        if (!section) {
+          toast.error('Section introuvable.');
+          return;
+        }
+        const res = await fetch('/api/web-section-rewrite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: { order: section.order, role: section.role, intent: section.intent, content: section.content },
+            customPrompt,
+            architecture: data.architecture,
+          }),
+        });
+        const json = (await res.json()) as { content?: Record<string, unknown>; error?: string };
+        if (!res.ok || json.error) {
+          toast.error(json.error ?? 'Erreur lors de la réécriture.');
+          return;
+        }
+        const newContent = json.content ?? section.content;
+        const updatedSections = sections.map((s, i) =>
+          i === sectionIndex ? { ...s, content: newContent } : s
+        );
+        const updatedData: WebBriefData = {
+          ...data,
+          pages: { ...(data.pages ?? {}), [pageSlug]: { ...pageData, sections: updatedSections } },
+        };
+        await updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        toast.success('Section mise à jour');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la réécriture.');
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
+  const handlePageSectionYam = useCallback(
+    async (pageSlug: string, sectionIndex: number) => {
+      await handlePageSectionRewrite(pageSlug, sectionIndex, YAM_PROMPT);
+    },
+    [handlePageSectionRewrite]
+  );
+
+  const handleSectionContentChange = useCallback(
+    (sectionIndex: number, patch: Record<string, unknown>) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const sections = [...(data.homepage.sections ?? [])].sort((a, b) => a.order - b.order);
+        const section = sections[sectionIndex];
+        if (!section) return;
+        const newContent = { ...section.content, ...patch };
+        const updatedSections = sections.map((s, i) =>
+          i === sectionIndex ? { ...s, content: newContent } : s
+        );
+        const updatedData: WebBriefData = {
+          ...data,
+          homepage: { ...data.homepage, sections: updatedSections },
+        };
+        updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+      } catch {
+        /* ignore */
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
+  const handlePageSectionContentChange = useCallback(
+    (pageSlug: string, sectionIndex: number, patch: Record<string, unknown>) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const pageData = data.pages?.[pageSlug];
+        if (!pageData?.sections?.length) return;
+        const sections = [...pageData.sections].sort((a, b) => a.order - b.order);
+        const section = sections[sectionIndex];
+        if (!section) return;
+        const newContent = { ...section.content, ...patch };
+        const updatedSections = sections.map((s, i) =>
+          i === sectionIndex ? { ...s, content: newContent } : s
+        );
+        const updatedData: WebBriefData = {
+          ...data,
+          pages: { ...(data.pages ?? {}), [pageSlug]: { ...pageData, sections: updatedSections } },
+        };
+        updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+      } catch {
+        /* ignore */
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
   const handleGenerateBrief = useCallback(() => {
     const transcript = reportData?.rawTranscript;
     if (transcript) {
@@ -1365,10 +1517,17 @@ function DocumentModalContent({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="document-modal-title"
     >
       <div className="absolute inset-0 bg-black/70" />
       <div
-        className="relative w-[90vw] max-w-6xl max-h-[90vh] bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl overflow-hidden animate-fade-in-up flex flex-col"
+        className={`relative bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl overflow-hidden animate-fade-in-up flex flex-col ${
+          selectedDocument.type === 'web-brief'
+            ? 'w-[95vw] max-w-[1600px] max-h-[92vh]'
+            : 'w-[90vw] max-w-6xl max-h-[90vh]'
+        }`}
         onClick={e => e.stopPropagation()}
         style={{ animationDuration: '0.2s' }}
       >
@@ -1401,7 +1560,7 @@ function DocumentModalContent({
                   return null;
                 })()}
               </div>
-              <h2 className="text-xl font-bold text-[var(--text-primary)] truncate">
+              <h2 id="document-modal-title" className="text-xl font-bold text-[var(--text-primary)] truncate">
                 {selectedDocument.title}
               </h2>
             </div>
@@ -1463,6 +1622,11 @@ function DocumentModalContent({
                     data={data}
                     onSectionRewrite={clientId ? handleSectionRewrite : undefined}
                     onSectionYam={clientId ? handleSectionYam : undefined}
+                    onGeneratePageZoning={clientId ? handleGeneratePageZoning : undefined}
+                    onPageSectionRewrite={clientId ? handlePageSectionRewrite : undefined}
+                    onPageSectionYam={clientId ? handlePageSectionYam : undefined}
+                    onSectionContentChange={clientId ? handleSectionContentChange : undefined}
+                    onPageSectionContentChange={clientId ? handlePageSectionContentChange : undefined}
                   />
                 );
               }

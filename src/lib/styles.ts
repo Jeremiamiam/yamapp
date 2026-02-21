@@ -67,7 +67,7 @@ export const DOCUMENT_TYPE_STYLES: Record<
   'web-brief': {
     bg: 'bg-[var(--accent-cyan)]/10',
     text: 'text-[var(--accent-cyan)]',
-    label: 'Menu + Homepage',
+    label: 'Structure site',
   },
   'social-brief': {
     bg: 'bg-[var(--accent-magenta)]/10',

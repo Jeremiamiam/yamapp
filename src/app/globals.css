@@ -288,6 +288,20 @@ h1, h2, h3 {
   background-size: 40px 40px;
 }
 
+/* Layouts démo — thème clair (data-theme="light" sur html ou conteneur) */
+html[data-theme="light"],
+[data-theme="light"] {
+  --bg-primary: #fafafa;
+  --bg-secondary: #f4f4f5;
+  --bg-tertiary: #e4e4e7;
+  --bg-card: #ffffff;
+  --text-primary: #18181b;
+  --text-secondary: #3f3f46;
+  --text-muted: #71717a;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-medium: rgba(0, 0, 0, 0.12);
+}
+
 /* Safe area pour bottom nav (notch, home indicator) */
 .safe-area-pb {
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 4px);

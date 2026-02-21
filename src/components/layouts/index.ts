@@ -1,0 +1,12 @@
+export { LayoutNavbar } from './LayoutNavbar';
+export { LayoutHero } from './LayoutHero';
+export { LayoutValueProp } from './LayoutValueProp';
+export { LayoutServicesTeaser } from './LayoutServicesTeaser';
+export { LayoutFeatures } from './LayoutFeatures';
+export { LayoutSocialProof } from './LayoutSocialProof';
+export { LayoutTestimonial } from './LayoutTestimonial';
+export { LayoutPricing } from './LayoutPricing';
+export { LayoutFaq } from './LayoutFaq';
+export { LayoutCtaFinal } from './LayoutCtaFinal';
+export { LayoutContactForm } from './LayoutContactForm';
+export { LayoutFooter } from './LayoutFooter';

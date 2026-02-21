@@ -83,16 +83,20 @@ export function Spotlight() {
       // Ignorer si une modale est ouverte ou si données en chargement
       if (activeModal || isLoading) return;
       
-      // Ignorer si un autre dialog est ouvert (ex: DocumentModal)
+      // Ignorer si un dialog est ouvert (ex: DocumentModal) — évite conflit avec édition
       if (!isOpen && document.querySelector('[role="dialog"]')) return;
 
-      // Ignorer si focus dans un input/textarea/contenteditable
       const target = e.target as HTMLElement;
+      // Ne jamais ouvrir si on est dans un champ éditable (input, textarea, contenteditable)
+      // ou à l'intérieur d'un dialog — évite conflit quand on tape pendant l'édition
       const isEditable =
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
         target.isContentEditable ||
-        target.closest('[role="textbox"]');
+        target.closest('[role="textbox"]') ||
+        target.closest('[role="combobox"]') ||
+        target.closest('[role="dialog"]');
 
       // Cmd+K / Ctrl+K pour ouvrir
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {

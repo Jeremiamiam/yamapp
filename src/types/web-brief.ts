@@ -3,6 +3,8 @@
  * Utilisés pour le document web-brief stocké côté client.
  */
 
+import type { ZonedSection } from './section-zoning';
+
 export interface WebArchitectNavItem {
   page: string;
   slug: string;
@@ -24,11 +26,16 @@ export interface WebArchitectOutput {
   pages_rejected?: { page: string; reason: string }[];
 }
 
+/**
+ * Section homepage — structure alignée sur ZonedSection.
+ * role: string pour rétrocompat avec sorties agents.
+ */
 export interface HomepageSection {
   order: number;
   role: string;
   intent: string;
   content: Record<string, unknown>;
+  layout?: ZonedSection['layout'];
   da_notes?: string;
 }
 
@@ -46,9 +53,21 @@ export interface HomepageOutput {
   };
 }
 
+/**
+ * Zoning d'une page (about, contact, etc.) générée à la volée.
+ */
+export interface PageOutput {
+  page: string;
+  slug: string;
+  sections: ZonedSection[];
+  target_visitor?: string;
+}
+
 export interface WebBriefData {
   version: 1;
   architecture: WebArchitectOutput;
   homepage: HomepageOutput;
+  /** Pages supplémentaires (about, contact...) générées à la demande. slug → PageOutput */
+  pages?: Record<string, PageOutput>;
   generatedAt: string; // ISO date
 }
