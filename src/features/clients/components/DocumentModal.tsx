@@ -1564,7 +1564,7 @@ function DocumentModalContent({
                 <X />
               </button>
             </div>
-            <div className="flex-1 min-h-0 flex flex-col p-0 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto p-0 scroll-touch-ios">
               {(() => {
                 try {
                   const data = JSON.parse(selectedDocument.content) as WebBriefData;
@@ -1573,6 +1573,7 @@ function DocumentModalContent({
                       <WebBriefView
                         data={data}
                         immersiveMode
+                        parentScroll
                         editMode={webBriefEditMode}
                         onEditModeChange={setWebBriefEditMode}
                         onSectionRewrite={clientId ? handleSectionRewrite : undefined}
@@ -1856,13 +1857,33 @@ export function DocumentModal() {
   );
 
   useEffect(() => {
-    if (selectedDocument) {
+    const doc = selectedDocument;
+    if (doc) {
       document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
+      if (doc.type === 'web-brief') {
+        const scrollY = window.scrollY ?? window.pageYOffset;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = 'hidden';
+      }
     }
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
+      if (doc?.type === 'web-brief') {
+        const scrollY = Math.abs(parseInt(document.body.style.top || '0', 10));
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      } else {
+        document.body.style.overflow = '';
+      }
     };
   }, [selectedDocument, handleKeyDown]);
 

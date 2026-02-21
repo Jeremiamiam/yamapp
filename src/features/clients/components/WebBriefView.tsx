@@ -27,6 +27,7 @@ export function WebBriefView({
   editMode: controlledEditMode,
   onEditModeChange,
   immersiveMode = false,
+  parentScroll = false,
 }: {
   data: WebBriefData;
   onSectionRewrite?: (sectionIndex: number, customPrompt: string) => Promise<void>;
@@ -40,6 +41,8 @@ export function WebBriefView({
   editMode?: boolean;
   onEditModeChange?: (v: boolean) => void;
   immersiveMode?: boolean;
+  /** Scroll géré par le parent (DocumentModal) — évite nested scroll iOS */
+  parentScroll?: boolean;
 }) {
   const { architecture, homepage, pages } = data;
   const [activeTab, setActiveTab] = useState<string>('__homepage__');
@@ -178,6 +181,111 @@ export function WebBriefView({
     onSectionRewrite || onSectionYam || onSectionContentChange ||
     onPageSectionRewrite || onPageSectionYam || onPageSectionContentChange
   );
+
+  const renderSections = () => {
+    if (!isHomepage && !pageData && onGeneratePageZoning && pageSlug) {
+      return (
+        <div className="flex flex-col items-center justify-center p-12 text-center">
+          <p className="text-sm font-medium text-[var(--text-primary)] mb-2">
+            Page &quot;{currentTab.label}&quot; sans zoning
+          </p>
+          <p className="text-xs text-[var(--text-secondary)] mb-4">
+            Générez le zoning pour obtenir les sections prêtes à éditer.
+          </p>
+          <button
+            type="button"
+            onClick={() => handleGeneratePage(pageSlug)}
+            disabled={generatingSlug === pageSlug}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--accent-cyan)] text-black text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+          >
+            {generatingSlug === pageSlug ? (
+              <>
+                <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                Génération…
+              </>
+            ) : (
+              'Générer le zoning de cette page'
+            )}
+          </button>
+        </div>
+      );
+    }
+    if (currentSections.length > 0) {
+      return currentSections.map((section, i) => (
+        <PreviewSectionWithEdit
+          key={i}
+          section={section as HomepageSection}
+          index={i}
+          editMode={editMode}
+          pageSlug={pageSlug}
+          isHomepage={isHomepage}
+          isRewriting={isRewriting && rewritingIndex === i}
+          isPromptExpanded={isPromptExpanded(i)}
+          promptValue={isPromptExpanded(i) ? promptValue : ''}
+          onPromptChange={setPromptValue}
+          onRewrite={
+            isHomepage
+              ? onSectionRewrite ? () => handleRewriteClick(i) : undefined
+              : onPageSectionRewrite ? () => handleRewriteClick(i, pageSlug) : undefined
+          }
+          onYam={
+            isHomepage
+              ? onSectionYam ? () => handleYamClick(i) : undefined
+              : onPageSectionYam ? () => handleYamClick(i, pageSlug) : undefined
+          }
+          onRewriteSubmit={
+            isHomepage ? () => handleRewriteSubmit(i) : () => handleRewriteSubmit(i, pageSlug)
+          }
+          onPromptCancel={() => {
+            setPromptForIndex(null);
+            setPromptForPageSlug(null);
+            setPromptValue('');
+          }}
+          onContentChange={
+            isHomepage
+              ? onSectionContentChange ? (p) => onSectionContentChange(i, p) : undefined
+              : onPageSectionContentChange && pageSlug
+                ? (p) => onPageSectionContentChange(pageSlug, i, p)
+                : undefined
+          }
+        />
+      ));
+    }
+    return (
+      <div className="flex flex-col items-center justify-center p-12">
+        <p className="text-sm text-[var(--text-muted)] text-center">
+          Aucune section.{' '}
+          {!pageData && !isHomepage && 'Générez le zoning de cette page.'}
+        </p>
+      </div>
+    );
+  };
+
+  /* parentScroll : scroll au niveau parent (DocumentModal), évite nested scroll qui casse sur iOS */
+  if (parentScroll) {
+    return (
+      <div className="bg-[var(--bg-primary)] min-w-0">
+        <div className="sticky top-0 z-10">
+          <LayoutNavbar
+            navItems={primaryNav.map((item) => ({ page: item.page, slug: item.slug }))}
+            onNavClick={setActiveTab}
+          />
+        </div>
+        <div>{renderSections()}</div>
+        <LayoutFooter
+          navItems={[
+            ...primaryNav.map((i) => ({ page: i.page, slug: i.slug })),
+            ...footerNav.map((i) => ({ page: i.page, slug: i.slug })),
+          ]}
+          tabKeys={[
+            ...primaryNav.map((_, i) => (i === 0 ? '__homepage__' : primaryNav[i].slug)),
+            ...footerNav.map((i) => i.slug),
+          ]}
+          onNavClick={setActiveTab}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`${immersiveMode ? 'h-full flex flex-col min-h-0' : 'space-y-3 sm:space-y-4'}`}>
