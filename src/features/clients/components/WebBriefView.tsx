@@ -180,7 +180,7 @@ export function WebBriefView({
   );
 
   return (
-    <div className={`${immersiveMode ? 'h-full' : 'space-y-3 sm:space-y-4'}`}>
+    <div className={`${immersiveMode ? 'h-full flex flex-col min-h-0' : 'space-y-3 sm:space-y-4'}`}>
       {/* ── Mode édition : masqué en mode immersif (contrôlé par le parent), compact sur mobile sinon ─ */}
       {hasEditCapability && !immersiveMode && (
         <div className="flex justify-end">
@@ -206,7 +206,7 @@ export function WebBriefView({
           navItems={primaryNav.map((item) => ({ page: item.page, slug: item.slug }))}
           onNavClick={setActiveTab}
         />
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           {!isHomepage && !pageData && onGeneratePageZoning && pageSlug ? (
             <div className="flex flex-col items-center justify-center p-12 text-center">
               <p className="text-sm font-medium text-[var(--text-primary)] mb-2">
