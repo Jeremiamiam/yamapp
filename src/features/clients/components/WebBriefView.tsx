@@ -206,7 +206,7 @@ export function WebBriefView({
           navItems={primaryNav.map((item) => ({ page: item.page, slug: item.slug }))}
           onNavClick={setActiveTab}
         />
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div className="flex-1 min-h-0 scroll-touch-ios">
           {!isHomepage && !pageData && onGeneratePageZoning && pageSlug ? (
             <div className="flex flex-col items-center justify-center p-12 text-center">
               <p className="text-sm font-medium text-[var(--text-primary)] mb-2">

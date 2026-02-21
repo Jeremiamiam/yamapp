@@ -107,6 +107,17 @@ h1, h2, h3 {
   outline-offset: 2px;
 }
 
+/* Scroll iOS Safari — requis pour scroll fluide dans modale fixed (iPhone) */
+.scroll-touch-ios {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transform: translateZ(0);
+  /* fallback hauteur pour iOS si flex échoue */
+  min-height: 0;
+}
+
 /* Scrollbar styling */
 .timeline-scroll {
   scrollbar-width: thin;
