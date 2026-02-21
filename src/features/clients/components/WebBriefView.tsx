@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
 import type { WebBriefData } from '@/types/web-brief';
 import type { HomepageSection } from '@/types/web-brief';
 import type { ZonedSection } from '@/types/section-zoning';
@@ -50,9 +50,15 @@ export function WebBriefView({
   const [promptValue, setPromptValue] = useState('');
   const [generatingSlug, setGeneratingSlug] = useState<string | null>(null);
   const [internalEditMode, setInternalEditMode] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const editMode = controlledEditMode ?? internalEditMode;
   const setEditMode = onEditModeChange ?? setInternalEditMode;
+
+  // Remonter en haut à chaque changement de page
+  useLayoutEffect(() => {
+    scrollRef.current?.scrollTo(0, 0);
+  }, [activeTab]);
 
   const primaryNav = architecture.navigation?.primary ?? [];
   const footerNav = architecture.navigation?.footer_only ?? [];
@@ -207,7 +213,7 @@ export function WebBriefView({
           onNavClick={setActiveTab}
           generatedSlugs={Object.keys(pages ?? {})}
         />
-        <div className="flex-1 min-h-0 scroll-touch-ios">
+        <div ref={scrollRef} className="flex-1 min-h-0 scroll-touch-ios">
           {!isHomepage && !pageData && onGeneratePageZoning && pageSlug ? (
             <div className="flex flex-col items-center justify-center p-12 text-center">
               <p className="text-sm font-medium text-[var(--text-primary)] mb-2">
@@ -235,7 +241,7 @@ export function WebBriefView({
           ) : currentSections.length > 0 ? (
             currentSections.map((section, i) => (
               <PreviewSectionWithEdit
-                key={i}
+                key={`${section.role}-${section.order}`}
                 section={section as HomepageSection}
                 index={i}
                 editMode={editMode}
@@ -290,6 +296,7 @@ export function WebBriefView({
               ...footerNav.map((i) => i.slug),
             ]}
             onNavClick={setActiveTab}
+            compact={immersiveMode}
           />
         </div>
       </div>
@@ -372,21 +379,16 @@ function PreviewSectionWithEdit({
               {section.intent && (
                 <>
                   <span className="text-[10px] text-[var(--border-medium)]">—</span>
-                  <span className="text-[10px] text-[var(--text-muted)] line-clamp-1">{section.intent}</span>
+                  <span className="text-[10px] text-[var(--text-muted)] line-clamp-1 flex-1 min-w-0">{section.intent}</span>
                 </>
               )}
-            </div>
-          )}
-          {editMode && hasActions && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
-              <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg-primary)]/95 border border-[var(--border-subtle)] shadow-lg backdrop-blur-sm">
+              <div className="flex items-center gap-1 ml-auto flex-shrink-0">
                 {onYam && (
                   <button
                     type="button"
                     onClick={onYam}
                     disabled={isRewriting}
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-semibold border border-[var(--accent-magenta)]/30 bg-[var(--accent-magenta)]/10 text-[var(--accent-magenta)] hover:bg-[var(--accent-magenta)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    title="Touche Yam"
+                    className="px-2 py-0.5 rounded-md text-[10px] font-semibold border border-[var(--accent-magenta)]/30 bg-[var(--accent-magenta)]/10 text-[var(--accent-magenta)] hover:bg-[var(--accent-magenta)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {isRewriting ? '…' : '◆ Yam'}
                   </button>
@@ -396,8 +398,7 @@ function PreviewSectionWithEdit({
                     type="button"
                     onClick={onRewrite}
                     disabled={isRewriting}
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-semibold border border-[var(--accent-cyan)]/30 bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    title="Réécrire"
+                    className="px-2 py-0.5 rounded-md text-[10px] font-semibold border border-[var(--accent-cyan)]/30 bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {isRewriting ? '…' : 'Réécrire'}
                   </button>
@@ -406,10 +407,9 @@ function PreviewSectionWithEdit({
                   <button
                     type="button"
                     onClick={() => setEditingExpanded(true)}
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-semibold border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                    title="Éditer"
+                    className="px-2 py-0.5 rounded-md text-[10px] font-semibold border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                   >
-                    ✎ Éditer
+                    ✎
                   </button>
                 )}
               </div>

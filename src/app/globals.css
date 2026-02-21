@@ -111,7 +111,7 @@ h1, h2, h3 {
 .scroll-touch-ios {
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  overflow-y: auto;
+  overflow-y: scroll;
   overflow-x: hidden;
   transform: translateZ(0);
   /* fallback hauteur pour iOS si flex échoue */

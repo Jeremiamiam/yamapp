@@ -17,9 +17,9 @@ import type { BriefTemplate, CreativeBriefTemplate, ReportPlaudTemplate } from '
 import { toast } from '@/lib/toast';
 import { PlaudLogo } from '@/components/ui';
 import { ReportView } from './ReportView';
-import { WebBriefView } from './WebBriefView';
 import { SocialBriefView } from './SocialBriefView';
-import type { WebBriefData, PageOutput } from '@/types/web-brief';
+import { WebBriefDocumentContent } from './WebBriefDocumentContent';
+import type { WebBriefData } from '@/types/web-brief';
 import type { SocialBriefData } from '@/types/social-brief';
 
 // Icons
@@ -1025,12 +1025,7 @@ function DocumentModalContent({
   const [generatingSmm, setGeneratingSmm] = useState(false);
   const [showTranscriptInput, setShowTranscriptInput] = useState(false);
   const [fallbackTranscript, setFallbackTranscript] = useState('');
-  const [webBriefEditMode, setWebBriefEditMode] = useState(false);
   const isWebBrief = selectedDocument.type === 'web-brief';
-
-  useEffect(() => {
-    setWebBriefEditMode(false);
-  }, [selectedDocument.id]);
 
   const reportData = structured && selectedDocument.type === 'report' ? (structured as ReportPlaudTemplate) : null;
   const onEventAdded = useCallback(
@@ -1285,213 +1280,6 @@ function DocumentModalContent({
     [clientId, addDocument, openDocument, onClose]
   );
 
-  const YAM_PROMPT = `Applique la touche Yam — directeur de création, concepteur-rédacteur. Économie maximale, accroches punchy (4-7 mots). Micro-risque calculé : un mot inattendu, un registre décalé, une insolence légère — assez pour piquer, jamais assez pour brûler. Deux niveaux de lecture si possible. Pas de superlatif vide. Propose avec conviction. Garde la structure et l'intention de la section, rends le copy plus percutant.`;
-
-  const handleSectionRewrite = useCallback(
-    async (sectionIndex: number, customPrompt: string) => {
-      if (!clientId) return;
-      try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
-        if (!data?.homepage?.sections?.length) {
-          toast.error('Aucune section à modifier.');
-          return;
-        }
-        const sections = [...data.homepage.sections].sort((a, b) => a.order - b.order);
-        const section = sections[sectionIndex];
-        if (!section) {
-          toast.error('Section introuvable.');
-          return;
-        }
-        const res = await fetch('/api/web-section-rewrite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            section: { order: section.order, role: section.role, intent: section.intent, content: section.content },
-            customPrompt,
-            architecture: data.architecture,
-          }),
-        });
-        const json = (await res.json()) as { content?: Record<string, unknown>; error?: string };
-        if (!res.ok || json.error) {
-          toast.error(json.error ?? 'Erreur lors de la réécriture.');
-          return;
-        }
-        const newContent = json.content ?? section.content;
-        const updatedSections = sections.map((s, i) =>
-          i === sectionIndex ? { ...s, content: newContent } : s
-        );
-        const updatedData: WebBriefData = {
-          ...data,
-          homepage: { ...data.homepage, sections: updatedSections },
-        };
-        await updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
-        toast.success('Section mise à jour');
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Erreur lors de la réécriture.');
-      }
-    },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
-  );
-
-  const handleSectionYam = useCallback(
-    async (sectionIndex: number) => {
-      await handleSectionRewrite(sectionIndex, YAM_PROMPT);
-    },
-    [handleSectionRewrite]
-  );
-
-  const handleGeneratePageZoning = useCallback(
-    async (pageSlug: string) => {
-      if (!clientId) return;
-      try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
-        const res = await fetch('/api/page-zoning', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            siteArchitecture: data.architecture,
-            pageSlug,
-            reportContent: '',
-            brandPlatform: undefined,
-            copywriterText: '',
-          }),
-        });
-        const json = (await res.json()) as {
-          page?: string;
-          slug?: string;
-          target_visitor?: string;
-          sections?: unknown[];
-          error?: string;
-        };
-        if (!res.ok || json.error) {
-          toast.error(json.error ?? 'Erreur lors de la génération.');
-          return;
-        }
-        const pageOutput: PageOutput = {
-          page: json.page ?? pageSlug,
-          slug: json.slug ?? pageSlug,
-          target_visitor: json.target_visitor,
-          sections: (json.sections ?? []) as PageOutput['sections'],
-        };
-        const updatedData: WebBriefData = {
-          ...data,
-          pages: { ...(data.pages ?? {}), [pageSlug]: pageOutput },
-        };
-        await updateDocument(clientId, selectedDocument.id, {
-          content: JSON.stringify(updatedData),
-        });
-        toast.success(`Zoning de "${pageOutput.page}" généré`);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Erreur lors de la génération.');
-      }
-    },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
-  );
-
-  const handlePageSectionRewrite = useCallback(
-    async (pageSlug: string, sectionIndex: number, customPrompt: string) => {
-      if (!clientId) return;
-      try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
-        const pageData = data.pages?.[pageSlug];
-        if (!pageData?.sections?.length) {
-          toast.error('Aucune section à modifier.');
-          return;
-        }
-        const sections = [...pageData.sections].sort((a, b) => a.order - b.order);
-        const section = sections[sectionIndex];
-        if (!section) {
-          toast.error('Section introuvable.');
-          return;
-        }
-        const res = await fetch('/api/web-section-rewrite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            section: { order: section.order, role: section.role, intent: section.intent, content: section.content },
-            customPrompt,
-            architecture: data.architecture,
-          }),
-        });
-        const json = (await res.json()) as { content?: Record<string, unknown>; error?: string };
-        if (!res.ok || json.error) {
-          toast.error(json.error ?? 'Erreur lors de la réécriture.');
-          return;
-        }
-        const newContent = json.content ?? section.content;
-        const updatedSections = sections.map((s, i) =>
-          i === sectionIndex ? { ...s, content: newContent } : s
-        );
-        const updatedData: WebBriefData = {
-          ...data,
-          pages: { ...(data.pages ?? {}), [pageSlug]: { ...pageData, sections: updatedSections } },
-        };
-        await updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
-        toast.success('Section mise à jour');
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Erreur lors de la réécriture.');
-      }
-    },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
-  );
-
-  const handlePageSectionYam = useCallback(
-    async (pageSlug: string, sectionIndex: number) => {
-      await handlePageSectionRewrite(pageSlug, sectionIndex, YAM_PROMPT);
-    },
-    [handlePageSectionRewrite]
-  );
-
-  const handleSectionContentChange = useCallback(
-    (sectionIndex: number, patch: Record<string, unknown>) => {
-      if (!clientId) return;
-      try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
-        const sections = [...(data.homepage.sections ?? [])].sort((a, b) => a.order - b.order);
-        const section = sections[sectionIndex];
-        if (!section) return;
-        const newContent = { ...section.content, ...patch };
-        const updatedSections = sections.map((s, i) =>
-          i === sectionIndex ? { ...s, content: newContent } : s
-        );
-        const updatedData: WebBriefData = {
-          ...data,
-          homepage: { ...data.homepage, sections: updatedSections },
-        };
-        updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
-      } catch {
-        /* ignore */
-      }
-    },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
-  );
-
-  const handlePageSectionContentChange = useCallback(
-    (pageSlug: string, sectionIndex: number, patch: Record<string, unknown>) => {
-      if (!clientId) return;
-      try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
-        const pageData = data.pages?.[pageSlug];
-        if (!pageData?.sections?.length) return;
-        const sections = [...pageData.sections].sort((a, b) => a.order - b.order);
-        const section = sections[sectionIndex];
-        if (!section) return;
-        const newContent = { ...section.content, ...patch };
-        const updatedSections = sections.map((s, i) =>
-          i === sectionIndex ? { ...s, content: newContent } : s
-        );
-        const updatedData: WebBriefData = {
-          ...data,
-          pages: { ...(data.pages ?? {}), [pageSlug]: { ...pageData, sections: updatedSections } },
-        };
-        updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
-      } catch {
-        /* ignore */
-      }
-    },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
-  );
-
   const handleGenerateBrief = useCallback(() => {
     const transcript = reportData?.rawTranscript;
     if (transcript) {
@@ -1533,87 +1321,15 @@ function DocumentModalContent({
         onClick={e => e.stopPropagation()}
         style={{ animationDuration: '0.2s' }}
       >
-        {/* Web-brief : header enrichi + content full-height scrollable (pas de footer redondant) */}
-        {isWebBrief ? (() => {
-          let webBriefData: WebBriefData | null = null;
-          try {
-            const parsed = JSON.parse(selectedDocument.content) as WebBriefData;
-            if (parsed?.version === 1 && parsed?.architecture && parsed?.homepage) {
-              webBriefData = parsed;
-            }
-          } catch { /* invalid */ }
-          const arch = webBriefData?.architecture;
-          return (
-            <>
-              {/* Header enrichi : titre + site_type + cible + actions */}
-              <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b border-[var(--border-subtle)]">
-                <div className="flex-1 min-w-0 flex items-center gap-2">
-                  <span className="text-sm font-semibold text-[var(--text-primary)] truncate">{selectedDocument.title}</span>
-                  {arch?.site_type && (
-                    <span className="hidden sm:inline-flex flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] font-bold uppercase tracking-wider">
-                      {arch.site_type}
-                    </span>
-                  )}
-                  {arch?.target_visitor && (
-                    <span className="hidden md:block text-[10px] text-[var(--text-muted)] truncate">→ {arch.target_visitor}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => downloadDocumentAsMarkdown(selectedDocument)}
-                    className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                    title="Exporter en Markdown"
-                  >
-                    <Download />
-                  </button>
-                  {onEditDocument && (
-                    <button
-                      type="button"
-                      onClick={() => setWebBriefEditMode((v) => !v)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        webBriefEditMode
-                          ? 'bg-[var(--accent-cyan)]/15 text-[var(--accent-cyan)]'
-                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
-                      }`}
-                      title={webBriefEditMode ? 'Désactiver l\'édition' : 'Modifier'}
-                    >
-                      <Edit />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                    aria-label="Fermer"
-                  >
-                    <X />
-                  </button>
-                </div>
-              </div>
-              {/* Content — pas d'overflow-hidden ni de padding pour laisser le scroll iOS fonctionner */}
-              <div className="flex-1 min-h-0 flex flex-col">
-                {webBriefData ? (
-                  <WebBriefView
-                    data={webBriefData}
-                    immersiveMode
-                    editMode={webBriefEditMode}
-                    onEditModeChange={setWebBriefEditMode}
-                    onSectionRewrite={clientId ? handleSectionRewrite : undefined}
-                    onSectionYam={clientId ? handleSectionYam : undefined}
-                    onGeneratePageZoning={clientId ? handleGeneratePageZoning : undefined}
-                    onPageSectionRewrite={clientId ? handlePageSectionRewrite : undefined}
-                    onPageSectionYam={clientId ? handlePageSectionYam : undefined}
-                    onSectionContentChange={clientId ? handleSectionContentChange : undefined}
-                    onPageSectionContentChange={clientId ? handlePageSectionContentChange : undefined}
-                  />
-                ) : (
-                  <p className="text-[var(--text-secondary)] text-sm p-4">Contenu invalide.</p>
-                )}
-              </div>
-            </>
-          );
-        })() : (
+        {/* Web-brief : composant dédié avec header enrichi + WebBriefView */}
+        {isWebBrief ? (
+          <WebBriefDocumentContent
+            selectedDocument={selectedDocument}
+            clientId={clientId}
+            onClose={onClose}
+            onEditDocument={onEditDocument}
+          />
+        ) : (
           <>
         <div className="flex-shrink-0 border-b border-[var(--border-subtle)] flex items-start justify-between gap-4 px-6 py-5">
           <div className="flex items-start gap-4 min-w-0 flex-1">
@@ -1787,8 +1503,10 @@ function DocumentModalContent({
                       }
                       return selectedDocument.content;
                     })();
-                    sessionStorage.setItem('creative-board-brief-prefill', briefForBoard);
-                    if (clientId) sessionStorage.setItem('creative-board-client-id', clientId);
+                    try {
+                      sessionStorage.setItem('creative-board-brief-prefill', briefForBoard);
+                      if (clientId) sessionStorage.setItem('creative-board-client-id', clientId);
+                    } catch { /* navigation privée — on continue sans prefill */ }
                     navigateToCreativeBoard();
                     onClose();
                   }}
