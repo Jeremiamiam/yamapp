@@ -4,3 +4,4 @@ export { LinksSection } from './LinksSection';
 export { ActivitySection } from './ActivitySection';
 export { DeliverablesSection } from './DeliverablesSection';
 export { ProjectsSection } from './ProjectsSection';
+export { RetroplanningSection } from './RetroplanningSection';
