@@ -252,11 +252,12 @@ Plans:
 
 **Goal:** Génération automatique de retroplanning par l'IA à partir du brief client (web brief ou autre). L'IA déduit les étapes et durées, propose un planning inversé depuis la deadline. Vue Gantt/Timeline dans la fiche client, édition drag & drop + formulaire. Usage interne uniquement.
 **Depends on:** Phase 8
-**Requirements:** TBD
-**Plans:** TBD
+**Requirements:** RETRO-01, RETRO-02, RETRO-03, RETRO-04, RETRO-05, RETRO-06, RETRO-07, RETRO-08
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 09-01: [To be planned]
+- [ ] 09-01-PLAN.md -- Types + migration Supabase + store CRUD + endpoint IA + utilitaire dates
+- [ ] 09-02-PLAN.md -- Gantt CSS Grid + RetroplanningSection + formulaire edition + integration ClientDetail + wiki
 
 ---
 *Roadmap created: 2026-02-13*

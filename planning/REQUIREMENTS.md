@@ -106,6 +106,17 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **WBPZ-09**: Single AI button for re-prompting (replaces separate Yam + Réécrire buttons)
 - [ ] **WBPZ-10**: AI rewrite agent re-reads full strategy context (brand platform, copywriter text, report) before rewriting
 
+### Retroplanning IA
+
+- [x] **RETRO-01**: AI reads existing brief content (web-brief, brief, report) to deduce project milestones
+- [x] **RETRO-02**: AI adapts milestones to detected project type (no fixed template)
+- [x] **RETRO-03**: Retroplanning computed backward from user-supplied deadline
+- [x] **RETRO-04**: Retroplanning data persisted per client in Supabase (JSONB tasks)
+- [x] **RETRO-05**: Store CRUD actions for retroplanning (load, save, delete)
+- [ ] **RETRO-06**: Gantt chart visualization with horizontal bars per task in client detail
+- [ ] **RETRO-07**: User can drag-move and resize Gantt bars to adjust dates
+- [ ] **RETRO-08**: User can edit task details via inline form (label, dates, color)
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
