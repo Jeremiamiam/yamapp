@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable, type DropResult, type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import type { WebBriefData } from '@/types/web-brief';
 import type { HomepageSection } from '@/types/web-brief';
 import type { ZonedSection } from '@/types/section-zoning';
@@ -14,6 +15,15 @@ import { LayoutFooter } from '@/components/layouts/LayoutFooter';
  * Responsive.
  */
 type PageTab = { label: string; slug: string; isHomepage: boolean };
+
+// ── DnD utility ─────────────────────────────────────────────────────────────
+
+function reorder<T>(list: T[], startIndex: number, endIndex: number): T[] {
+  const result = [...list];
+  const [removed] = result.splice(startIndex, 1);
+  result.splice(endIndex, 0, removed);
+  return result;
+}
 
 // ── Field type inference ─────────────────────────────────────────────────────
 
@@ -530,6 +540,18 @@ export function WebBriefView({
     onPageAiRewrite || onPageSectionContentChange
   );
 
+  const handleDragEnd = useCallback(
+    (result: DropResult) => {
+      if (!result.destination || !onReorderSections) return;
+      const { source, destination } = result;
+      if (source.index === destination.index) return;
+      const reordered = reorder(currentSections, source.index, destination.index);
+      const withOrder = reordered.map((s, i) => ({ ...s, order: i + 1 }));
+      onReorderSections(isHomepage ? null : (pageSlug ?? null), withOrder);
+    },
+    [currentSections, onReorderSections, isHomepage, pageSlug]
+  );
+
   // Build nav items with children for LayoutNavbar
   const navItemsWithChildren = [
     ...(primaryNav.length > 0
@@ -647,73 +669,116 @@ export function WebBriefView({
             </div>
           ) : currentSections.length > 0 ? (
             <>
-              {currentSections.map((section, index) => {
-                const sectionId = (section as HomepageSection).id ?? `${section.role}-${section.order}`;
-                return (
-                  <PreviewSectionWithEdit
-                    key={sectionId}
-                    section={section as HomepageSection}
-                    sectionId={sectionId}
-                    editMode={editMode}
-                    pageSlug={pageSlug}
-                    isHomepage={isHomepage}
-                    isRewriting={isRewriting(sectionId)}
-                    isAiPromptExpanded={isAiPromptExpanded(sectionId)}
-                    aiPromptValue={isAiPromptExpanded(sectionId) ? aiPromptValue : ''}
-                    onAiPromptChange={setAiPromptValue}
-                    onAiButtonClick={
-                      isHomepage
-                        ? onAiRewrite ? () => handleAiButtonClick(sectionId) : undefined
-                        : onPageAiRewrite ? () => handleAiButtonClick(sectionId, pageSlug) : undefined
-                    }
-                    onAiSubmit={
-                      isHomepage
-                        ? () => handleAiSubmit(sectionId)
-                        : () => handleAiSubmit(sectionId, pageSlug)
-                    }
-                    onAiCancel={() => {
-                      setAiPromptForSectionId(null);
-                      setAiPromptForPageSlug(null);
-                      setAiPromptValue('');
-                    }}
-                    onContentChange={
-                      isHomepage
-                        ? onSectionContentChange ? (p) => onSectionContentChange(sectionId, p) : undefined
-                        : onPageSectionContentChange && pageSlug
-                          ? (p) => onPageSectionContentChange(pageSlug, sectionId, p)
-                          : undefined
-                    }
-                    onDelete={
-                      onDeleteSection
-                        ? () => {
-                            if (!window.confirm('Supprimer cette section ?')) return;
-                            onDeleteSection(isHomepage ? null : (pageSlug ?? null), sectionId);
-                          }
-                        : undefined
-                    }
-                    onMoveUp={
-                      onReorderSections && index > 0
-                        ? () => {
-                            const reordered = [...currentSections];
-                            [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
-                            const withOrder = reordered.map((s, i) => ({ ...s, order: i + 1 }));
-                            onReorderSections(isHomepage ? null : (pageSlug ?? null), withOrder);
-                          }
-                        : undefined
-                    }
-                    onMoveDown={
-                      onReorderSections && index < currentSections.length - 1
-                        ? () => {
-                            const reordered = [...currentSections];
-                            [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
-                            const withOrder = reordered.map((s, i) => ({ ...s, order: i + 1 }));
-                            onReorderSections(isHomepage ? null : (pageSlug ?? null), withOrder);
-                          }
-                        : undefined
-                    }
-                  />
-                );
-              })}
+              {editMode && onReorderSections ? (
+                /* DnD mode — edit mode only */
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <Droppable droppableId="sections">
+                    {(provided) => (
+                      <div ref={provided.innerRef} {...provided.droppableProps}>
+                        {currentSections.map((section, index) => {
+                          const sectionId = (section as HomepageSection).id ?? `${section.role}-${section.order}`;
+                          return (
+                            <Draggable key={sectionId} draggableId={sectionId} index={index}>
+                              {(dragProvided, dragSnapshot) => (
+                                <div
+                                  ref={dragProvided.innerRef}
+                                  {...dragProvided.draggableProps}
+                                  className={dragSnapshot.isDragging ? 'opacity-80 shadow-lg' : ''}
+                                >
+                                  <PreviewSectionWithEdit
+                                    section={section as HomepageSection}
+                                    sectionId={sectionId}
+                                    editMode={editMode}
+                                    pageSlug={pageSlug}
+                                    isHomepage={isHomepage}
+                                    isRewriting={isRewriting(sectionId)}
+                                    isAiPromptExpanded={isAiPromptExpanded(sectionId)}
+                                    aiPromptValue={isAiPromptExpanded(sectionId) ? aiPromptValue : ''}
+                                    onAiPromptChange={setAiPromptValue}
+                                    onAiButtonClick={
+                                      isHomepage
+                                        ? onAiRewrite ? () => handleAiButtonClick(sectionId) : undefined
+                                        : onPageAiRewrite ? () => handleAiButtonClick(sectionId, pageSlug) : undefined
+                                    }
+                                    onAiSubmit={
+                                      isHomepage
+                                        ? () => handleAiSubmit(sectionId)
+                                        : () => handleAiSubmit(sectionId, pageSlug)
+                                    }
+                                    onAiCancel={() => {
+                                      setAiPromptForSectionId(null);
+                                      setAiPromptForPageSlug(null);
+                                      setAiPromptValue('');
+                                    }}
+                                    onContentChange={
+                                      isHomepage
+                                        ? onSectionContentChange ? (p) => onSectionContentChange(sectionId, p) : undefined
+                                        : onPageSectionContentChange && pageSlug
+                                          ? (p) => onPageSectionContentChange(pageSlug, sectionId, p)
+                                          : undefined
+                                    }
+                                    onDelete={
+                                      onDeleteSection
+                                        ? () => {
+                                            if (!window.confirm('Supprimer cette section ?')) return;
+                                            onDeleteSection(isHomepage ? null : (pageSlug ?? null), sectionId);
+                                          }
+                                        : undefined
+                                    }
+                                    dragHandleProps={dragProvided.dragHandleProps ?? undefined}
+                                  />
+                                </div>
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
+              ) : (
+                /* View mode — no DnD */
+                currentSections.map((section) => {
+                  const sectionId = (section as HomepageSection).id ?? `${section.role}-${section.order}`;
+                  return (
+                    <PreviewSectionWithEdit
+                      key={sectionId}
+                      section={section as HomepageSection}
+                      sectionId={sectionId}
+                      editMode={editMode}
+                      pageSlug={pageSlug}
+                      isHomepage={isHomepage}
+                      isRewriting={isRewriting(sectionId)}
+                      isAiPromptExpanded={isAiPromptExpanded(sectionId)}
+                      aiPromptValue={isAiPromptExpanded(sectionId) ? aiPromptValue : ''}
+                      onAiPromptChange={setAiPromptValue}
+                      onAiButtonClick={
+                        isHomepage
+                          ? onAiRewrite ? () => handleAiButtonClick(sectionId) : undefined
+                          : onPageAiRewrite ? () => handleAiButtonClick(sectionId, pageSlug) : undefined
+                      }
+                      onAiSubmit={
+                        isHomepage
+                          ? () => handleAiSubmit(sectionId)
+                          : () => handleAiSubmit(sectionId, pageSlug)
+                      }
+                      onAiCancel={() => {
+                        setAiPromptForSectionId(null);
+                        setAiPromptForPageSlug(null);
+                        setAiPromptValue('');
+                      }}
+                      onContentChange={
+                        isHomepage
+                          ? onSectionContentChange ? (p) => onSectionContentChange(sectionId, p) : undefined
+                          : onPageSectionContentChange && pageSlug
+                            ? (p) => onPageSectionContentChange(pageSlug, sectionId, p)
+                            : undefined
+                      }
+                    />
+                  );
+                })
+              )}
               {/* Add section button — edit mode only */}
               {editMode && onAddSection && (
                 <div className="flex justify-center py-4 border-t border-[var(--border-subtle)]">
@@ -790,6 +855,7 @@ function PreviewSectionWithEdit({
   onDelete,
   onMoveUp,
   onMoveDown,
+  dragHandleProps,
 }: {
   section: HomepageSection;
   sectionId: string;
@@ -807,6 +873,7 @@ function PreviewSectionWithEdit({
   onDelete?: () => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  dragHandleProps?: DraggableProvidedDragHandleProps;
 }) {
   const [editingExpanded, setEditingExpanded] = useState(false);
   // Accumulated patches — flushed on save
@@ -907,6 +974,20 @@ function PreviewSectionWithEdit({
           )}
           {editMode && hasActions && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--accent-cyan)]/5 border-t border-[var(--accent-cyan)]/15">
+              {/* Drag handle */}
+              {dragHandleProps && (
+                <span
+                  {...dragHandleProps}
+                  className="flex-shrink-0 cursor-grab active:cursor-grabbing text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-0.5 rounded"
+                  title="Déplacer la section"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
+                    <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                    <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+                  </svg>
+                </span>
+              )}
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-cyan)] flex-shrink-0">{section.role}</span>
               {section.intent && (
                 <>
