@@ -23,9 +23,10 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - Phase 7.2 (Admin/Member, user_roles, Compta/Settings réservés admins, prix masqués members) ✅
 - **Phase 6 Plan 01:** Year-based filtering with status-driven KPIs ✅
 - **Phase 8 Plan 01:** UUID section identity, layout fallback, LayoutPlaceholder, ROLE_SIMILARITY_MAP ✅
+- **Phase 8 Plan 02:** Navigation submenus, children tabs, page delete, section DnD reorder + add/delete ✅
 - **Phase 8 Plan 03:** Dynamic edit form (inferFieldType), merged AI button "IA ◆", strategy context wired to rewrite API ✅
 
-**Dernière activité:** 2026-02-22 — Phase 8 Plan 03 complété (dynamic edit form + merged AI + strategy context)
+**Dernière activité:** 2026-02-22 — Phase 8 Plan 02 complété (submenus + page/section CRUD + DnD reorder)
 
 **Progress:** [██████████] ~97%
 
@@ -35,7 +36,7 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 
 **Phase 8 – Web Brief Preview & Zoning:**
 - [x] Plan 08-01: UUID migration + layout fallback system (foundation) ✅
-- [ ] Plan 08-02: Navigation submenus + page delete + section DnD + section add/delete
+- [x] Plan 08-02: Navigation submenus + page delete + section DnD + section add/delete ✅
 - [x] Plan 08-03: Dynamic edit form + merged AI button + strategy context re-read ✅
 
 ---
@@ -47,7 +48,7 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - Phases 1–4, 3.7, 7, 7.1, 7.2 : complètes
 - Phase 5 : Mobile & Polish — à faire
 - Phase 6 : Vue Comptabilité — Plan 01 complété (year filtering, status-based KPIs), reste Plan 02 (histogram)
-- Phase 8 : Web Brief Preview & Zoning — Plans 01 et 03 complétés
+- Phase 8 : Web Brief Preview & Zoning — Plans 01, 02 et 03 complétés (phase complète)
 
 ### Roadmap Evolution
 
@@ -70,6 +71,13 @@ Les décisions sont dans PROJECT.md (Key Decisions). Contexte technique dans `pl
 - ROLE_SIMILARITY_MAP covers 14 common AI alias patterns (testimonials, about, cta, etc.)
 - Section mutations now use find-by-id instead of sorted array index lookup
 
+**Phase 8 Plan 02 decisions:**
+- DnD only active in edit mode — view mode skips DragDropContext entirely (clean path separation)
+- Up/down move buttons alongside DnD drag handles (accessibility: both methods work)
+- Page tabs with delete shown as separate edit-mode-only toolbar below navbar
+- handleDeletePage cascades through all 4 nav lists (primary, children, added_pages, footer_only)
+- handleAddSection creates default hero section with UUID and empty intent
+
 **Phase 8 Plan 03 decisions:**
 - inferFieldType threshold: string > 80 chars = textarea, else input
 - Accumulated patch pattern: collect via useRef, flush on Sauvegarder or Enter-on-input
@@ -84,4 +92,4 @@ Aucun.
 
 ---
 *State initial: 2026-02-13*
-*Updated: 2026-02-22 — Phase 8 Plan 03 complété (dynamic edit form + merged AI + strategy context)*
+*Updated: 2026-02-22 — Phase 8 Plan 02 complété (navigation submenus + page/section CRUD + DnD reorder)*

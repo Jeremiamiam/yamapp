@@ -244,7 +244,7 @@ Plans:
 
 Plans:
 - [x] 08-01-PLAN.md -- UUID migration + layout fallback system (foundation) ✅
-- [ ] 08-02-PLAN.md -- Navigation submenus + page delete + section DnD + section add/delete
+- [x] 08-02-PLAN.md -- Navigation submenus + page delete + section DnD + section add/delete ✅
 - [x] 08-03-PLAN.md -- Dynamic edit form + merged AI button + strategy context re-read ✅
 
 ---
@@ -259,4 +259,5 @@ Plans:
 *Phase 7, 7.1, 7.2 marquees completes apres verification code (store Supabase, auth, user_roles, RLS, Settings, masquage prix).*
 *2026-02-15: RLS Phase 7.1 finalise -- migration 00006_authenticated_only_rls appliquee via MCP Supabase (tables metier en authenticated only).*
 *2026-02-15: Phase 6 planned -- 2 plans (06-01: store+year+KPIs+tables, 06-02: histogram+verification)*
+*2026-02-22: Phase 8 Plan 02 complété -- LayoutNavbar submenus, children page tabs, page delete, @hello-pangea/dnd section reorder with grip handles, section add/delete*
 *2026-02-22: Phase 8 Plan 03 complété -- dynamic edit form (inferFieldType), merged AI button "IA ◆", strategy context wired to rewrite API*
