@@ -28,8 +28,8 @@ export function useModal() {
         document,
       }),
 
-    openReportUploadModal: (clientId: string) =>
-      openModal({ type: 'report-upload', clientId }),
+    openReportUploadModal: (clientId: string, projectId?: string) =>
+      openModal({ type: 'report-upload', clientId, projectId }),
 
     openDeliverableModal: (clientId: string | undefined, deliverable?: Deliverable) =>
       openModal({

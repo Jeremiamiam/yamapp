@@ -12,7 +12,7 @@ export interface TimelineFilters {
 export type ModalType =
   | { type: 'contact'; mode: 'create' | 'edit'; clientId: string; contact?: Contact; presetContact?: Partial<Contact> }
   | { type: 'document'; mode: 'create' | 'edit'; clientId: string; document?: ClientDocument }
-  | { type: 'report-upload'; clientId: string }
+  | { type: 'report-upload'; clientId: string; projectId?: string }
   | { type: 'deliverable'; mode: 'create' | 'edit'; clientId?: string; deliverable?: Deliverable }
   | { type: 'call'; mode: 'create' | 'edit'; clientId?: string; call?: Call; presetCallType?: CallType }
   | { type: 'client'; mode: 'create' | 'edit'; client?: Client; presetStatus?: ClientStatus }
@@ -82,7 +82,7 @@ export interface AppState {
   deleteClientLink: (clientId: string, linkId: string) => Promise<void>;
 
   // CRUD Actions - Documents
-  addDocument: (clientId: string, doc: Omit<ClientDocument, 'id' | 'createdAt' | 'updatedAt'>) => Promise<ClientDocument>;
+  addDocument: (clientId: string, doc: Omit<ClientDocument, 'id' | 'createdAt' | 'updatedAt'>, projectId?: string) => Promise<ClientDocument>;
   updateDocument: (clientId: string, docId: string, data: Partial<ClientDocument>) => Promise<void>;
   deleteDocument: (clientId: string, docId: string) => Promise<void>;
 
