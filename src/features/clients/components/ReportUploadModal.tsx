@@ -79,6 +79,7 @@ export function ReportUploadModal() {
   const { activeModal, closeModal, addDocument, addDeliverable, addCall, openDocument } = useAppStore();
   const isOpen = activeModal?.type === 'report-upload';
   const clientId = isOpen ? activeModal.clientId : '';
+  const projectId = isOpen ? activeModal.projectId : undefined;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [transcriptContent, setTranscriptContent] = useState('');
@@ -130,7 +131,7 @@ export function ReportUploadModal() {
       }
       const { error: _e, ...doc } = data;
       const docWithRaw = { ...doc, rawTranscript: transcriptContent.trim() };
-      await addDocument(clientId, { type: 'report', title: docWithRaw.title, content: JSON.stringify(docWithRaw) });
+      await addDocument(clientId, { type: 'report', title: docWithRaw.title, content: JSON.stringify(docWithRaw) }, projectId);
       setReportData(doc);
     } catch {
       setAnalyzeError("Impossible de contacter l'API. Verifie ta connexion.");
@@ -200,7 +201,7 @@ export function ReportUploadModal() {
         type: 'brief',
         title: `Brief - ${reportData?.title ?? 'Plaud'}`,
         content: briefContent,
-      });
+      }, projectId);
       handleClose();
       toast.success('Brief généré', {
         action: { label: 'Voir le brief', onClick: () => openDocument(createdDoc) },

@@ -6,6 +6,7 @@ import { useClient } from '@/hooks';
 import { ClientSidebarSection } from './sections/ClientSidebarSection';
 import { ProjectsListSection } from './sections/ProjectsListSection';
 import { RetroplanningSection } from './sections/RetroplanningSection';
+import { ProjectDrawer } from './ProjectDrawer';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,7 @@ export function ClientDetailV2() {
   const navigateBack = useAppStore((state) => state.navigateBack);
   const openModal = useAppStore((state) => state.openModal);
   const getProjectsByClientId = useAppStore((state) => state.getProjectsByClientId);
+  const deliverables = useAppStore((state) => state.deliverables);
 
   const client = useClient(selectedClientId);
 
@@ -167,8 +169,15 @@ export function ClientDetailV2() {
             />
           </div>
 
-          {/* Placeholder for ProjectDrawer — Plan 03 will add it here */}
-          {/* {selectedProjectId && <ProjectDrawer projectId={selectedProjectId} onClose={() => setSelectedProjectId(null)} />} */}
+          {/* ProjectDrawer — slides in from the right when a project is selected */}
+          {selectedProjectId && selectedProject && (
+            <ProjectDrawer
+              project={selectedProject}
+              client={client}
+              deliverables={deliverables}
+              onClose={() => setSelectedProjectId(null)}
+            />
+          )}
 
         </main>
       </div>

@@ -28,6 +28,16 @@ const Package = () => (
   </svg>
 );
 
+// ─── Icons (Divers group) ─────────────────────────────────────────────────────
+
+const Archive = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="21 8 21 21 3 21 3 8"/>
+    <rect x="1" y="3" width="22" height="5"/>
+    <line x1="10" y1="12" x2="14" y2="12"/>
+  </svg>
+);
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface ProjectsListSectionProps {
@@ -47,6 +57,19 @@ export function ProjectsListSection({
 }: ProjectsListSectionProps) {
   const deliverables = useAppStore((state) => state.deliverables);
   const { openProjectModal } = useModal();
+
+  // Orphan deliverables: belong to this client but have no projectId
+  const orphanDeliverables = deliverables.filter(
+    (d) => d.clientId === client.id && !d.projectId
+  );
+
+  // Check if a "Divers" project already exists for this client
+  const hasDiversProject = projects.some(
+    (p) => p.name.toLowerCase() === 'divers'
+  );
+
+  // Show virtual Divers group only if there are orphan deliverables AND no real Divers project
+  const showDiversGroup = orphanDeliverables.length > 0 && !hasDiversProject;
 
   return (
     <div className="p-4 sm:p-6">
@@ -92,7 +115,7 @@ export function ProjectsListSection({
       )}
 
       {/* Projects grid */}
-      {projects.length > 0 && (
+      {(projects.length > 0 || showDiversGroup) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {projects.map((project) => {
             const projectDeliverables = deliverables.filter((d) => d.projectId === project.id);
@@ -153,6 +176,28 @@ export function ProjectsListSection({
               </button>
             );
           })}
+
+          {/* Divers group: orphan deliverables not attached to any project */}
+          {showDiversGroup && (
+            <div
+              className="text-left p-4 rounded-xl border border-dashed border-[var(--border-subtle)]
+                         bg-[var(--bg-card)]/50 opacity-70"
+              title="Produits sans projet — créez un projet pour les organiser"
+            >
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <h3 className="text-sm font-semibold truncate flex-1 text-[var(--text-muted)]">
+                  Divers
+                </h3>
+                <span className="text-[var(--text-muted)] flex-shrink-0 mt-0.5">
+                  <Archive />
+                </span>
+              </div>
+              <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+                <Package />
+                {orphanDeliverables.length} produit{orphanDeliverables.length !== 1 ? 's' : ''} sans projet
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
