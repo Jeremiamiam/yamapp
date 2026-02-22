@@ -787,6 +787,9 @@ function PreviewSectionWithEdit({
   onAiSubmit,
   onAiCancel,
   onContentChange,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
 }: {
   section: HomepageSection;
   sectionId: string;
@@ -801,6 +804,9 @@ function PreviewSectionWithEdit({
   onAiSubmit?: () => void;
   onAiCancel?: () => void;
   onContentChange?: (patch: Record<string, unknown>) => void;
+  onDelete?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }) {
   const [editingExpanded, setEditingExpanded] = useState(false);
   // Accumulated patches — flushed on save
@@ -909,6 +915,31 @@ function PreviewSectionWithEdit({
                 </>
               )}
               <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+                {/* Move up/down buttons */}
+                {onMoveUp && (
+                  <button
+                    type="button"
+                    onClick={onMoveUp}
+                    className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                    title="Monter la section"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="18 15 12 9 6 15"/>
+                    </svg>
+                  </button>
+                )}
+                {onMoveDown && (
+                  <button
+                    type="button"
+                    onClick={onMoveDown}
+                    className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                    title="Descendre la section"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
+                )}
                 {onAiButtonClick && (
                   <button
                     type="button"
@@ -930,6 +961,22 @@ function PreviewSectionWithEdit({
                     className="px-2 py-0.5 rounded-md text-[10px] font-semibold border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                   >
                     ✎
+                  </button>
+                )}
+                {/* Delete section button */}
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={onDelete}
+                    className="p-0.5 rounded text-[var(--text-muted)] hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                    title="Supprimer cette section"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                      <path d="M10 11v6"/><path d="M14 11v6"/>
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                    </svg>
                   </button>
                 )}
               </div>

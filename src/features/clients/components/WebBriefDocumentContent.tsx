@@ -9,7 +9,9 @@ import { ensureSectionIds } from '@/lib/section-id';
 import { WebBriefView } from './WebBriefView';
 import { AddPageModal } from './AddPageModal';
 import type { ClientDocument } from '@/types';
-import type { WebBriefData, PageOutput, AddedPage } from '@/types/web-brief';
+import type { WebBriefData, PageOutput, AddedPage, HomepageSection } from '@/types/web-brief';
+import type { ZonedSection } from '@/types/section-zoning';
+import { generateSectionId } from '@/lib/section-id';
 
 const X = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -332,6 +334,157 @@ export function WebBriefDocumentContent({
     [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
   );
 
+  /** Supprimer une page et nettoyer toutes les références dans la navigation. */
+  const handleDeletePage = useCallback(
+    (slug: string) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const nav = data.architecture.navigation ?? {};
+        // Remove from primary nav (and from their children arrays)
+        const updatedPrimary = (nav.primary ?? [])
+          .filter((item) => item.slug !== slug)
+          .map((item) => ({
+            ...item,
+            children: item.children?.filter((c) => c.slug !== slug),
+          }));
+        // Remove from added_pages
+        const updatedAddedPages = (nav.added_pages ?? []).filter((item) => item.slug !== slug);
+        // Remove from footer_only
+        const updatedFooterOnly = (nav.footer_only ?? []).filter((item) => item.slug !== slug);
+        // Remove from pages data
+        const updatedPages = { ...(data.pages ?? {}) };
+        delete updatedPages[slug];
+
+        const updatedData: WebBriefData = {
+          ...data,
+          architecture: {
+            ...data.architecture,
+            navigation: {
+              ...nav,
+              primary: updatedPrimary,
+              added_pages: updatedAddedPages,
+              footer_only: updatedFooterOnly,
+            },
+          },
+          pages: updatedPages,
+        };
+        updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        toast.success('Page supprimée');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression de la page.');
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
+  /** Réordonner les sections d'une page. */
+  const handleReorderSections = useCallback(
+    (pageSlug: string | null, reorderedSections: (HomepageSection | ZonedSection)[]) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        if (pageSlug === null) {
+          const updatedData: WebBriefData = {
+            ...data,
+            homepage: { ...data.homepage, sections: reorderedSections as HomepageSection[] },
+          };
+          updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        } else {
+          const pageData = data.pages?.[pageSlug];
+          if (!pageData) return;
+          const updatedData: WebBriefData = {
+            ...data,
+            pages: { ...(data.pages ?? {}), [pageSlug]: { ...pageData, sections: reorderedSections as ZonedSection[] } },
+          };
+          updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors du réordonnancement des sections.');
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
+  /** Ajouter une nouvelle section par défaut à la fin d'une page. */
+  const handleAddSection = useCallback(
+    (pageSlug: string | null) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const newSection: HomepageSection = {
+          id: generateSectionId(),
+          role: 'hero',
+          order: 1,
+          intent: '',
+          content: { title: 'Nouvelle section', text: '' },
+        };
+
+        if (pageSlug === null) {
+          const existingSections = [...(data.homepage.sections ?? [])];
+          const lastOrder = existingSections.length > 0 ? Math.max(...existingSections.map((s) => s.order)) : 0;
+          newSection.order = lastOrder + 1;
+          const updatedData: WebBriefData = {
+            ...data,
+            homepage: { ...data.homepage, sections: [...existingSections, newSection] },
+          };
+          updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        } else {
+          const pageData = data.pages?.[pageSlug];
+          if (!pageData) return;
+          const existingSections = [...(pageData.sections ?? [])];
+          const lastOrder = existingSections.length > 0 ? Math.max(...existingSections.map((s) => s.order)) : 0;
+          const newZonedSection = { ...newSection, order: lastOrder + 1 } as unknown as ZonedSection;
+          const updatedData: WebBriefData = {
+            ...data,
+            pages: { ...(data.pages ?? {}), [pageSlug]: { ...pageData, sections: [...existingSections, newZonedSection] } },
+          };
+          updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        }
+        toast.success('Section ajoutée');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'ajout de la section.');
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
+  /** Supprimer une section et recalculer les ordres. */
+  const handleDeleteSection = useCallback(
+    (pageSlug: string | null, sectionId: string) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+
+        if (pageSlug === null) {
+          const sections = [...(data.homepage.sections ?? [])];
+          const filtered = sections.filter((s) => s.id !== sectionId);
+          const reordered = filtered.map((s, i) => ({ ...s, order: i + 1 }));
+          const updatedData: WebBriefData = {
+            ...data,
+            homepage: { ...data.homepage, sections: reordered },
+          };
+          updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        } else {
+          const pageData = data.pages?.[pageSlug];
+          if (!pageData) return;
+          const sections = [...(pageData.sections ?? [])];
+          const filtered = sections.filter((s) => s.id !== sectionId);
+          const reordered = filtered.map((s, i) => ({ ...s, order: i + 1 }));
+          const updatedData: WebBriefData = {
+            ...data,
+            pages: { ...(data.pages ?? {}), [pageSlug]: { ...pageData, sections: reordered } },
+          };
+          updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        }
+        toast.success('Section supprimée');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression de la section.');
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
   return (
     <>
       {/* Header enrichi : titre + site_type + cible + actions */}
@@ -404,6 +557,10 @@ export function WebBriefDocumentContent({
             onPageAiRewrite={clientId ? handlePageAiRewrite : undefined}
             onSectionContentChange={clientId ? handleSectionContentChange : undefined}
             onPageSectionContentChange={clientId ? handlePageSectionContentChange : undefined}
+            onDeletePage={clientId ? handleDeletePage : undefined}
+            onDeleteSection={clientId ? handleDeleteSection : undefined}
+            onAddSection={clientId ? handleAddSection : undefined}
+            onReorderSections={clientId ? handleReorderSections : undefined}
           />
         ) : (
           <p className="text-[var(--text-secondary)] text-sm p-4">Contenu invalide.</p>
