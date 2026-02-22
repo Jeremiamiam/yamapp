@@ -230,7 +230,9 @@ function getDocTypeStyle(type: DocumentType) {
   const icon =
     type === 'brief' ? <Briefcase /> :
     type === 'report' ? <PlaudLogo className="w-4 h-4" /> :
-    type === 'creative-strategy' ? (
+    type === 'link' ? (
+      <span className="text-base font-bold" style={{ color: 'var(--accent-coral)' }}>🔗</span>
+    ) : type === 'creative-strategy' ? (
       <span className="text-base font-bold" style={{ color: 'var(--accent-lime)' }}>⬡</span>
     ) : type === 'web-brief' ? (
       <span className="text-base font-bold" style={{ color: 'var(--accent-cyan)' }}>🌐</span>
@@ -1437,7 +1439,22 @@ function DocumentModalContent({
               onBackfillAddedEventKeys={onBackfillAddedEventKeys}
             />
           )}
-          {!showTemplated && (
+          {selectedDocument.type === 'link' && (
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <p className="text-sm text-[var(--text-muted)] break-all text-center max-w-md">
+                {selectedDocument.content}
+              </p>
+              <button
+                type="button"
+                onClick={() => window.open(selectedDocument.content.trim(), '_blank')}
+                className="px-6 py-3 rounded-xl bg-[var(--accent-coral)]/15 border border-[var(--accent-coral)]/30 text-[var(--accent-coral)] font-semibold hover:bg-[var(--accent-coral)]/25 transition-colors flex items-center gap-2"
+              >
+                <span>🔗</span>
+                Ouvrir dans un nouvel onglet
+              </button>
+            </div>
+          )}
+          {!showTemplated && selectedDocument.type !== 'link' && (
             selectedDocument.type === 'brief' ? (
               <BriefContentView content={selectedDocument.content} />
             ) : selectedDocument.type === 'creative-strategy' ? (

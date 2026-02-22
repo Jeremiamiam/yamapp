@@ -106,6 +106,9 @@ export function documentToMarkdown(doc: ClientDocument): string {
         case 'social-brief':
           body = socialBriefToMd(d);
           break;
+        case 'link':
+          body = `[${doc.title}](${doc.content})`;
+          break;
         default:
           body = doc.content;
       }

@@ -52,6 +52,7 @@ function getDocTypeIcon(type: DocumentType) {
   switch (type) {
     case 'brief': return <Briefcase />;
     case 'report': return <PlaudLogo className="w-3 h-3" />;
+    case 'link': return <span className="text-[var(--accent-coral)] font-bold text-xs">🔗</span>;
     case 'creative-strategy': return <span className="text-[var(--accent-lime)] font-bold text-xs">⬡</span>;
     case 'web-brief': return <span className="text-[var(--accent-cyan)] font-bold text-xs">🌐</span>;
     case 'social-brief': return <span className="text-[var(--accent-magenta)] font-bold text-xs">📱</span>;
@@ -68,8 +69,18 @@ interface DocumentsSectionProps {
   clientId: string;
 }
 
+const TrashIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    <line x1="10" y1="11" x2="10" y2="17"/>
+    <line x1="14" y1="11" x2="14" y2="17"/>
+  </svg>
+);
+
 export function DocumentsSection({ clientId }: DocumentsSectionProps) {
   const openDocument = useAppStore((state) => state.openDocument);
+  const deleteDocument = useAppStore((state) => state.deleteDocument);
   const client = useClient(clientId);
   const { openDocumentModal, openReportUploadModal } = useModal();
   const [downloadingZip, setDownloadingZip] = useState(false);
@@ -137,14 +148,24 @@ export function DocumentsSection({ clientId }: DocumentsSectionProps) {
         ) : (
           client.documents.map((doc, index) => {
             const docStyle = getDocTypeStyle(doc.type);
+            const handleClick = () => {
+              if (doc.type === 'link' && doc.content.trim()) {
+                window.open(doc.content.trim(), '_blank');
+              } else {
+                openDocument(doc);
+              }
+            };
             return (
               <div
                 key={doc.id}
-                className="px-5 py-4 hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer animate-fade-in-up"
+                className="group flex items-start gap-3 px-5 py-4 hover:bg-[var(--bg-secondary)] transition-colors animate-fade-in-up"
                 style={{ animationDelay: `${index * 0.05}s` }}
-                onClick={() => openDocument(doc)}
               >
-                <div className="flex items-start gap-3">
+                <button
+                  type="button"
+                  onClick={handleClick}
+                  className="flex-1 min-w-0 flex items-start gap-3 text-left cursor-pointer"
+                >
                   <span className={`p-1.5 rounded-lg ${docStyle.bg} ${docStyle.text} flex-shrink-0 mt-0.5`}>
                     {docStyle.icon}
                   </span>
@@ -161,7 +182,20 @@ export function DocumentsSection({ clientId }: DocumentsSectionProps) {
                       {formatDocDate(doc.createdAt)}
                     </p>
                   </div>
-                </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (window.confirm(`Supprimer "${doc.title}" ?`)) {
+                      deleteDocument(clientId, doc.id);
+                    }
+                  }}
+                  className="flex-shrink-0 p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--accent-coral)] hover:bg-[var(--accent-coral)]/10 opacity-60 group-hover:opacity-100 transition-colors"
+                  title="Supprimer"
+                >
+                  <TrashIcon />
+                </button>
               </div>
             );
           })

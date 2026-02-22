@@ -74,6 +74,11 @@ export const DOCUMENT_TYPE_STYLES: Record<
     text: 'text-[var(--accent-magenta)]',
     label: 'Brief Social',
   },
+  link: {
+    bg: 'bg-[var(--accent-coral)]/10',
+    text: 'text-[var(--accent-coral)]',
+    label: 'Lien',
+  },
 } as const;
 
 export function getDocumentTypeStyle(type: DocumentType) {

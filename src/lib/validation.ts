@@ -12,10 +12,15 @@ export const ContactSchema = z.object({
   phone: z.string().optional(),
 });
 
+const urlRegex = /^https?:\/\/.+/i;
 export const DocumentSchema = z.object({
-  type: z.enum(['brief', 'report', 'note', 'creative-strategy', 'web-brief', 'social-brief']),
+  type: z.enum(['brief', 'report', 'note', 'creative-strategy', 'web-brief', 'social-brief', 'link']),
   title: z.string().min(1, 'Le titre est requis'),
   content: z.string().min(1, 'Le contenu est requis'),
+}).superRefine((data, ctx) => {
+  if (data.type === 'link' && data.content && !urlRegex.test(data.content.trim())) {
+    ctx.addIssue({ code: 'custom', message: "L'URL doit commencer par http:// ou https://", path: ['content'] });
+  }
 });
 
 export const CallSchema = z.object({

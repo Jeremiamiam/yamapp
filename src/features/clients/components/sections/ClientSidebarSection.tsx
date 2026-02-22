@@ -46,6 +46,7 @@ const DOC_TYPE_BADGE: Record<DocumentType, { label: string; color: string; bg: s
   'brief':             { label: 'Brief',     color: 'text-[var(--accent-cyan)]',    bg: 'bg-[var(--accent-cyan)]/15' },
   'report':            { label: 'Report',    color: 'text-[var(--accent-amber)]',   bg: 'bg-[var(--accent-amber)]/15' },
   'note':              { label: 'Note',      color: 'text-[var(--accent-lime)]',    bg: 'bg-[var(--accent-lime)]/15' },
+  'link':              { label: 'Lien',     color: 'text-[var(--accent-coral)]',   bg: 'bg-[var(--accent-coral)]/15' },
   'creative-strategy': { label: 'Stratégie', color: 'text-[var(--accent-violet)]',  bg: 'bg-[var(--accent-violet)]/15' },
   'web-brief':         { label: 'Web Brief', color: 'text-[var(--accent-coral)]',   bg: 'bg-[var(--accent-coral)]/15' },
   'social-brief':      { label: 'Social',    color: 'text-[var(--accent-magenta)]', bg: 'bg-[var(--accent-magenta)]/15' },
@@ -120,9 +121,19 @@ interface ClientSidebarSectionProps {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+const TrashIcon = () => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    <line x1="10" y1="11" x2="10" y2="17"/>
+    <line x1="14" y1="11" x2="14" y2="17"/>
+  </svg>
+);
+
 export function ClientSidebarSection({ client, onRetroClick, retroOpen }: ClientSidebarSectionProps) {
   const { openContactModal, openDocumentModal, openReportUploadModal } = useModal();
   const openDocument = useAppStore((state) => state.openDocument);
+  const deleteDocument = useAppStore((state) => state.deleteDocument);
   const { addClientLink, deleteClientLink } = useAppStore();
 
   const clientDocuments = client.documents.filter((d) => !d.projectId);
@@ -323,20 +334,44 @@ export function ClientSidebarSection({ client, onRetroClick, retroOpen }: Client
           <div className="divide-y divide-[var(--border-subtle)]">
             {clientDocuments.map((doc) => {
               const badge = DOC_TYPE_BADGE[doc.type] ?? DOC_TYPE_BADGE['note'];
+              const handleClick = () => {
+                if (doc.type === 'link' && doc.content.trim()) {
+                  window.open(doc.content.trim(), '_blank');
+                } else {
+                  openDocument(doc);
+                }
+              };
               return (
-                <button
+                <div
                   key={doc.id}
-                  type="button"
-                  onClick={() => openDocument(doc)}
-                  className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
+                  className="group flex items-center gap-2 px-3 py-2 hover:bg-[var(--bg-secondary)] transition-colors"
                 >
-                  <span className={`flex-shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${badge.bg} ${badge.color}`}>
-                    {badge.label}
-                  </span>
-                  <span className="text-xs text-[var(--text-primary)] truncate flex-1">
-                    {doc.title}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleClick}
+                    className="flex-1 min-w-0 flex items-center gap-2 text-left cursor-pointer"
+                  >
+                    <span className={`flex-shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${badge.bg} ${badge.color}`}>
+                      {badge.label}
+                    </span>
+                    <span className="text-xs text-[var(--text-primary)] truncate flex-1">
+                      {doc.title}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Supprimer "${doc.title}" ?`)) {
+                        deleteDocument(client.id, doc.id);
+                      }
+                    }}
+                    className="flex-shrink-0 p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent-coral)] hover:bg-[var(--accent-coral)]/10 opacity-60 group-hover:opacity-100 transition-colors"
+                    title="Supprimer"
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
               );
             })}
           </div>

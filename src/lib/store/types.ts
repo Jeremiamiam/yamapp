@@ -11,7 +11,7 @@ export interface TimelineFilters {
 
 export type ModalType =
   | { type: 'contact'; mode: 'create' | 'edit'; clientId: string; contact?: Contact; presetContact?: Partial<Contact> }
-  | { type: 'document'; mode: 'create' | 'edit'; clientId: string; document?: ClientDocument }
+  | { type: 'document'; mode: 'create' | 'edit'; clientId: string; document?: ClientDocument; projectId?: string }
   | { type: 'report-upload'; clientId: string; projectId?: string }
   | { type: 'deliverable'; mode: 'create' | 'edit'; clientId?: string; deliverable?: Deliverable }
   | { type: 'call'; mode: 'create' | 'edit'; clientId?: string; call?: Call; presetCallType?: CallType }

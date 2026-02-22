@@ -60,6 +60,22 @@ const FileIcon = () => (
   </svg>
 );
 
+const PencilIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    <line x1="10" y1="11" x2="10" y2="17"/>
+    <line x1="14" y1="11" x2="14" y2="17"/>
+  </svg>
+);
+
 // ─── SectionCard ──────────────────────────────────────────────────────────────
 
 function SectionCard({
@@ -116,6 +132,7 @@ const DOC_TYPE_BADGE: Record<DocumentType, { label: string; color: string; bg: s
   'brief':             { label: 'Brief',     color: 'text-[var(--accent-cyan)]',    bg: 'bg-[var(--accent-cyan)]/15' },
   'report':            { label: 'Report',    color: 'text-[var(--accent-amber)]',   bg: 'bg-[var(--accent-amber)]/15' },
   'note':              { label: 'Note',      color: 'text-[var(--accent-lime)]',    bg: 'bg-[var(--accent-lime)]/15' },
+  'link':              { label: 'Lien',     color: 'text-[var(--accent-coral)]',   bg: 'bg-[var(--accent-coral)]/15' },
   'creative-strategy': { label: 'Stratégie', color: 'text-[var(--accent-violet)]',  bg: 'bg-[var(--accent-violet)]/15' },
   'web-brief':         { label: 'Web Brief', color: 'text-[var(--accent-coral)]',   bg: 'bg-[var(--accent-coral)]/15' },
   'social-brief':      { label: 'Social',    color: 'text-[var(--accent-magenta)]', bg: 'bg-[var(--accent-magenta)]/15' },
@@ -158,7 +175,9 @@ type ProjectTab = 'produits' | 'documents' | 'facturation';
 export function ProjectDetailView({ project, client, deliverables, onBack }: ProjectDetailViewProps) {
   const openDocument = useAppStore((state) => state.openDocument);
   const openModal = useAppStore((state) => state.openModal);
-  const { openReportUploadModal } = useModal();
+  const deleteProject = useAppStore((state) => state.deleteProject);
+  const deleteDocument = useAppStore((state) => state.deleteDocument);
+  const { openReportUploadModal, openProjectModal, openDocumentModal } = useModal();
 
   const [activeTab, setActiveTab] = useState<ProjectTab>('produits');
 
@@ -224,6 +243,36 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
             {PROJECT_BILLING_LABELS[billing.status]}
           </span>
         )}
+
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => openProjectModal(client.id, project)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
+                       bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)]
+                       hover:bg-[var(--accent-cyan)]/20 transition-colors cursor-pointer"
+            title="Modifier le projet"
+          >
+            <PencilIcon />
+            Modifier
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              if (window.confirm(`Supprimer le projet "${project.name}" ? Les produits seront détachés du projet.`)) {
+                await deleteProject(project.id);
+                onBack();
+              }
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
+                       bg-[var(--accent-coral)]/10 text-[var(--accent-coral)]
+                       hover:bg-[var(--accent-coral)]/20 transition-colors cursor-pointer"
+            title="Supprimer le projet"
+          >
+            <TrashIcon />
+            Supprimer
+          </button>
+        </div>
       </div>
 
       {/* ── Onglets ──────────────────────────────────────────────────── */}
@@ -283,12 +332,21 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
 
         {activeTab === 'documents' && (
           <div className="h-full overflow-y-auto">
-            {/* Import PLAUD */}
-            <div className="px-5 py-3 border-b border-[var(--border-subtle)]">
+            {/* Actions : Ajouter document + Import PLAUD */}
+            <div className="px-5 py-3 border-b border-[var(--border-subtle)] flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => openDocumentModal(client.id, undefined, project.id)}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 transition-colors cursor-pointer flex-1"
+                title="Créer un Brief, Note, etc."
+              >
+                <Plus />
+                Ajouter un document
+              </button>
               <button
                 type="button"
                 onClick={() => openReportUploadModal(client.id, project.id)}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/20 transition-colors cursor-pointer w-full"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/20 transition-colors cursor-pointer flex-1"
                 title="Importer un enregistrement PLAUD"
               >
                 <PlaudLogo className="w-4 h-4" />
@@ -304,23 +362,47 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
               <div className="divide-y divide-[var(--border-subtle)]">
                 {projectDocs.map((doc) => {
                   const badge = DOC_TYPE_BADGE[doc.type] ?? DOC_TYPE_BADGE['note'];
+                  const handleClick = () => {
+                    if (doc.type === 'link' && doc.content.trim()) {
+                      window.open(doc.content.trim(), '_blank');
+                    } else {
+                      openDocument(doc);
+                    }
+                  };
                   return (
-                    <button
+                    <div
                       key={doc.id}
-                      type="button"
-                      onClick={() => openDocument(doc)}
-                      className="w-full text-left px-5 py-3 flex items-center gap-3 hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
+                      className="group flex items-center gap-3 px-5 py-3 hover:bg-[var(--bg-secondary)] transition-colors"
                     >
-                      <span className={`flex-shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded ${badge.bg} ${badge.color}`}>
-                        {badge.label}
-                      </span>
-                      <span className="text-sm text-[var(--text-primary)] truncate flex-1">
-                        {doc.title}
-                      </span>
-                      <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">
-                        {new Date(doc.updatedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={handleClick}
+                        className="flex-1 min-w-0 flex items-center gap-3 text-left cursor-pointer"
+                      >
+                        <span className={`flex-shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded ${badge.bg} ${badge.color}`}>
+                          {badge.label}
+                        </span>
+                        <span className="text-sm text-[var(--text-primary)] truncate flex-1">
+                          {doc.title}
+                        </span>
+                        <span className="flex-shrink-0 text-xs text-[var(--text-muted)]">
+                          {new Date(doc.updatedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Supprimer "${doc.title}" ?`)) {
+                            deleteDocument(client.id, doc.id);
+                          }
+                        }}
+                        className="flex-shrink-0 p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--accent-coral)] hover:bg-[var(--accent-coral)]/10 transition-colors opacity-60 group-hover:opacity-100"
+                        title="Supprimer"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -445,13 +527,6 @@ function ProductsMasterDetail({
 }
 
 // ─── ProductDetailReadOnly ────────────────────────────────────────────────────
-
-const PencilIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-  </svg>
-);
 
 function ProductDetailReadOnly({ product, onEdit }: { product: Deliverable; onEdit: () => void }) {
   const team = useAppStore((state) => state.team);

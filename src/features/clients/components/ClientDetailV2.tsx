@@ -58,6 +58,15 @@ export function ClientDetailV2() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigateBack, selectedProjectId]);
 
+  // Clear selection when project was deleted (e.g. from ProjectModal)
+  useEffect(() => {
+    if (!client || !selectedProjectId || selectedProjectId === '__divers__') return;
+    const exists = projects.some(
+      (p) => p.clientId === client.id && p.id === selectedProjectId
+    );
+    if (!exists) setSelectedProjectId(null);
+  }, [selectedProjectId, projects, client]);
+
   if (!client) {
     return (
       <div className="flex-1 flex items-center justify-center">

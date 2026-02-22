@@ -20,12 +20,13 @@ export function useModal() {
         presetContact,
       }),
 
-    openDocumentModal: (clientId: string, document?: ClientDocument) =>
+    openDocumentModal: (clientId: string, document?: ClientDocument, projectId?: string) =>
       openModal({
         type: 'document',
         mode: document ? 'edit' : 'create',
         clientId,
         document,
+        projectId,
       }),
 
     openReportUploadModal: (clientId: string, projectId?: string) =>

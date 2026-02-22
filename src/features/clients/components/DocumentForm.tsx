@@ -37,6 +37,7 @@ const typeOptions = [
   { value: 'brief', label: '📋 Brief' },
   { value: 'report', label: '🎙️ Report PLAUD' },
   { value: 'note', label: '📝 Note' },
+  { value: 'link', label: '🔗 Lien' },
   { value: 'creative-strategy', label: '⬡ Synthèse Creative Board' },
   { value: 'web-brief', label: '🌐 Structure site' },
   { value: 'social-brief', label: '📱 Brief Social' },
@@ -47,6 +48,7 @@ export function DocumentForm() {
   const isOpen = activeModal?.type === 'document';
   const mode = isOpen ? activeModal.mode : 'create';
   const clientId = isOpen ? activeModal.clientId : '';
+  const projectId = isOpen ? activeModal.projectId : undefined;
   const existingDoc = isOpen && activeModal.mode === 'edit' ? activeModal.document : undefined;
 
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -100,7 +102,7 @@ export function DocumentForm() {
     if (mode === 'edit' && existingDoc) {
       updateDocument(clientId, existingDoc.id, docData);
     } else {
-      addDocument(clientId, docData);
+      addDocument(clientId, docData, projectId);
     }
     closeModal();
   };
@@ -148,7 +150,7 @@ export function DocumentForm() {
         type: 'report',
         title: docWithRaw.title,
         content: JSON.stringify(docWithRaw),
-      });
+      }, projectId);
       closeModal();
     } catch {
       setAnalyzeError('Impossible de contacter l\'API. Vérifie ta connexion.');
@@ -172,7 +174,7 @@ export function DocumentForm() {
           return;
         }
         if (type === 'report' && mode === 'create' && clientId && isReportPlaudTemplate(parsed)) {
-          addDocument(clientId, { type: 'report', title: parsed.title, content: text });
+          addDocument(clientId, { type: 'report', title: parsed.title, content: text }, projectId);
           closeModal();
           return;
         }
@@ -351,23 +353,37 @@ export function DocumentForm() {
                 placeholder={
                   type === 'brief' ? 'Ex: Brief identité visuelle 2026' :
                   type === 'report' ? 'Ex: Call kick-off 13/02' :
+                  type === 'link' ? 'Ex: Figma du projet, Proto web' :
                   type === 'social-brief' ? 'Ex: Brief social - Stratégie 2026' :
                   'Ex: Notes réunion stratégie'
                 }
                 autoFocus
               />
             </FormField>
-            <FormField label="Contenu" required error={errors.content?.message}>
-              <Textarea
-                {...register('content')}
-                placeholder={
-                  type === 'brief' ? 'Objectifs, contexte, produits attendus...' :
-                  type === 'report' ? "Transcription de l'appel, points clés discutés..." :
-                  type === 'social-brief' ? 'Généré depuis la stratégie créative...' :
-                  'Contenu de la note...'
-                }
-                rows={8}
-              />
+            <FormField
+              label={type === 'link' ? 'URL' : 'Contenu'}
+              required
+              error={errors.content?.message}
+            >
+              {type === 'link' ? (
+                <Input
+                  {...register('content')}
+                  type="url"
+                  placeholder="https://..."
+                  autoFocus={false}
+                />
+              ) : (
+                <Textarea
+                  {...register('content')}
+                  placeholder={
+                    type === 'brief' ? 'Objectifs, contexte, produits attendus...' :
+                    type === 'report' ? "Transcription de l'appel, points clés discutés..." :
+                    type === 'social-brief' ? 'Généré depuis la stratégie créative...' :
+                    'Contenu de la note...'
+                  }
+                  rows={8}
+                />
+              )}
             </FormField>
           </>
         )}

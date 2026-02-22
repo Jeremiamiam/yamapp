@@ -34,7 +34,7 @@ export interface Contact {
   phone?: string;
 }
 
-export type DocumentType = 'brief' | 'report' | 'note' | 'creative-strategy' | 'web-brief' | 'social-brief';
+export type DocumentType = 'brief' | 'report' | 'note' | 'creative-strategy' | 'web-brief' | 'social-brief' | 'link';
 
 export interface ClientDocument {
   id: string;
