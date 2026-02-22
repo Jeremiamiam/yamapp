@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Supabase & Persistence** - BDD réelle, store branché Supabase, auth, migrations ✅
 - [x] **Phase 7.1: Security (Auth + RLS)** - Login, RLS tables, middleware ✅
 - [x] **Phase 7.2: Admin & Permissions** - user_roles, Compta/Settings réservés admins, champs prix masqués members ✅
-- [ ] **Phase 10: Layout Gallery & Variants** - Galerie visuelle des layouts, variantes, édition par prompt IA, accès wiki + LayoutPicker
+- [x] **Phase 10: Layout Gallery & Variants** - Galerie visuelle des layouts, variantes, édition par prompt IA, accès wiki + LayoutPicker ✅
 
 ## Phase Details
 
@@ -269,7 +269,7 @@ Plans:
 
 Plans:
 - [x] 10-01-PLAN.md -- Gallery UI + scaled preview cards + variant creation + entry points (wiki + LayoutPicker) + wiki docs ✅
-- [ ] 10-02-PLAN.md -- AI prompt editing + manual code editing + read-layout API + edit-layout API
+- [x] 10-02-PLAN.md -- AI prompt editing + manual code editing + read-layout API + edit-layout API ✅
 
 ---
 *Roadmap created: 2026-02-13*
@@ -285,3 +285,4 @@ Plans:
 *2026-02-15: Phase 6 planned -- 2 plans (06-01: store+year+KPIs+tables, 06-02: histogram+verification)*
 *2026-02-22: Phase 8 Plan 02 complété -- LayoutNavbar submenus, children page tabs, page delete, @hello-pangea/dnd section reorder with grip handles, section add/delete*
 *2026-02-22: Phase 8 Plan 03 complété -- dynamic edit form (inferFieldType), merged AI button "IA ◆", strategy context wired to rewrite API*
+*2026-02-22: Phase 10 complète -- Plan 01 (gallery modal, scaled previews, variant creation, dual entry points) + Plan 02 (read-layout API, edit-layout API, LayoutCodeEditor Code+AI tabs, gallery "Éditer" button)*

@@ -6,14 +6,14 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 
 **Core value:** Avoir une vue d'ensemble claire de tous les clients et deadlines en un coup d'œil, sans surcharge d'information.
 
-**Current focus:** Phase 10 (Layout Gallery & Variants) — Plan 01 complété.
+**Current focus:** Phase 10 (Layout Gallery & Variants) — complète.
 
 ---
 
 ## Current Position
 
-**Phase en cours:** 10 (Layout Gallery & Variants) — Plan 01 complété
-**Current Plan:** 10-01 complete — next: 10-02 (if any)
+**Phase en cours:** 10 (Layout Gallery & Variants) — complète ✅
+**Current Plan:** 10-02 complete — phase 10 terminée
 
 **Complété:**
 - Phases 1–4 (Timeline, Clients, Deliverables/Calls, Documents) ✅
@@ -28,17 +28,19 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - **Phase 9 Plan 01:** Retroplanning types, Supabase migration, date utility, AI endpoint, Zustand CRUD ✅
 - **Phase 9 Plan 02:** CSS Grid Gantt, drag-move + resize, RetroplanningSection + ClientDetail integration, wiki updated ✅
 - **Phase 10 Plan 01:** Layout Gallery modal (LayoutCard + LayoutGalleryGrid + LayoutGallery), dual entry points (WikiView + SectionDrawer), variant creation via /api/generate-layout, wiki entry ✅
+- **Phase 10 Plan 02:** read-layout API, edit-layout API, LayoutCodeEditor (Code + AI tabs), generate-layout direct code write, gallery "Éditer" button ✅
 
-**Dernière activité:** 2026-02-22 — Phase 10 Plan 01 complété (Layout Gallery: scaled preview cards, variant creation, WikiView + SectionDrawer entry points)
+**Dernière activité:** 2026-02-22 — Phase 10 Plan 02 complété (code editor + AI editing for gallery layouts)
 
-**Progress:** [█████████░] 90%
+**Progress:** [██████████] 100%
 
 ---
 
 ## What's Next
 
-**Phase 10 – Layout Gallery & Variants:**
+**Phase 10 – Layout Gallery & Variants: COMPLÈTE**
 - [x] Plan 10-01: LayoutGallery modal, LayoutCard, LayoutGalleryGrid, dual entry points, wiki ✅
+- [x] Plan 10-02: read-layout API, edit-layout API, LayoutCodeEditor, gallery integration ✅
 
 ---
 
@@ -51,7 +53,7 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - Phase 6 : Vue Comptabilité — Plan 01 complété (year filtering, status-based KPIs), reste Plan 02 (histogram)
 - Phase 8 : Web Brief Preview & Zoning — Plans 01, 02 et 03 complétés (phase complète)
 - Phase 9 : Retroplanning IA — Plans 01 et 02 complétés (phase complète)
-- Phase 10 : Layout Gallery & Variants — Plan 01 complété
+- Phase 10 : Layout Gallery & Variants — Plans 01 et 02 complétés (phase complète)
 
 ### Roadmap Evolution
 
@@ -106,10 +108,17 @@ Les décisions sont dans PROJECT.md (Key Decisions). Contexte technique dans `pl
 - LayoutPicker gallery icon button only rendered when onOpenGallery prop provided (backward-compatible)
 - Wiki gallery button styled as full-width banner card distinct from standard FeatureCards
 
+**Phase 10 Plan 02 decisions:**
+- edit-layout returns code only (no disk write) — save is a separate user action, enables review before commit
+- direct code write in generate-layout placed BEFORE idempotence check so it always writes when code field provided
+- STANDARD_ROLES hardcoded in LayoutCodeEditor — avoids importing section-registry in client component
+- AI tab auto-switches to Code tab after successful AI edit so user sees result immediately
+- onEditLayout prop on LayoutCard is optional — backward-compatible with all existing usages
+
 ### Blockers
 
 Aucun.
 
 ---
 *State initial: 2026-02-13*
-*Updated: 2026-02-22 — Phase 10 Plan 01 complété (Layout Gallery: scaled preview cards, variant creation, WikiView + SectionDrawer entry points)*
+*Updated: 2026-02-22 — Phase 10 Plan 02 complété (read-layout API, edit-layout API, LayoutCodeEditor, gallery "Éditer" button)*
