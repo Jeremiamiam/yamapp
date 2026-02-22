@@ -10,9 +10,10 @@ export interface LayoutCardProps {
   isSelected: boolean;
   onClick: () => void;
   onCreateVariant?: () => void;
+  onEditLayout?: () => void;
 }
 
-export function LayoutCard({ role, label, group, isSelected, onClick, onCreateVariant }: LayoutCardProps) {
+export function LayoutCard({ role, label, group, isSelected, onClick, onCreateVariant, onEditLayout }: LayoutCardProps) {
   const { layout: LayoutComponent } = getLayoutForRoleWithFallback(role);
 
   return (
@@ -77,15 +78,30 @@ export function LayoutCard({ role, label, group, isSelected, onClick, onCreateVa
             {group === 'custom' ? 'custom' : 'standard'}
           </span>
         </div>
-        {onCreateVariant && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onCreateVariant(); }}
-            className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/10 transition-colors whitespace-nowrap"
-          >
-            + variante
-          </button>
-        )}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {onEditLayout && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEditLayout(); }}
+              title="Éditer le code"
+              className="text-[10px] px-1.5 py-0.5 rounded text-[var(--text-muted)] hover:text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/10 transition-colors whitespace-nowrap"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+          )}
+          {onCreateVariant && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onCreateVariant(); }}
+              className="text-[10px] px-1.5 py-0.5 rounded text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/10 transition-colors whitespace-nowrap"
+            >
+              + variante
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

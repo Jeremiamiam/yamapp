@@ -7,9 +7,10 @@ export interface LayoutGalleryGridProps {
   onSelectLayout: (role: string) => void;
   selectedRole: string | null;
   onCreateVariant: (baseRole: string) => void;
+  onEditLayout?: (role: string) => void;
 }
 
-export function LayoutGalleryGrid({ onSelectLayout, selectedRole, onCreateVariant }: LayoutGalleryGridProps) {
+export function LayoutGalleryGrid({ onSelectLayout, selectedRole, onCreateVariant, onEditLayout }: LayoutGalleryGridProps) {
   const layouts = getAvailableLayouts();
   const standardLayouts = layouts.filter((l) => l.group === 'standard');
   const customLayouts = layouts.filter((l) => l.group === 'custom');
@@ -34,6 +35,7 @@ export function LayoutGalleryGrid({ onSelectLayout, selectedRole, onCreateVarian
               isSelected={selectedRole === layout.role}
               onClick={() => onSelectLayout(layout.role)}
               onCreateVariant={() => onCreateVariant(layout.role)}
+              onEditLayout={onEditLayout ? () => onEditLayout(layout.role) : undefined}
             />
           ))}
         </div>
@@ -58,6 +60,7 @@ export function LayoutGalleryGrid({ onSelectLayout, selectedRole, onCreateVarian
                 isSelected={selectedRole === layout.role}
                 onClick={() => onSelectLayout(layout.role)}
                 onCreateVariant={() => onCreateVariant(layout.role)}
+                onEditLayout={onEditLayout ? () => onEditLayout(layout.role) : undefined}
               />
             ))}
           </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { LayoutGalleryGrid } from './LayoutGalleryGrid';
+import { LayoutCodeEditor } from './LayoutCodeEditor';
 
 export interface LayoutGalleryProps {
   isOpen: boolean;
@@ -19,6 +20,9 @@ export function LayoutGallery({ isOpen, onClose, initialRole, onSelectRole }: La
   const [variantBaseRole, setVariantBaseRole] = useState<string | null>(null);
   const [variantSuffix, setVariantSuffix] = useState('');
   const [isCreatingVariant, setIsCreatingVariant] = useState(false);
+
+  // Code editor state
+  const [editingRole, setEditingRole] = useState<string | null>(null);
 
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -139,9 +143,23 @@ export function LayoutGallery({ isOpen, onClose, initialRole, onSelectRole }: La
             onSelectLayout={setSelectedRole}
             selectedRole={selectedRole}
             onCreateVariant={handleCreateVariantClick}
+            onEditLayout={(role) => setEditingRole(role)}
           />
         </div>
       </div>
+
+      {/* Code editor panel */}
+      {editingRole && (
+        <LayoutCodeEditor
+          role={editingRole}
+          onClose={() => setEditingRole(null)}
+          onSaved={() => {
+            setEditingRole(null);
+            showToast('Layout sauvegardé avec succès');
+            router.refresh();
+          }}
+        />
+      )}
 
       {/* Variant creation inline prompt (modal-within-modal) */}
       {variantBaseRole && (
