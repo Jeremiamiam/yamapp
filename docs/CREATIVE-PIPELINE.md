@@ -347,6 +347,17 @@ Sur chaque section homepage, un bouton « Réécrire » ouvre un modal avec prom
 
 > **Note** : Cette route est appelée par le front ([DocumentModal.tsx:726](../src/features/clients/components/DocumentModal.tsx)) mais n'existe pas dans `src/app/api/`. À implémenter ou vérifier (ex. Netlify functions).
 
+### 5.6 Ajouter une page non prévue
+
+Une page non prévue par l'architecte web peut être ajoutée manuellement :
+
+- **Bouton** : « + Page » dans l'en-tête du document web-brief
+- **Modal** : label, slug, brief agent (textarea pour briefer l'agent de zoning)
+- **Stockage** : `architecture.navigation.added_pages` (AddedPage[])
+- **Flux** : ajout dans added_pages → sauvegarde → appel page-zoning avec agent_brief + contexte stratégique (report, plateforme, copy) + homepage + pages existantes
+
+L'API page-zoning reçoit désormais : `agentBrief`, `homepage`, `existingPages` pour cohérence tonale et structurelle. Le contexte stratégique est extrait des documents du client (report, creative-strategy, brief) via `extractStrategyContext()`.
+
 ---
 
 ## 6. Annexes

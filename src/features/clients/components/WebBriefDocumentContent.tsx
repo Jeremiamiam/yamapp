@@ -4,9 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { toast } from '@/lib/toast';
 import { downloadDocumentAsMarkdown } from '@/lib/document-to-markdown';
+import { extractStrategyContext } from '@/lib/extract-strategy-context';
 import { WebBriefView } from './WebBriefView';
+import { AddPageModal } from './AddPageModal';
 import type { ClientDocument } from '@/types';
-import type { WebBriefData, PageOutput } from '@/types/web-brief';
+import type { WebBriefData, PageOutput, AddedPage } from '@/types/web-brief';
 
 const X = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -40,8 +42,17 @@ export function WebBriefDocumentContent({
   onEditDocument?: () => void;
 }) {
   const updateDocument = useAppStore((s) => s.updateDocument);
+  const getClientById = useAppStore((s) => s.getClientById);
 
   const [webBriefEditMode, setWebBriefEditMode] = useState(false);
+  const [showAddPageModal, setShowAddPageModal] = useState(false);
+
+  const getStrategyContext = useCallback(() => {
+    if (!clientId) return { reportContent: '', brandPlatform: undefined, copywriterText: '' };
+    const client = getClientById(clientId);
+    if (!client?.documents?.length) return { reportContent: '', brandPlatform: undefined, copywriterText: '' };
+    return extractStrategyContext(client.documents);
+  }, [clientId, getClientById]);
 
   useEffect(() => {
     setWebBriefEditMode(false);
@@ -111,19 +122,23 @@ export function WebBriefDocumentContent({
   );
 
   const handleGeneratePageZoning = useCallback(
-    async (pageSlug: string) => {
+    async (pageSlug: string, agentBrief?: string) => {
       if (!clientId) return;
       try {
         const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const ctx = getStrategyContext();
         const res = await fetch('/api/page-zoning', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             siteArchitecture: data.architecture,
             pageSlug,
-            reportContent: '',
-            brandPlatform: undefined,
-            copywriterText: '',
+            reportContent: ctx.reportContent,
+            brandPlatform: ctx.brandPlatform,
+            copywriterText: ctx.copywriterText,
+            agentBrief: agentBrief ?? undefined,
+            homepage: data.homepage,
+            existingPages: data.pages ? Object.values(data.pages) : undefined,
           }),
         });
         const json = (await res.json()) as {
@@ -153,7 +168,71 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de la génération.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument, getStrategyContext]
+  );
+
+  const handleAddPage = useCallback(
+    async (payload: AddedPage) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const nav = data.architecture.navigation ?? {};
+        const added = nav.added_pages ?? [];
+        const updatedData: WebBriefData = {
+          ...data,
+          architecture: {
+            ...data.architecture,
+            navigation: {
+              ...nav,
+              added_pages: [...added, payload],
+            },
+          },
+        };
+        await updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+
+        const ctx = getStrategyContext();
+        const res = await fetch('/api/page-zoning', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            siteArchitecture: { ...data.architecture, navigation: { ...nav, added_pages: [...added, payload] } },
+            pageSlug: payload.slug,
+            reportContent: ctx.reportContent,
+            brandPlatform: ctx.brandPlatform,
+            copywriterText: ctx.copywriterText,
+            agentBrief: payload.agent_brief || undefined,
+            homepage: data.homepage,
+            existingPages: data.pages ? Object.values(data.pages) : undefined,
+          }),
+        });
+        const json = (await res.json()) as {
+          page?: string;
+          slug?: string;
+          target_visitor?: string;
+          sections?: unknown[];
+          error?: string;
+        };
+        if (!res.ok || json.error) {
+          toast.error(json.error ?? 'Erreur lors de la génération.');
+          return;
+        }
+        const pageOutput: PageOutput = {
+          page: json.page ?? payload.page,
+          slug: json.slug ?? payload.slug,
+          target_visitor: json.target_visitor,
+          sections: (json.sections ?? []) as PageOutput['sections'],
+        };
+        const finalData: WebBriefData = {
+          ...updatedData,
+          pages: { ...(updatedData.pages ?? {}), [payload.slug]: pageOutput },
+        };
+        await updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(finalData) });
+        toast.success(`Page "${payload.page}" ajoutée et zoning généré`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'ajout.');
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument, getStrategyContext]
   );
 
   const handlePageSectionRewrite = useCallback(
@@ -276,6 +355,16 @@ export function WebBriefDocumentContent({
           )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          {clientId && (
+            <button
+              type="button"
+              onClick={() => setShowAddPageModal(true)}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--accent-cyan)]/40 bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 transition-colors"
+              title="Ajouter une page non prévue"
+            >
+              + Page
+            </button>
+          )}
           <button
             type="button"
             onClick={() => downloadDocumentAsMarkdown(selectedDocument)}
@@ -329,6 +418,18 @@ export function WebBriefDocumentContent({
           <p className="text-[var(--text-secondary)] text-sm p-4">Contenu invalide.</p>
         )}
       </div>
+
+      {showAddPageModal && webBriefData && (
+        <AddPageModal
+          existingSlugs={[
+            ...(webBriefData.architecture.navigation?.primary ?? []).map((i) => i.slug),
+            ...(webBriefData.architecture.navigation?.footer_only ?? []).map((i) => i.slug),
+            ...(webBriefData.architecture.navigation?.added_pages ?? []).map((i) => i.slug),
+          ]}
+          onConfirm={handleAddPage}
+          onClose={() => setShowAddPageModal(false)}
+        />
+      )}
     </>
   );
 }

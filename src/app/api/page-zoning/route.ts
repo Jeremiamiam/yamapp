@@ -83,6 +83,9 @@ export async function POST(req: Request) {
     reportContent?: string;
     brandPlatform?: unknown;
     copywriterText?: string;
+    agentBrief?: string;
+    homepage?: unknown;
+    existingPages?: unknown[];
   };
 
   const {
@@ -91,6 +94,9 @@ export async function POST(req: Request) {
     reportContent = '',
     brandPlatform,
     copywriterText = '',
+    agentBrief = '',
+    homepage,
+    existingPages,
   } = body;
 
   if (!siteArchitecture || !pageSlug) {
@@ -106,19 +112,40 @@ export async function POST(req: Request) {
   const archStr =
     typeof siteArchitecture === 'string' ? siteArchitecture : JSON.stringify(siteArchitecture);
   const reportTrimmed = typeof reportContent === 'string' ? reportContent.slice(0, 4000) : '';
+  const copyTrimmed = typeof copywriterText === 'string' ? copywriterText.slice(0, 2000) : '';
+  const agentBriefTrimmed = typeof agentBrief === 'string' ? agentBrief.slice(0, 1500) : '';
+
+  const homepageStr = homepage
+    ? typeof homepage === 'string'
+      ? homepage
+      : JSON.stringify(homepage)
+    : '';
+  const existingStr =
+    Array.isArray(existingPages) && existingPages.length > 0
+      ? existingPages
+          .slice(0, 3)
+          .map((p) => (typeof p === 'string' ? p : JSON.stringify(p)))
+          .join('\n---\n')
+      : '';
 
   const userContent = `Plateforme de marque :
 ${platformStr}
 
 Territoire & Copy :
-${copywriterText}
+${copyTrimmed}
 
 Arborescence du site :
 ${archStr}
 
-${reportTrimmed ? `Rapport complet :\n${reportTrimmed}` : ''}
+${reportTrimmed ? `Rapport / brief stratégique :\n${reportTrimmed}` : ''}
 
-Génère le zoning de la page avec slug "${pageSlug}". Utilise UNIQUEMENT les slugs du menu pour les URLs. Chaque section : paragraphe "text" obligatoire (ou items pour faq).`;
+${homepageStr ? `Homepage existante (cohérence tonale/structurelle) :\n${homepageStr.slice(0, 3000)}` : ''}
+
+${existingStr ? `Pages déjà zonées (référence) :\n${existingStr.slice(0, 2000)}` : ''}
+
+${agentBriefTrimmed ? `Instructions spécifiques pour cette page :\n${agentBriefTrimmed}` : ''}
+
+Génère le zoning de la page avec slug "${pageSlug}". Utilise UNIQUEMENT les slugs du menu pour les URLs. Chaque section : paragraphe "text" obligatoire (ou items pour faq). Respecte le ton et la structure de l'existant si fourni.`;
 
   try {
     const message = await client.messages.create({

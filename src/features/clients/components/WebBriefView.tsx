@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react';
 import type { WebBriefData } from '@/types/web-brief';
 import type { HomepageSection } from '@/types/web-brief';
 import type { ZonedSection } from '@/types/section-zoning';
 import { getLayoutForRole } from '@/lib/section-registry';
 import { LayoutNavbar } from '@/components/layouts/LayoutNavbar';
 import { LayoutFooter } from '@/components/layouts/LayoutFooter';
-
 /**
  * Vue layout de la structure du site (menu + homepage + pages).
  * Neutre (gris, typo système) — pas de branding.
@@ -31,7 +30,7 @@ export function WebBriefView({
   data: WebBriefData;
   onSectionRewrite?: (sectionIndex: number, customPrompt: string) => Promise<void>;
   onSectionYam?: (sectionIndex: number) => Promise<void>;
-  onGeneratePageZoning?: (slug: string) => Promise<void>;
+  onGeneratePageZoning?: (slug: string, agentBrief?: string) => Promise<void>;
   onPageSectionRewrite?: (pageSlug: string, sectionIndex: number, customPrompt: string) => Promise<void>;
   onPageSectionYam?: (pageSlug: string, sectionIndex: number) => Promise<void>;
   onSectionContentChange?: (sectionIndex: number, patch: Record<string, unknown>) => void;
@@ -62,6 +61,7 @@ export function WebBriefView({
 
   const primaryNav = architecture.navigation?.primary ?? [];
   const footerNav = architecture.navigation?.footer_only ?? [];
+  const addedPages = architecture.navigation?.added_pages ?? [];
   const pageTabs: PageTab[] = primaryNav.length > 0
     ? [
         ...primaryNav.map((item, i) => ({
@@ -74,8 +74,20 @@ export function WebBriefView({
           slug: item.slug,
           isHomepage: false,
         })),
+        ...addedPages.map((item) => ({
+          label: item.page,
+          slug: item.slug,
+          isHomepage: false,
+        })),
       ]
-    : [{ label: 'Homepage', slug: 'home', isHomepage: true }];
+    : [
+        { label: 'Homepage', slug: 'home', isHomepage: true },
+        ...addedPages.map((item) => ({
+          label: item.page,
+          slug: item.slug,
+          isHomepage: false,
+        })),
+      ];
 
   const handleRewriteClick = useCallback(
     (index: number, pageSlug?: string) => {
@@ -157,12 +169,13 @@ export function WebBriefView({
       if (!onGeneratePageZoning) return;
       setGeneratingSlug(slug);
       try {
-        await onGeneratePageZoning(slug);
+        const added = addedPages.find((a) => a.slug === slug);
+        await onGeneratePageZoning(slug, added?.agent_brief);
       } finally {
         setGeneratingSlug(null);
       }
     },
-    [onGeneratePageZoning]
+    [onGeneratePageZoning, addedPages]
   );
 
   const sections = [...(homepage.sections ?? [])].sort((a, b) => a.order - b.order);
@@ -209,7 +222,13 @@ export function WebBriefView({
       {/* ── Vue unique : navbar + contenu + footer (navigation par le menu du site) ─ */}
       <div className={`flex flex-col overflow-hidden bg-[var(--bg-primary)] ${immersiveMode ? 'flex-1 min-h-0 rounded-none border-0' : 'rounded-xl border border-[var(--border-subtle)] min-h-[60vh] sm:min-h-[80vh]'}`}>
         <LayoutNavbar
-          navItems={primaryNav.map((item) => ({ page: item.page, slug: item.slug }))}
+          navItems={[
+            ...(primaryNav.length > 0
+              ? primaryNav.map((item) => ({ page: item.page, slug: item.slug }))
+              : [{ page: 'Homepage', slug: 'home' }]),
+            ...footerNav.map((item) => ({ page: item.page, slug: item.slug })),
+            ...addedPages.map((item) => ({ page: item.page, slug: item.slug })),
+          ]}
           onNavClick={setActiveTab}
           generatedSlugs={Object.keys(pages ?? {})}
         />
@@ -290,10 +309,12 @@ export function WebBriefView({
             navItems={[
               ...primaryNav.map((i) => ({ page: i.page, slug: i.slug })),
               ...footerNav.map((i) => ({ page: i.page, slug: i.slug })),
+              ...addedPages.map((i) => ({ page: i.page, slug: i.slug })),
             ]}
             tabKeys={[
               ...primaryNav.map((_, i) => (i === 0 ? '__homepage__' : primaryNav[i].slug)),
               ...footerNav.map((i) => i.slug),
+              ...addedPages.map((i) => i.slug),
             ]}
             onNavClick={setActiveTab}
             compact={immersiveMode}

@@ -13,6 +13,13 @@ export interface WebArchitectNavItem {
   children?: { page: string; slug: string; justification: string }[];
 }
 
+/** Page ajoutée manuellement (hors architecture initiale). */
+export interface AddedPage {
+  page: string;
+  slug: string;
+  agent_brief: string;
+}
+
 export interface WebArchitectOutput {
   site_type: string;
   primary_objective: string;
@@ -20,6 +27,8 @@ export interface WebArchitectOutput {
   navigation: {
     primary: WebArchitectNavItem[];
     footer_only?: { page: string; slug: string; justification: string }[];
+    /** Pages ajoutées à la main (hors archi initiale). */
+    added_pages?: AddedPage[];
   };
   user_flows?: { persona: string; entry_point: string; flow: string[]; conversion_goal: string }[];
   content_dependencies?: string[];
