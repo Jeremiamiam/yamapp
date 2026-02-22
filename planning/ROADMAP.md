@@ -235,6 +235,18 @@ Plans:
 
 **Plan détaillé**: `planning/PHASE-7.2-ADMIN-PLAN.md` (créé 2026-02-14)
 
+### Phase 8: Web Brief Preview & Zoning
+
+**Goal:** Preview visuelle des pages web-brief avec zoning/layout, gestion du menu et navigation (sous-menus, suppression), banque de layouts avec fallback visible, et édition robuste des sections
+**Depends on:** Phase 4
+**Requirements:** WBPZ-01, WBPZ-02, WBPZ-03, WBPZ-04, WBPZ-05, WBPZ-06, WBPZ-07, WBPZ-08, WBPZ-09, WBPZ-10
+**Plans:** 3 plans
+
+Plans:
+- [x] 08-01-PLAN.md -- UUID migration + layout fallback system (foundation) ✅
+- [ ] 08-02-PLAN.md -- Navigation submenus + page delete + section DnD + section add/delete
+- [ ] 08-03-PLAN.md -- Dynamic edit form + merged AI button + strategy context re-read
+
 ---
 *Roadmap created: 2026-02-13*
 *Phases 1-4 completed: 2026-02-13*
