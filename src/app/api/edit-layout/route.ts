@@ -22,6 +22,15 @@ Tu génères un composant React pour un rôle de section donné. Le composant do
 7. Le composant doit avoir un contenu par défaut réaliste si \`content\` est vide
 8. Structure HTML : \`<section className="px-6 py-20"><div className="mx-auto max-w-6xl">...</div></section>\`
 
+## INTERDICTIONS STRICTES — Layout sobre et neutre
+
+- **JAMAIS d'images** : pas de \`<img>\`, pas de \`<Image>\`, pas de placeholder photo, pas de background-image, pas d'URL d'image
+- **JAMAIS de gradients** : pas de \`bg-gradient-*\`, pas de \`linear-gradient\`, pas de \`radial-gradient\`
+- **JAMAIS d'emojis ni d'icônes** : pas d'emoji Unicode, pas de SVG inline, pas d'import d'icônes
+- **JAMAIS de couleurs hors design system** : pas de \`bg-blue-500\`, \`text-red-600\`, \`#ff0000\`, \`rgb()\`, etc. Uniquement les CSS variables listées ci-dessus
+- **JAMAIS de box-shadow custom** : pas de \`shadow-lg\`, \`shadow-2xl\`. Maximum \`shadow-sm\` sur les cards
+- **Le layout doit être sobre, structurel, typographique** : texte + espacement + bordures subtiles. C'est un wireframe haute-fidélité, pas une maquette colorée
+
 ## Modification de composant existant
 
 Tu modifies un composant existant. Préserve le nom de l'export et l'interface. Ne change que ce qui est demandé par l'instruction.
