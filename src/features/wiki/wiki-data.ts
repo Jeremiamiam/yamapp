@@ -138,6 +138,20 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
     ],
   },
   {
+    id: 'retroplanning',
+    title: 'Retroplanning IA',
+    color: 'var(--accent-amber)',
+    icon: 'calendar-range',
+    description: 'Génère un retroplanning Gantt à partir d\u2019un brief et d\u2019une deadline. L\u2019IA lit le brief, déduit les étapes adaptées au type de projet et calcule les dates en remontant depuis la deadline.',
+    actions: [
+      'Générer un retroplanning depuis un brief client',
+      'Visualiser sous forme de diagramme Gantt interactif',
+      'Modifier les tâches (label, durée, couleur)',
+      'Sauvegarder en base (upsert par client)',
+      'Supprimer le retroplanning d\u2019un client',
+    ],
+  },
+  {
     id: 'raccourcis',
     title: 'Raccourcis & Navigation',
     color: 'var(--text-muted)',
@@ -209,6 +223,7 @@ export const PIPELINE_STEPS: PipelineStep[] = [
   { emoji: '\ud83d\uddfa\ufe0f', label: 'Architecture', sub: 'Arborescence site', color: 'var(--accent-magenta)' },
   { emoji: '\ud83d\udccf', label: 'Zoning', sub: 'Sections par page', color: 'var(--accent-magenta)' },
   { emoji: '\ud83d\udce3', label: 'SMM', sub: 'Réseaux sociaux', color: 'var(--accent-violet)' },
+  { emoji: '\ud83d\udcc5', label: 'Retroplanning', sub: 'Gantt depuis brief', color: 'var(--accent-amber)' },
 ];
 
 // ── Section roles (pour page zoning) ───────────────────

@@ -9,6 +9,7 @@ import { createBillingActions } from './actions/billing';
 import { createCallsActions } from './actions/calls';
 import { createTodosActions } from './actions/todos';
 import { createProjectActions } from './actions/projects';
+import { createRetroplanningActions } from './actions/retroplanning';
 
 export const useAppStore = create<AppState>()((set, get, api) => ({
   ...createAuthSlice(set, get, api),
@@ -20,6 +21,7 @@ export const useAppStore = create<AppState>()((set, get, api) => ({
   ...createCallsActions(set, get, api),
   ...createTodosActions(set, get, api),
   ...createProjectActions(set, get),
+  ...createRetroplanningActions(set, get),
 }));
 
 export type { AppState, AppRole, ViewType, ModalType, TimelineFilters } from './types';

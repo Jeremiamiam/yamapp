@@ -1,4 +1,4 @@
-import type { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, TeamMember, Contact, ClientDocument, DayTodo, BillingHistory, BillingStatus, Project } from '@/types';
+import type { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, TeamMember, Contact, ClientDocument, DayTodo, BillingHistory, BillingStatus, Project, RetroplanningPlan } from '@/types';
 
 export type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta' | 'admin' | 'production' | 'creative-board' | 'wiki';
 export type ClientStatusFilter = 'all' | 'prospect' | 'client';
@@ -134,4 +134,11 @@ export interface AppState {
   updateTeamMember: (id: string, data: Partial<Pick<TeamMember, 'name' | 'initials' | 'color'>>) => Promise<void>;
   getFilteredDeliverables: () => Deliverable[];
   getFilteredCalls: () => Call[];
+
+  // Retroplanning
+  retroplanning: Map<string, RetroplanningPlan>;
+  loadRetroplanning: (clientId: string) => Promise<void>;
+  saveRetroplanning: (clientId: string, plan: RetroplanningPlan) => Promise<void>;
+  deleteRetroplanning: (clientId: string) => Promise<void>;
+  getRetroplanningByClientId: (clientId: string) => RetroplanningPlan | undefined;
 }
