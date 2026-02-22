@@ -13,7 +13,7 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 ## Current Position
 
 **Phase en cours:** 8 (Web Brief Preview & Zoning) — COMPLÉTÉE
-**Current Plan:** 08-03 of 3 (dernier plan)
+**Current Plan:** Not started
 
 **Complété:**
 - Phases 1–4 (Timeline, Clients, Deliverables/Calls, Documents) ✅

@@ -93,6 +93,19 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **MOBILE-03**: Touch targets are appropriately sized for mobile interaction
 - [ ] **MOBILE-04**: Forms and client cards are mobile-friendly
 
+### Web Brief Preview & Zoning
+
+- [ ] **WBPZ-01**: Sections have stable UUID identity (not array-index based)
+- [ ] **WBPZ-02**: Unknown layout roles show a visible fallback placeholder with option to generate
+- [ ] **WBPZ-03**: Intelligent layout matching maps similar roles to existing layouts before showing fallback
+- [ ] **WBPZ-04**: Navigation renders hierarchical submenus when children are present
+- [ ] **WBPZ-05**: User can delete a page (removes page + sections + nav entry)
+- [ ] **WBPZ-06**: User can reorder sections within a page via drag & drop
+- [ ] **WBPZ-07**: User can add and delete individual sections within a page
+- [ ] **WBPZ-08**: Section edit form dynamically adapts to all content keys (not hardcoded fields)
+- [ ] **WBPZ-09**: Single AI button for re-prompting (replaces separate Yam + Réécrire buttons)
+- [ ] **WBPZ-10**: AI rewrite agent re-reads full strategy context (brand platform, copywriter text, report) before rewriting
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
