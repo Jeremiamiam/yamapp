@@ -40,6 +40,8 @@ export interface WebArchitectOutput {
  * role: string pour rétrocompat avec sorties agents.
  */
 export interface HomepageSection {
+  /** UUID stable — optionnel pour rétrocompat avec les sorties agents legacy. */
+  id?: string;
   order: number;
   role: string;
   intent: string;

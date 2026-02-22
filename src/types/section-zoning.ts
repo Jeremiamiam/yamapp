@@ -27,6 +27,8 @@ export type SectionLayoutVariant = 'default' | 'split' | 'centered';
  * Ce que tout agent de zoning produit pour une section.
  */
 export interface ZonedSection {
+  /** UUID stable — optionnel pour rétrocompat avec les sorties agents legacy. */
+  id?: string;
   order: number;
   role: SectionRole;
   intent?: string;
