@@ -8,3 +8,7 @@ export { CallForm } from './CallForm';
 export { ClientForm } from './ClientForm';
 export { ReportUploadModal } from './ReportUploadModal';
 export { ReportView } from './ReportView';
+export { ProjectDrawer } from './ProjectDrawer';
+export { ProjectDrawerProductsTab } from './ProjectDrawerProductsTab';
+export { ProjectDrawerDocsTab } from './ProjectDrawerDocsTab';
+export { ProjectDrawerBillingTab } from './ProjectDrawerBillingTab';
