@@ -15,481 +15,27 @@ import { LayoutFooter } from '@/components/layouts/LayoutFooter';
  */
 type PageTab = { label: string; slug: string; isHomepage: boolean };
 
-export function WebBriefView({
-  data,
-  onSectionRewrite,
-  onSectionYam,
-  onGeneratePageZoning,
-  onPageSectionRewrite,
-  onPageSectionYam,
-  onSectionContentChange,
-  onPageSectionContentChange,
-  editMode: controlledEditMode,
-  onEditModeChange,
-  immersiveMode = false,
-}: {
-  data: WebBriefData;
-  onSectionRewrite?: (sectionId: string, customPrompt: string) => Promise<void>;
-  onSectionYam?: (sectionId: string) => Promise<void>;
-  onGeneratePageZoning?: (slug: string, agentBrief?: string) => Promise<void>;
-  onPageSectionRewrite?: (pageSlug: string, sectionId: string, customPrompt: string) => Promise<void>;
-  onPageSectionYam?: (pageSlug: string, sectionId: string) => Promise<void>;
-  onSectionContentChange?: (sectionId: string, patch: Record<string, unknown>) => void;
-  onPageSectionContentChange?: (pageSlug: string, sectionId: string, patch: Record<string, unknown>) => void;
-  /** En mode immersif, le parent contrôle l'édition via ces props */
-  editMode?: boolean;
-  onEditModeChange?: (v: boolean) => void;
-  immersiveMode?: boolean;
-}) {
-  const { architecture, homepage, pages } = data;
-  const [activeTab, setActiveTab] = useState<string>('__homepage__');
-  const [rewritingId, setRewritingId] = useState<string | null>(null);
-  const [rewritingPageSlug, setRewritingPageSlug] = useState<string | null>(null);
-  const [promptForSectionId, setPromptForSectionId] = useState<string | null>(null);
-  const [promptForPageSlug, setPromptForPageSlug] = useState<string | null>(null);
-  const [promptValue, setPromptValue] = useState('');
-  const [generatingSlug, setGeneratingSlug] = useState<string | null>(null);
-  const [internalEditMode, setInternalEditMode] = useState(false);
-  const [generatePrompt, setGeneratePrompt] = useState('');
-  const scrollRef = useRef<HTMLDivElement>(null);
+// ── Field type inference ─────────────────────────────────────────────────────
 
-  const editMode = controlledEditMode ?? internalEditMode;
-  const setEditMode = onEditModeChange ?? setInternalEditMode;
+type FieldType = 'string' | 'text' | 'array-strings' | 'array-objects' | 'object' | 'unknown';
 
-  // Remonter en haut à chaque changement de page
-  useLayoutEffect(() => {
-    scrollRef.current?.scrollTo(0, 0);
-  }, [activeTab]);
-
-  const primaryNav = architecture.navigation?.primary ?? [];
-  const footerNav = architecture.navigation?.footer_only ?? [];
-  const addedPages = architecture.navigation?.added_pages ?? [];
-  // Onglets = menu principal + added_pages uniquement (pas les pages footer type mentions légales)
-  const pageTabs: PageTab[] = primaryNav.length > 0
-    ? [
-        ...primaryNav.map((item, i) => ({
-          label: item.page,
-          slug: item.slug,
-          isHomepage: i === 0,
-        })),
-        ...addedPages.map((item) => ({
-          label: item.page,
-          slug: item.slug,
-          isHomepage: false,
-        })),
-      ]
-    : [
-        { label: 'Homepage', slug: 'home', isHomepage: true },
-        ...addedPages.map((item) => ({
-          label: item.page,
-          slug: item.slug,
-          isHomepage: false,
-        })),
-      ];
-
-  const handleRewriteClick = useCallback(
-    (sectionId: string, pageSlug?: string) => {
-      if (promptForPageSlug === (pageSlug ?? '__homepage__') && promptForSectionId === sectionId) {
-        setPromptForSectionId(null);
-        setPromptForPageSlug(null);
-        setPromptValue('');
-      } else {
-        setPromptForSectionId(sectionId);
-        setPromptForPageSlug(pageSlug ?? null);
-        setPromptValue('');
-      }
-    },
-    [promptForSectionId, promptForPageSlug]
-  );
-
-  const handleRewriteSubmit = useCallback(
-    async (sectionId: string, pageSlug?: string) => {
-      const isHome = !pageSlug || pageSlug === '__homepage__';
-      if (isHome) {
-        if (!onSectionRewrite || !promptValue.trim()) return;
-        setRewritingPageSlug(null);
-        setRewritingId(sectionId);
-        try {
-          await onSectionRewrite(sectionId, promptValue.trim());
-          setPromptForSectionId(null);
-          setPromptForPageSlug(null);
-          setPromptValue('');
-        } finally {
-          setRewritingId(null);
-        }
-      } else {
-        if (!onPageSectionRewrite || !promptValue.trim()) return;
-        setRewritingPageSlug(pageSlug);
-        setRewritingId(sectionId);
-        try {
-          await onPageSectionRewrite(pageSlug, sectionId, promptValue.trim());
-          setPromptForSectionId(null);
-          setPromptForPageSlug(null);
-          setPromptValue('');
-        } finally {
-          setRewritingId(null);
-          setRewritingPageSlug(null);
-        }
-      }
-    },
-    [onSectionRewrite, onPageSectionRewrite, promptValue]
-  );
-
-  const handleYamClick = useCallback(
-    async (sectionId: string, pageSlug?: string) => {
-      const isHome = !pageSlug || pageSlug === '__homepage__';
-      if (isHome) {
-        if (!onSectionYam) return;
-        setRewritingId(sectionId);
-        setRewritingPageSlug(null);
-        try {
-          await onSectionYam(sectionId);
-        } finally {
-          setRewritingId(null);
-        }
-      } else {
-        if (!onPageSectionYam) return;
-        setRewritingPageSlug(pageSlug!);
-        setRewritingId(sectionId);
-        try {
-          await onPageSectionYam(pageSlug!, sectionId);
-        } finally {
-          setRewritingId(null);
-          setRewritingPageSlug(null);
-        }
-      }
-    },
-    [onSectionYam, onPageSectionYam]
-  );
-
-  const handleGeneratePage = useCallback(
-    async (slug: string, customPrompt?: string) => {
-      if (!onGeneratePageZoning) return;
-      setGeneratingSlug(slug);
-      try {
-        const added = addedPages.find((a) => a.slug === slug);
-        // Priorité : prompt saisi > agent_brief de la page ajoutée
-        const agentBrief = customPrompt?.trim() || added?.agent_brief || undefined;
-        await onGeneratePageZoning(slug, agentBrief);
-      } finally {
-        setGeneratingSlug(null);
-      }
-    },
-    [onGeneratePageZoning, addedPages]
-  );
-
-  const sections = [...(homepage.sections ?? [])].sort((a, b) => a.order - b.order);
-
-  const currentTab = pageTabs.find((t) => (t.isHomepage ? '__homepage__' : t.slug) === activeTab) ?? pageTabs[0];
-  const isHomepage = currentTab.isHomepage;
-  const pageSlug = currentTab.isHomepage ? undefined : currentTab.slug;
-  const pageData = pageSlug ? pages?.[pageSlug] : null;
-  const currentSections: (HomepageSection | ZonedSection)[] = isHomepage
-    ? sections
-    : [...(pageData?.sections ?? [])].sort((a, b) => a.order - b.order);
-  const isRewriting = (sectionId: string) =>
-    rewritingId === sectionId &&
-    (isHomepage ? !rewritingPageSlug : rewritingPageSlug === pageSlug);
-  const isPromptExpanded = (sectionId: string) =>
-    promptForSectionId === sectionId && (promptForPageSlug ?? '__homepage__') === (pageSlug ?? '__homepage__');
-
-  const hasEditCapability = Boolean(
-    onSectionRewrite || onSectionYam || onSectionContentChange ||
-    onPageSectionRewrite || onPageSectionYam || onPageSectionContentChange
-  );
-
-  return (
-    <div className={`${immersiveMode ? 'flex-1 min-h-0 flex flex-col' : 'space-y-3 sm:space-y-4'}`}>
-      {/* ── Mode édition : masqué en mode immersif (contrôlé par le parent), compact sur mobile sinon ─ */}
-      {hasEditCapability && !immersiveMode && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => setEditMode(!editMode)}
-            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              editMode
-                ? 'bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)] border border-[var(--accent-cyan)]/40'
-                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-[var(--border-subtle)]'
-            }`}
-            title={editMode ? 'Mode édition actif' : 'Mode édition'}
-          >
-            <span className="sm:hidden">{editMode ? '✓' : '✎'}</span>
-            <span className="hidden sm:inline">{editMode ? 'Mode édition actif' : 'Mode édition'}</span>
-          </button>
-        </div>
-      )}
-
-      {/* ── Vue unique : navbar + contenu + footer (navigation par le menu du site) ─ */}
-      <div className={`flex flex-col overflow-hidden bg-[var(--bg-primary)] ${immersiveMode ? 'flex-1 min-h-0 rounded-none border-0' : 'rounded-xl border border-[var(--border-subtle)] min-h-[60vh] sm:min-h-[80vh]'}`}>
-        <LayoutNavbar
-          navItems={[
-            ...(primaryNav.length > 0
-              ? primaryNav.map((item) => ({ page: item.page, slug: item.slug }))
-              : [{ page: 'Homepage', slug: 'home' }]),
-            ...addedPages.map((item) => ({ page: item.page, slug: item.slug })),
-          ]}
-          onNavClick={setActiveTab}
-          generatedSlugs={Object.keys(pages ?? {})}
-        />
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain scroll-touch-ios">
-          {!isHomepage && !pageData && onGeneratePageZoning && pageSlug ? (
-            <div className="flex flex-col items-center justify-center p-12 text-center max-w-md mx-auto">
-              <p className="text-sm font-medium text-[var(--text-primary)] mb-2">
-                Page &quot;{currentTab.label}&quot; sans zoning
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] mb-4">
-                Générez le zoning pour obtenir les sections prêtes à éditer.
-              </p>
-              <div className="w-full space-y-2 mb-4">
-                <textarea
-                  value={generatePrompt}
-                  onChange={(e) => setGeneratePrompt(e.target.value)}
-                  placeholder="Prompt optionnel (ex : 3 offres Starter/Pro/Entreprise, ton B2B rassurant, CTA sur chaque bloc)"
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none focus:border-[var(--accent-cyan)]/40"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => { handleGeneratePage(pageSlug, generatePrompt.trim() || undefined); setGeneratePrompt(''); }}
-                disabled={generatingSlug === pageSlug}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--accent-cyan)] text-black text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
-              >
-                {generatingSlug === pageSlug ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                    Génération…
-                  </>
-                ) : (
-                  'Générer le zoning de cette page'
-                )}
-              </button>
-            </div>
-          ) : currentSections.length > 0 ? (
-            currentSections.map((section) => {
-              const sectionId = (section as HomepageSection).id ?? `${section.role}-${section.order}`;
-              return (
-                <PreviewSectionWithEdit
-                  key={sectionId}
-                  section={section as HomepageSection}
-                  sectionId={sectionId}
-                  editMode={editMode}
-                  pageSlug={pageSlug}
-                  isHomepage={isHomepage}
-                  isRewriting={isRewriting(sectionId)}
-                  isPromptExpanded={isPromptExpanded(sectionId)}
-                  promptValue={isPromptExpanded(sectionId) ? promptValue : ''}
-                  onPromptChange={setPromptValue}
-                  onRewrite={
-                    isHomepage
-                      ? onSectionRewrite ? () => handleRewriteClick(sectionId) : undefined
-                      : onPageSectionRewrite ? () => handleRewriteClick(sectionId, pageSlug) : undefined
-                  }
-                  onYam={
-                    isHomepage
-                      ? onSectionYam ? () => handleYamClick(sectionId) : undefined
-                      : onPageSectionYam ? () => handleYamClick(sectionId, pageSlug) : undefined
-                  }
-                  onRewriteSubmit={
-                    isHomepage ? () => handleRewriteSubmit(sectionId) : () => handleRewriteSubmit(sectionId, pageSlug)
-                  }
-                  onPromptCancel={() => {
-                    setPromptForSectionId(null);
-                    setPromptForPageSlug(null);
-                    setPromptValue('');
-                  }}
-                  onContentChange={
-                    isHomepage
-                      ? onSectionContentChange ? (p) => onSectionContentChange(sectionId, p) : undefined
-                      : onPageSectionContentChange && pageSlug
-                        ? (p) => onPageSectionContentChange(pageSlug, sectionId, p)
-                        : undefined
-                  }
-                />
-              );
-            })
-          ) : (
-            <div className="flex flex-col items-center justify-center p-12">
-              <p className="text-sm text-[var(--text-muted)] text-center">
-                Aucune section.{' '}
-                {!pageData && !isHomepage && 'Générez le zoning de cette page.'}
-              </p>
-            </div>
-          )}
-          <LayoutFooter
-            navItemsMain={[
-              ...primaryNav.map((i) => ({ page: i.page, slug: i.slug })),
-              ...addedPages.map((i) => ({ page: i.page, slug: i.slug })),
-            ]}
-            navItemsLegal={footerNav.map((i) => ({ page: i.page, slug: i.slug }))}
-            tabKeys={[
-              ...primaryNav.map((_, i) => (i === 0 ? '__homepage__' : primaryNav[i].slug)),
-              ...addedPages.map((i) => i.slug),
-            ]}
-            onNavClick={setActiveTab}
-            compact={immersiveMode}
-          />
-        </div>
-      </div>
-    </div>
-  );
+function inferFieldType(value: unknown): FieldType {
+  if (typeof value === 'string') {
+    return value.length > 80 ? 'text' : 'string';
+  }
+  if (Array.isArray(value)) {
+    if (value.length > 0 && typeof value[0] === 'string') return 'array-strings';
+    return 'array-objects';
+  }
+  if (typeof value === 'object' && value !== null) return 'object';
+  return 'unknown';
 }
 
-/** Section preview avec Layout + barre d'édition intégrée (Yam, Réécrire, Éditer) au survol. */
-function PreviewSectionWithEdit({
-  section,
-  sectionId,
-  editMode,
-  pageSlug,
-  isHomepage,
-  isRewriting,
-  isPromptExpanded,
-  promptValue,
-  onPromptChange,
-  onRewrite,
-  onYam,
-  onRewriteSubmit,
-  onPromptCancel,
-  onContentChange,
-}: {
-  section: HomepageSection;
-  sectionId: string;
-  editMode: boolean;
-  pageSlug?: string;
-  isHomepage: boolean;
-  isRewriting: boolean;
-  isPromptExpanded: boolean;
-  promptValue: string;
-  onPromptChange: (v: string) => void;
-  onRewrite?: () => void;
-  onYam?: () => void;
-  onRewriteSubmit?: () => void;
-  onPromptCancel?: () => void;
-  onContentChange?: (patch: Record<string, unknown>) => void;
-}) {
-  const [editingExpanded, setEditingExpanded] = useState(false);
-  const layoutResult = getLayoutForRoleWithFallback(section.role);
-  const Layout = layoutResult.layout;
-  const content = section.content || {};
-
-  const patch = (key: string, value: unknown) => {
-    onContentChange?.({ [key]: value });
-  };
-
-  const hasActions = onYam || onRewrite || onContentChange;
-
-  return (
-    <div className={`relative group ${editMode && hasActions ? 'ring-1 ring-[var(--accent-cyan)]/30 ring-inset rounded-lg' : ''}`}>
-      {/* Mode édition déplié : formulaire EN PLACE du layout (champs éditables visibles) */}
-      {editingExpanded && onContentChange ? (
-        <div className="bg-[var(--bg-secondary)] p-4 md:p-6 space-y-4 rounded-lg border border-[var(--border-subtle)]">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Édition — {section.role}
-            </span>
-            <button
-              type="button"
-              onClick={() => setEditingExpanded(false)}
-              className="px-2 py-1 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-            >
-              Fermer l'édition
-            </button>
-          </div>
-          <SectionEditFormFields content={content} role={section.role} patch={patch} />
-        </div>
-      ) : (
-        <>
-          {Layout ? (
-            <Layout
-              content={content as Record<string, unknown>}
-              intent={section.intent}
-            />
-          ) : (
-            <LayoutPlaceholder
-              role={section.role}
-              matchedRole={layoutResult.matched ?? undefined}
-            />
-          )}
-          {editMode && hasActions && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--accent-cyan)]/5 border-t border-[var(--accent-cyan)]/15">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-cyan)] flex-shrink-0">{section.role}</span>
-              {section.intent && (
-                <>
-                  <span className="text-[10px] text-[var(--border-medium)]">—</span>
-                  <span className="text-[10px] text-[var(--text-muted)] line-clamp-1 flex-1 min-w-0">{section.intent}</span>
-                </>
-              )}
-              <div className="flex items-center gap-1 ml-auto flex-shrink-0">
-                {onYam && (
-                  <button
-                    type="button"
-                    onClick={onYam}
-                    disabled={isRewriting}
-                    className="px-2 py-0.5 rounded-md text-[10px] font-semibold border border-[var(--accent-magenta)]/30 bg-[var(--accent-magenta)]/10 text-[var(--accent-magenta)] hover:bg-[var(--accent-magenta)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {isRewriting ? '…' : '◆ Yam'}
-                  </button>
-                )}
-                {onRewrite && (
-                  <button
-                    type="button"
-                    onClick={onRewrite}
-                    disabled={isRewriting}
-                    className="px-2 py-0.5 rounded-md text-[10px] font-semibold border border-[var(--accent-cyan)]/30 bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {isRewriting ? '…' : 'Réécrire'}
-                  </button>
-                )}
-                {onContentChange && (
-                  <button
-                    type="button"
-                    onClick={() => setEditingExpanded(true)}
-                    className="px-2 py-0.5 rounded-md text-[10px] font-semibold border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                  >
-                    ✎
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-      {isPromptExpanded && onRewriteSubmit && onPromptCancel ? (
-        <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-tertiary)] p-4 space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">
-            Prompt custom
-          </label>
-          <textarea
-            value={promptValue}
-            onChange={(e) => onPromptChange(e.target.value)}
-            placeholder="Ex : plus punchy, ton B2B..."
-            rows={2}
-            className="w-full px-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none focus:border-[var(--accent-cyan)]/40"
-            autoFocus
-          />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onRewriteSubmit}
-              disabled={isRewriting || !promptValue.trim()}
-              className="px-3 py-1.5 rounded-lg bg-[var(--accent-cyan)] text-black text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
-            >
-              {isRewriting ? 'Génération…' : 'Générer'}
-            </button>
-            <button
-              type="button"
-              onClick={onPromptCancel}
-              disabled={isRewriting}
-              className="px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
+function humanizeKey(key: string): string {
+  return key.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 }
+
+// ── Stable field (no cursor-jump) ────────────────────────────────────────────
 
 /**
  * Input/textarea qui garde un état local pendant la saisie pour éviter
@@ -533,78 +79,898 @@ function StableField({
   return <input ref={ref as React.RefObject<HTMLInputElement>} type="text" {...common} {...rest} />;
 }
 
-/** Champs d'édition d'une section — utilisé dans PreviewSectionWithEdit. */
-function SectionEditFormFields({
+// ── Dynamic section fields ───────────────────────────────────────────────────
+
+/**
+ * Formulaire d'édition dynamique qui s'adapte aux clés présentes dans content.
+ * Utilise inferFieldType pour déduire le type de chaque champ.
+ * Utilise StableField pour éviter les sauts de curseur.
+ */
+function DynamicSectionFields({
   content,
-  role,
-  patch,
+  onPatch,
 }: {
   content: Record<string, unknown>;
-  role: string;
-  patch: (key: string, value: unknown) => void;
+  onPatch: (key: string, value: unknown) => void;
 }) {
-  const inputCls = 'w-full mt-1 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-cyan)]/50';
+  const inputCls =
+    'w-full mt-1 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-cyan)]/50';
+
+  const entries = Object.entries(content);
+
   return (
-    <>
-      <div>
-        <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Titre</label>
-        <StableField value={(content.title as string) ?? ''} onChange={(v) => patch('title', v)} className={inputCls} placeholder="Titre" />
-      </div>
-      <div>
-        <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Sous-titre</label>
-        <StableField value={(content.subtitle as string) ?? ''} onChange={(v) => patch('subtitle', v)} className={inputCls} placeholder="Sous-titre" />
-      </div>
-      <div>
-        <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Texte</label>
-        <StableField as="textarea" value={(content.text as string) ?? ''} onChange={(v) => patch('text', v)} rows={3} className={`${inputCls} resize-none`} placeholder="Paragraphe" />
-      </div>
-      {Array.isArray(content.items) && (role === 'faq' ? (
-        <div className="space-y-3">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">FAQ</label>
-          {(content.items as { question?: string; answer?: string }[]).map((item, j) => {
-            const items = [...(content.items as { question?: string; answer?: string }[])];
+    <div className="space-y-4">
+      {entries.map(([key, value]) => {
+        const type = inferFieldType(value);
+
+        if (type === 'unknown') return null;
+
+        if (type === 'string') {
+          return (
+            <div key={key}>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                {humanizeKey(key)}
+              </label>
+              <StableField
+                value={(value as string) ?? ''}
+                onChange={(v) => onPatch(key, v)}
+                className={inputCls}
+                placeholder={humanizeKey(key)}
+              />
+            </div>
+          );
+        }
+
+        if (type === 'text') {
+          return (
+            <div key={key}>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                {humanizeKey(key)}
+              </label>
+              <StableField
+                as="textarea"
+                value={(value as string) ?? ''}
+                onChange={(v) => onPatch(key, v)}
+                rows={3}
+                className={`${inputCls} resize-none`}
+                placeholder={humanizeKey(key)}
+              />
+            </div>
+          );
+        }
+
+        if (type === 'object') {
+          const obj = value as Record<string, unknown>;
+          // CTA-like: has label and/or url
+          const hasLabel = 'label' in obj;
+          const hasUrl = 'url' in obj;
+          if (hasLabel || hasUrl) {
             return (
-              <div key={j} className="space-y-1">
-                <StableField value={item.question ?? ''} onChange={(v) => { items[j] = { ...item, question: v }; patch('items', items); }} className={inputCls} placeholder="Question" />
-                <StableField as="textarea" value={item.answer ?? ''} onChange={(v) => { items[j] = { ...item, answer: v }; patch('items', items); }} rows={2} className={`${inputCls} resize-none`} placeholder="Réponse" />
+              <div key={key}>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  {humanizeKey(key)}
+                </label>
+                <div className="flex gap-2 mt-1">
+                  {hasLabel && (
+                    <StableField
+                      value={(obj.label as string) ?? ''}
+                      onChange={(v) => onPatch(key, { ...obj, label: v })}
+                      className={`flex-1 ${inputCls} mt-0`}
+                      placeholder="Label"
+                    />
+                  )}
+                  {hasUrl && (
+                    <StableField
+                      value={(obj.url as string) ?? ''}
+                      onChange={(v) => onPatch(key, { ...obj, url: v })}
+                      className={`flex-1 ${inputCls} mt-0`}
+                      placeholder="URL"
+                    />
+                  )}
+                </div>
               </div>
             );
-          })}
+          }
+          // Generic object: render sub-fields (one level deep)
+          return (
+            <div key={key}>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                {humanizeKey(key)}
+              </label>
+              <div className="mt-1 pl-2 border-l-2 border-[var(--border-subtle)] space-y-2">
+                {Object.entries(obj).map(([subKey, subVal]) => {
+                  if (typeof subVal !== 'string' && typeof subVal !== 'number') return null;
+                  const subType = inferFieldType(subVal);
+                  if (subType === 'text') {
+                    return (
+                      <div key={subKey}>
+                        <label className="text-[10px] text-[var(--text-muted)]">{humanizeKey(subKey)}</label>
+                        <StableField
+                          as="textarea"
+                          value={String(subVal ?? '')}
+                          onChange={(v) => onPatch(key, { ...obj, [subKey]: v })}
+                          rows={2}
+                          className={`${inputCls} resize-none mt-0.5`}
+                          placeholder={humanizeKey(subKey)}
+                        />
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={subKey}>
+                      <label className="text-[10px] text-[var(--text-muted)]">{humanizeKey(subKey)}</label>
+                      <StableField
+                        value={String(subVal ?? '')}
+                        onChange={(v) => onPatch(key, { ...obj, [subKey]: v })}
+                        className={`${inputCls} mt-0.5`}
+                        placeholder={humanizeKey(subKey)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        }
+
+        if (type === 'array-strings') {
+          const arr = value as string[];
+          return (
+            <div key={key}>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                {humanizeKey(key)}
+              </label>
+              <div className="mt-1 space-y-1">
+                {arr.map((item, idx) => (
+                  <div key={idx} className="flex gap-1">
+                    <StableField
+                      value={item}
+                      onChange={(v) => {
+                        const next = [...arr];
+                        next[idx] = v;
+                        onPatch(key, next);
+                      }}
+                      className={`flex-1 ${inputCls} mt-0`}
+                      placeholder={`${humanizeKey(key)} ${idx + 1}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = arr.filter((_, i) => i !== idx);
+                        onPatch(key, next);
+                      }}
+                      className="px-2 py-1 rounded text-xs text-[var(--text-muted)] hover:text-red-400 hover:bg-red-400/10 transition-colors flex-shrink-0"
+                      title="Supprimer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => onPatch(key, [...arr, ''])}
+                  className="px-2 py-1 rounded text-xs text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/10 transition-colors"
+                >
+                  + Ajouter
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        if (type === 'array-objects') {
+          const arr = value as Record<string, unknown>[];
+          return (
+            <div key={key}>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                {humanizeKey(key)}
+              </label>
+              <div className="mt-1 space-y-3">
+                {arr.map((item, idx) => (
+                  <div key={idx} className="relative pl-2 border-l-2 border-[var(--border-subtle)] space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-[var(--text-muted)]">#{idx + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = arr.filter((_, i) => i !== idx);
+                          onPatch(key, next);
+                        }}
+                        className="px-1.5 py-0.5 rounded text-[10px] text-[var(--text-muted)] hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                        title="Supprimer l'item"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    {Object.entries(item).map(([subKey, subVal]) => {
+                      if (typeof subVal !== 'string' && typeof subVal !== 'number') return null;
+                      const subType = inferFieldType(subVal);
+                      if (subType === 'text') {
+                        return (
+                          <div key={subKey}>
+                            <label className="text-[10px] text-[var(--text-muted)]">{humanizeKey(subKey)}</label>
+                            <StableField
+                              as="textarea"
+                              value={String(subVal ?? '')}
+                              onChange={(v) => {
+                                const next = [...arr];
+                                next[idx] = { ...item, [subKey]: v };
+                                onPatch(key, next);
+                              }}
+                              rows={2}
+                              className={`${inputCls} resize-none mt-0.5`}
+                              placeholder={humanizeKey(subKey)}
+                            />
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={subKey}>
+                          <label className="text-[10px] text-[var(--text-muted)]">{humanizeKey(subKey)}</label>
+                          <StableField
+                            value={String(subVal ?? '')}
+                            onChange={(v) => {
+                              const next = [...arr];
+                              next[idx] = { ...item, [subKey]: v };
+                              onPatch(key, next);
+                            }}
+                            className={`${inputCls} mt-0.5`}
+                            placeholder={humanizeKey(subKey)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Infer new item shape from first element if available
+                    const template = arr[0]
+                      ? Object.fromEntries(Object.keys(arr[0]).map((k) => [k, '']))
+                      : {};
+                    onPatch(key, [...arr, template]);
+                  }}
+                  className="px-2 py-1 rounded text-xs text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/10 transition-colors"
+                >
+                  + Ajouter
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        return null;
+      })}
+    </div>
+  );
+}
+
+// ── WebBriefView ─────────────────────────────────────────────────────────────
+
+export function WebBriefView({
+  data,
+  onAiRewrite,
+  onGeneratePageZoning,
+  onPageAiRewrite,
+  onSectionContentChange,
+  onPageSectionContentChange,
+  onDeletePage,
+  onDeleteSection,
+  onAddSection,
+  onReorderSections,
+  editMode: controlledEditMode,
+  onEditModeChange,
+  immersiveMode = false,
+}: {
+  data: WebBriefData;
+  onAiRewrite?: (sectionId: string, customPrompt?: string) => Promise<void>;
+  onGeneratePageZoning?: (slug: string, agentBrief?: string) => Promise<void>;
+  onPageAiRewrite?: (pageSlug: string, sectionId: string, customPrompt?: string) => Promise<void>;
+  onSectionContentChange?: (sectionId: string, patch: Record<string, unknown>) => void;
+  onPageSectionContentChange?: (pageSlug: string, sectionId: string, patch: Record<string, unknown>) => void;
+  onDeletePage?: (slug: string) => void;
+  onDeleteSection?: (pageSlug: string | null, sectionId: string) => void;
+  onAddSection?: (pageSlug: string | null) => void;
+  onReorderSections?: (pageSlug: string | null, reorderedSections: (HomepageSection | ZonedSection)[]) => void;
+  /** En mode immersif, le parent contrôle l'édition via ces props */
+  editMode?: boolean;
+  onEditModeChange?: (v: boolean) => void;
+  immersiveMode?: boolean;
+}) {
+  const { architecture, homepage, pages } = data;
+  const [activeTab, setActiveTab] = useState<string>('__homepage__');
+  const [rewritingId, setRewritingId] = useState<string | null>(null);
+  const [rewritingPageSlug, setRewritingPageSlug] = useState<string | null>(null);
+  const [aiPromptForSectionId, setAiPromptForSectionId] = useState<string | null>(null);
+  const [aiPromptForPageSlug, setAiPromptForPageSlug] = useState<string | null>(null);
+  const [aiPromptValue, setAiPromptValue] = useState('');
+  const [generatingSlug, setGeneratingSlug] = useState<string | null>(null);
+  const [internalEditMode, setInternalEditMode] = useState(false);
+  const [generatePrompt, setGeneratePrompt] = useState('');
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const editMode = controlledEditMode ?? internalEditMode;
+  const setEditMode = onEditModeChange ?? setInternalEditMode;
+
+  // Remonter en haut à chaque changement de page
+  useLayoutEffect(() => {
+    scrollRef.current?.scrollTo(0, 0);
+  }, [activeTab]);
+
+  const primaryNav = architecture.navigation?.primary ?? [];
+  const footerNav = architecture.navigation?.footer_only ?? [];
+  const addedPages = architecture.navigation?.added_pages ?? [];
+
+  // Flatten children of primary nav items into extra tabs
+  const childTabs: PageTab[] = primaryNav.flatMap((item) =>
+    (item.children ?? []).map((child) => ({ label: child.page, slug: child.slug, isHomepage: false }))
+  );
+
+  // Onglets = menu principal + children nav items + added_pages
+  const pageTabs: PageTab[] = primaryNav.length > 0
+    ? [
+        ...primaryNav.map((item, i) => ({
+          label: item.page,
+          slug: item.slug,
+          isHomepage: i === 0,
+        })),
+        ...childTabs,
+        ...addedPages.map((item) => ({
+          label: item.page,
+          slug: item.slug,
+          isHomepage: false,
+        })),
+      ]
+    : [
+        { label: 'Homepage', slug: 'home', isHomepage: true },
+        ...childTabs,
+        ...addedPages.map((item) => ({
+          label: item.page,
+          slug: item.slug,
+          isHomepage: false,
+        })),
+      ];
+
+  const handleDeletePageClick = useCallback(
+    (slug: string) => {
+      if (!onDeletePage) return;
+      if (!window.confirm('Supprimer cette page et toutes ses sections ?')) return;
+      onDeletePage(slug);
+    },
+    [onDeletePage]
+  );
+
+  const handleAiButtonClick = useCallback(
+    (sectionId: string, pageSlug?: string) => {
+      const currentPageKey = pageSlug ?? '__homepage__';
+      if (aiPromptForPageSlug === currentPageKey && aiPromptForSectionId === sectionId) {
+        // Toggle off
+        setAiPromptForSectionId(null);
+        setAiPromptForPageSlug(null);
+        setAiPromptValue('');
+      } else {
+        setAiPromptForSectionId(sectionId);
+        setAiPromptForPageSlug(currentPageKey);
+        setAiPromptValue('');
+      }
+    },
+    [aiPromptForSectionId, aiPromptForPageSlug]
+  );
+
+  const handleAiSubmit = useCallback(
+    async (sectionId: string, pageSlug?: string) => {
+      const isHome = !pageSlug || pageSlug === '__homepage__';
+      const customPrompt = aiPromptValue.trim() || undefined;
+
+      if (isHome) {
+        if (!onAiRewrite) return;
+        setRewritingPageSlug(null);
+        setRewritingId(sectionId);
+        try {
+          await onAiRewrite(sectionId, customPrompt);
+          setAiPromptForSectionId(null);
+          setAiPromptForPageSlug(null);
+          setAiPromptValue('');
+        } finally {
+          setRewritingId(null);
+        }
+      } else {
+        if (!onPageAiRewrite) return;
+        setRewritingPageSlug(pageSlug!);
+        setRewritingId(sectionId);
+        try {
+          await onPageAiRewrite(pageSlug!, sectionId, customPrompt);
+          setAiPromptForSectionId(null);
+          setAiPromptForPageSlug(null);
+          setAiPromptValue('');
+        } finally {
+          setRewritingId(null);
+          setRewritingPageSlug(null);
+        }
+      }
+    },
+    [onAiRewrite, onPageAiRewrite, aiPromptValue]
+  );
+
+  const handleGeneratePage = useCallback(
+    async (slug: string, customPrompt?: string) => {
+      if (!onGeneratePageZoning) return;
+      setGeneratingSlug(slug);
+      try {
+        const added = addedPages.find((a) => a.slug === slug);
+        // Priorité : prompt saisi > agent_brief de la page ajoutée
+        const agentBrief = customPrompt?.trim() || added?.agent_brief || undefined;
+        await onGeneratePageZoning(slug, agentBrief);
+      } finally {
+        setGeneratingSlug(null);
+      }
+    },
+    [onGeneratePageZoning, addedPages]
+  );
+
+  const sections = [...(homepage.sections ?? [])].sort((a, b) => a.order - b.order);
+
+  const currentTab = pageTabs.find((t) => (t.isHomepage ? '__homepage__' : t.slug) === activeTab) ?? pageTabs[0];
+  const isHomepage = currentTab.isHomepage;
+  const pageSlug = currentTab.isHomepage ? undefined : currentTab.slug;
+  const pageData = pageSlug ? pages?.[pageSlug] : null;
+  const currentSections: (HomepageSection | ZonedSection)[] = isHomepage
+    ? sections
+    : [...(pageData?.sections ?? [])].sort((a, b) => a.order - b.order);
+  const isRewriting = (sectionId: string) =>
+    rewritingId === sectionId &&
+    (isHomepage ? !rewritingPageSlug : rewritingPageSlug === pageSlug);
+  const isAiPromptExpanded = (sectionId: string) =>
+    aiPromptForSectionId === sectionId &&
+    (aiPromptForPageSlug ?? '__homepage__') === (pageSlug ?? '__homepage__');
+
+  const hasEditCapability = Boolean(
+    onAiRewrite || onSectionContentChange ||
+    onPageAiRewrite || onPageSectionContentChange
+  );
+
+  // Build nav items with children for LayoutNavbar
+  const navItemsWithChildren = [
+    ...(primaryNav.length > 0
+      ? primaryNav.map((item) => ({
+          page: item.page,
+          slug: item.slug,
+          children: item.children?.map((c) => ({ page: c.page, slug: c.slug })),
+        }))
+      : [{ page: 'Homepage', slug: 'home', children: undefined as { page: string; slug: string }[] | undefined }]),
+    ...addedPages.map((item) => ({ page: item.page, slug: item.slug, children: undefined as { page: string; slug: string }[] | undefined })),
+  ];
+
+  return (
+    <div className={`${immersiveMode ? 'flex-1 min-h-0 flex flex-col' : 'space-y-3 sm:space-y-4'}`}>
+      {/* ── Mode édition : masqué en mode immersif (contrôlé par le parent), compact sur mobile sinon ─ */}
+      {hasEditCapability && !immersiveMode && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setEditMode(!editMode)}
+            className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              editMode
+                ? 'bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)] border border-[var(--accent-cyan)]/40'
+                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-[var(--border-subtle)]'
+            }`}
+            title={editMode ? 'Mode édition actif' : 'Mode édition'}
+          >
+            <span className="sm:hidden">{editMode ? '✓' : '✎'}</span>
+            <span className="hidden sm:inline">{editMode ? 'Mode édition actif' : 'Mode édition'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* ── Vue unique : navbar + contenu + footer (navigation par le menu du site) ─ */}
+      <div className={`flex flex-col overflow-hidden bg-[var(--bg-primary)] ${immersiveMode ? 'flex-1 min-h-0 rounded-none border-0' : 'rounded-xl border border-[var(--border-subtle)] min-h-[60vh] sm:min-h-[80vh]'}`}>
+        <LayoutNavbar
+          navItems={navItemsWithChildren}
+          onNavClick={setActiveTab}
+          generatedSlugs={Object.keys(pages ?? {})}
+        />
+
+        {/* Page tabs with delete button — edit mode only */}
+        {editMode && onDeletePage && pageTabs.length > 1 && (
+          <div className="flex items-center gap-1 px-3 py-1.5 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)] overflow-x-auto">
+            <span className="text-[10px] text-[var(--text-muted)] flex-shrink-0 mr-1">Pages :</span>
+            {pageTabs.map((tab) => {
+              const tabKey = tab.isHomepage ? '__homepage__' : tab.slug;
+              const isActive = activeTab === tabKey;
+              return (
+                <div key={tab.slug} className="flex items-center gap-0.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(tabKey)}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors ${
+                      isActive
+                        ? 'bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)]'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                  {!tab.isHomepage && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePageClick(tab.slug)}
+                      className="p-0.5 rounded text-[var(--text-muted)] hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                      title={`Supprimer la page "${tab.label}"`}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                        <path d="M10 11v6"/><path d="M14 11v6"/>
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain scroll-touch-ios">
+          {!isHomepage && !pageData && onGeneratePageZoning && pageSlug ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center max-w-md mx-auto">
+              <p className="text-sm font-medium text-[var(--text-primary)] mb-2">
+                Page &quot;{currentTab.label}&quot; sans zoning
+              </p>
+              <p className="text-xs text-[var(--text-secondary)] mb-4">
+                Générez le zoning pour obtenir les sections prêtes à éditer.
+              </p>
+              <div className="w-full space-y-2 mb-4">
+                <textarea
+                  value={generatePrompt}
+                  onChange={(e) => setGeneratePrompt(e.target.value)}
+                  placeholder="Prompt optionnel (ex : 3 offres Starter/Pro/Entreprise, ton B2B rassurant, CTA sur chaque bloc)"
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none focus:border-[var(--accent-cyan)]/40"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => { handleGeneratePage(pageSlug, generatePrompt.trim() || undefined); setGeneratePrompt(''); }}
+                disabled={generatingSlug === pageSlug}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--accent-cyan)] text-black text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+              >
+                {generatingSlug === pageSlug ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                    Génération…
+                  </>
+                ) : (
+                  'Générer le zoning de cette page'
+                )}
+              </button>
+            </div>
+          ) : currentSections.length > 0 ? (
+            <>
+              {currentSections.map((section, index) => {
+                const sectionId = (section as HomepageSection).id ?? `${section.role}-${section.order}`;
+                return (
+                  <PreviewSectionWithEdit
+                    key={sectionId}
+                    section={section as HomepageSection}
+                    sectionId={sectionId}
+                    editMode={editMode}
+                    pageSlug={pageSlug}
+                    isHomepage={isHomepage}
+                    isRewriting={isRewriting(sectionId)}
+                    isAiPromptExpanded={isAiPromptExpanded(sectionId)}
+                    aiPromptValue={isAiPromptExpanded(sectionId) ? aiPromptValue : ''}
+                    onAiPromptChange={setAiPromptValue}
+                    onAiButtonClick={
+                      isHomepage
+                        ? onAiRewrite ? () => handleAiButtonClick(sectionId) : undefined
+                        : onPageAiRewrite ? () => handleAiButtonClick(sectionId, pageSlug) : undefined
+                    }
+                    onAiSubmit={
+                      isHomepage
+                        ? () => handleAiSubmit(sectionId)
+                        : () => handleAiSubmit(sectionId, pageSlug)
+                    }
+                    onAiCancel={() => {
+                      setAiPromptForSectionId(null);
+                      setAiPromptForPageSlug(null);
+                      setAiPromptValue('');
+                    }}
+                    onContentChange={
+                      isHomepage
+                        ? onSectionContentChange ? (p) => onSectionContentChange(sectionId, p) : undefined
+                        : onPageSectionContentChange && pageSlug
+                          ? (p) => onPageSectionContentChange(pageSlug, sectionId, p)
+                          : undefined
+                    }
+                    onDelete={
+                      onDeleteSection
+                        ? () => {
+                            if (!window.confirm('Supprimer cette section ?')) return;
+                            onDeleteSection(isHomepage ? null : (pageSlug ?? null), sectionId);
+                          }
+                        : undefined
+                    }
+                    onMoveUp={
+                      onReorderSections && index > 0
+                        ? () => {
+                            const reordered = [...currentSections];
+                            [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
+                            const withOrder = reordered.map((s, i) => ({ ...s, order: i + 1 }));
+                            onReorderSections(isHomepage ? null : (pageSlug ?? null), withOrder);
+                          }
+                        : undefined
+                    }
+                    onMoveDown={
+                      onReorderSections && index < currentSections.length - 1
+                        ? () => {
+                            const reordered = [...currentSections];
+                            [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
+                            const withOrder = reordered.map((s, i) => ({ ...s, order: i + 1 }));
+                            onReorderSections(isHomepage ? null : (pageSlug ?? null), withOrder);
+                          }
+                        : undefined
+                    }
+                  />
+                );
+              })}
+              {/* Add section button — edit mode only */}
+              {editMode && onAddSection && (
+                <div className="flex justify-center py-4 border-t border-[var(--border-subtle)]">
+                  <button
+                    type="button"
+                    onClick={() => onAddSection(isHomepage ? null : (pageSlug ?? null))}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-dashed border-[var(--border-medium)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--accent-cyan)]/50 hover:bg-[var(--accent-cyan)]/5 transition-colors text-sm"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19"/>
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Ajouter une section
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center p-12">
+              <p className="text-sm text-[var(--text-muted)] text-center">
+                Aucune section.{' '}
+                {!pageData && !isHomepage && 'Générez le zoning de cette page.'}
+              </p>
+              {/* Add section button — edit mode, even when no sections */}
+              {editMode && onAddSection && (
+                <button
+                  type="button"
+                  onClick={() => onAddSection(isHomepage ? null : (pageSlug ?? null))}
+                  className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-lg border border-dashed border-[var(--border-medium)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--accent-cyan)]/50 hover:bg-[var(--accent-cyan)]/5 transition-colors text-sm"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  Ajouter une section
+                </button>
+              )}
+            </div>
+          )}
+          <LayoutFooter
+            navItemsMain={[
+              ...primaryNav.map((i) => ({ page: i.page, slug: i.slug })),
+              ...addedPages.map((i) => ({ page: i.page, slug: i.slug })),
+            ]}
+            navItemsLegal={footerNav.map((i) => ({ page: i.page, slug: i.slug }))}
+            tabKeys={[
+              ...primaryNav.map((_, i) => (i === 0 ? '__homepage__' : primaryNav[i].slug)),
+              ...addedPages.map((i) => i.slug),
+            ]}
+            onNavClick={setActiveTab}
+            compact={immersiveMode}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Section preview avec Layout + barre d'édition intégrée (IA, Éditer) au survol. */
+function PreviewSectionWithEdit({
+  section,
+  sectionId,
+  editMode,
+  pageSlug,
+  isHomepage,
+  isRewriting,
+  isAiPromptExpanded,
+  aiPromptValue,
+  onAiPromptChange,
+  onAiButtonClick,
+  onAiSubmit,
+  onAiCancel,
+  onContentChange,
+}: {
+  section: HomepageSection;
+  sectionId: string;
+  editMode: boolean;
+  pageSlug?: string;
+  isHomepage: boolean;
+  isRewriting: boolean;
+  isAiPromptExpanded: boolean;
+  aiPromptValue: string;
+  onAiPromptChange: (v: string) => void;
+  onAiButtonClick?: () => void;
+  onAiSubmit?: () => void;
+  onAiCancel?: () => void;
+  onContentChange?: (patch: Record<string, unknown>) => void;
+}) {
+  const [editingExpanded, setEditingExpanded] = useState(false);
+  // Accumulated patches — flushed on save
+  const pendingPatch = useRef<Record<string, unknown>>({});
+
+  const layoutResult = getLayoutForRoleWithFallback(section.role);
+  const Layout = layoutResult.layout;
+  const content = section.content || {};
+
+  const handlePatch = useCallback((key: string, value: unknown) => {
+    pendingPatch.current = { ...pendingPatch.current, [key]: value };
+  }, []);
+
+  const handleSave = useCallback(() => {
+    if (onContentChange && Object.keys(pendingPatch.current).length > 0) {
+      onContentChange(pendingPatch.current);
+      pendingPatch.current = {};
+    }
+  }, [onContentChange]);
+
+  const handleFormKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'Enter') {
+        const target = e.target as HTMLElement;
+        // Only save on Enter for input fields, not textarea
+        if (target.tagName === 'INPUT') {
+          e.preventDefault();
+          handleSave();
+        }
+      }
+    },
+    [handleSave]
+  );
+
+  const hasActions = onAiButtonClick || onContentChange;
+
+  // Reset pending patches when section content changes (after AI rewrite)
+  useEffect(() => {
+    pendingPatch.current = {};
+  }, [section.content]);
+
+  return (
+    <div className={`relative group ${editMode && hasActions ? 'ring-1 ring-[var(--accent-cyan)]/30 ring-inset rounded-lg' : ''}`}>
+      {/* Mode édition déplié : formulaire EN PLACE du layout (champs éditables visibles) */}
+      {editingExpanded && onContentChange ? (
+        <div className="bg-[var(--bg-secondary)] p-4 md:p-6 space-y-4 rounded-lg border border-[var(--border-subtle)]">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              Édition — {section.role}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSave}
+                className="px-3 py-1 rounded-lg text-xs font-semibold bg-[var(--accent-cyan)] text-black hover:opacity-90 transition-opacity"
+              >
+                Sauvegarder
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingExpanded(false)}
+                className="px-2 py-1 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+              >
+                Fermer l'édition
+              </button>
+            </div>
+          </div>
+          {/* Section header info */}
+          {section.intent && (
+            <p className="text-[10px] text-[var(--text-muted)] italic">{section.intent}</p>
+          )}
+          <div onKeyDown={handleFormKeyDown}>
+            <DynamicSectionFields
+              content={content as Record<string, unknown>}
+              onPatch={handlePatch}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="w-full py-2 rounded-lg text-sm font-semibold bg-[var(--accent-cyan)] text-black hover:opacity-90 transition-opacity"
+          >
+            Sauvegarder
+          </button>
         </div>
       ) : (
-        <div className="space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Items</label>
-          {(content.items as { title?: string; text?: string }[]).map((item, j) => (
-            <div key={j} className="flex gap-2">
-              <StableField value={item.title ?? ''} onChange={(v) => { const items = [...(content.items as { title?: string; text?: string }[])]; items[j] = { ...item, title: v }; patch('items', items); }} className={`flex-1 ${inputCls}`} placeholder="Titre item" />
-              <StableField value={item.text ?? ''} onChange={(v) => { const items = [...(content.items as { title?: string; text?: string }[])]; items[j] = { ...item, text: v }; patch('items', items); }} className={`flex-1 ${inputCls}`} placeholder="Texte item" />
+        <>
+          {Layout ? (
+            <Layout
+              content={content as Record<string, unknown>}
+              intent={section.intent}
+            />
+          ) : (
+            <LayoutPlaceholder
+              role={section.role}
+              matchedRole={layoutResult.matched ?? undefined}
+            />
+          )}
+          {editMode && hasActions && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--accent-cyan)]/5 border-t border-[var(--accent-cyan)]/15">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-cyan)] flex-shrink-0">{section.role}</span>
+              {section.intent && (
+                <>
+                  <span className="text-[10px] text-[var(--border-medium)]">—</span>
+                  <span className="text-[10px] text-[var(--text-muted)] line-clamp-1 flex-1 min-w-0">{section.intent}</span>
+                </>
+              )}
+              <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+                {onAiButtonClick && (
+                  <button
+                    type="button"
+                    onClick={onAiButtonClick}
+                    disabled={isRewriting}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isAiPromptExpanded
+                        ? 'border-[var(--accent-magenta)]/50 bg-[var(--accent-magenta)]/20 text-[var(--accent-magenta)]'
+                        : 'border-[var(--accent-magenta)]/30 bg-[var(--accent-magenta)]/10 text-[var(--accent-magenta)] hover:bg-[var(--accent-magenta)]/20'
+                    }`}
+                  >
+                    {isRewriting ? '…' : 'IA ◆'}
+                  </button>
+                )}
+                {onContentChange && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingExpanded(true)}
+                    className="px-2 py-0.5 rounded-md text-[10px] font-semibold border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                  >
+                    ✎
+                  </button>
+                )}
+              </div>
             </div>
-          ))}
-        </div>
-      ))}
-      {(content.cta_primary || content.cta_secondary || !content.cta_primary) && (
-        <div className="flex flex-wrap gap-3 pt-2">
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">CTA principal</label>
-            <StableField value={(content.cta_primary as { label?: string })?.label ?? ''} onChange={(v) => patch('cta_primary', { ...(content.cta_primary as object), label: v })} className={inputCls} placeholder="Label CTA" />
-          </div>
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">CTA secondaire</label>
-            <StableField value={(content.cta_secondary as { label?: string })?.label ?? ''} onChange={(v) => patch('cta_secondary', { ...(content.cta_secondary as object), label: v })} className={inputCls} placeholder="Label CTA secondaire" />
-          </div>
-        </div>
+          )}
+        </>
       )}
-      {Array.isArray(content.quotes) && (
-        <div className="space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Citations</label>
-          {(content.quotes as { text?: string; author_name?: string }[]).map((q, j) => (
-            <div key={j} className="space-y-1">
-              <StableField as="textarea" value={q.text ?? ''} onChange={(v) => { const quotes = [...(content.quotes as { text?: string; author_name?: string }[])]; quotes[j] = { ...q, text: v }; patch('quotes', quotes); }} rows={2} className={`${inputCls} resize-none`} placeholder="Citation" />
-              <StableField value={q.author_name ?? ''} onChange={(v) => { const quotes = [...(content.quotes as { text?: string; author_name?: string }[])]; quotes[j] = { ...q, author_name: v }; patch('quotes', quotes); }} className={inputCls} placeholder="Auteur" />
-            </div>
-          ))}
+      {/* AI prompt inline area */}
+      {isAiPromptExpanded && onAiSubmit && onAiCancel ? (
+        <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-tertiary)] p-4 space-y-2">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">
+            Prompt IA (optionnel)
+          </label>
+          <textarea
+            value={aiPromptValue}
+            onChange={(e) => onAiPromptChange(e.target.value)}
+            placeholder="Laisser vide = touche Yam"
+            rows={2}
+            className="w-full px-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none focus:border-[var(--accent-magenta)]/40"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onAiSubmit}
+              disabled={isRewriting}
+              className="px-3 py-1.5 rounded-lg bg-[var(--accent-magenta)] text-white text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+            >
+              {isRewriting ? 'Génération…' : 'Générer'}
+            </button>
+            <button
+              type="button"
+              onClick={onAiCancel}
+              disabled={isRewriting}
+              className="px-3 py-1.5 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
+            >
+              Annuler
+            </button>
+          </div>
         </div>
-      )}
-    </>
+      ) : null}
+    </div>
   );
 }
