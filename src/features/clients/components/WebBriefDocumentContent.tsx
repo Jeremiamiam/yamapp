@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store';
 import { toast } from '@/lib/toast';
 import { downloadDocumentAsMarkdown } from '@/lib/document-to-markdown';
 import { extractStrategyContext } from '@/lib/extract-strategy-context';
+import { ensureSectionIds } from '@/lib/section-id';
 import { WebBriefView } from './WebBriefView';
 import { AddPageModal } from './AddPageModal';
 import type { ClientDocument } from '@/types';
@@ -29,6 +30,35 @@ const Download = () => (
 );
 
 const YAM_PROMPT = `Applique la touche Yam — directeur de création, concepteur-rédacteur. Économie maximale, accroches punchy (4-7 mots). Micro-risque calculé : un mot inattendu, un registre décalé, une insolence légère — assez pour piquer, jamais assez pour brûler. Deux niveaux de lecture si possible. Pas de superlatif vide. Propose avec conviction. Garde la structure et l'intention de la section, rends le copy plus percutant.`;
+
+/**
+ * Parse le contenu JSON d'un web-brief et assigne des UUIDs stables à toutes les sections
+ * (rétrocompat : les documents legacy sans id reçoivent un id au chargement).
+ */
+function parseAndMigrateWebBriefData(content: string): WebBriefData | null {
+  try {
+    const parsed = JSON.parse(content) as WebBriefData;
+    if (!parsed?.version || parsed.version !== 1 || !parsed?.architecture || !parsed?.homepage) {
+      return null;
+    }
+    const migratedData: WebBriefData = {
+      ...parsed,
+      homepage: {
+        ...parsed.homepage,
+        sections: ensureSectionIds(parsed.homepage.sections ?? []),
+      },
+      pages: Object.fromEntries(
+        Object.entries(parsed.pages ?? {}).map(([slug, page]) => [
+          slug,
+          { ...page, sections: ensureSectionIds(page.sections ?? []) },
+        ])
+      ),
+    };
+    return migratedData;
+  } catch {
+    return null;
+  }
+}
 
 export function WebBriefDocumentContent({
   selectedDocument,
@@ -58,18 +88,11 @@ export function WebBriefDocumentContent({
     setWebBriefEditMode(false);
   }, [selectedDocument.id]);
 
-  let webBriefData: WebBriefData | null = null;
-  try {
-    const parsed = JSON.parse(selectedDocument.content) as WebBriefData;
-    if (parsed?.version === 1 && parsed?.architecture && parsed?.homepage) {
-      webBriefData = parsed;
-    }
-  } catch { /* contenu invalide */ }
-
+  const webBriefData = parseAndMigrateWebBriefData(selectedDocument.content);
   const arch = webBriefData?.architecture;
 
   const handleSectionRewrite = useCallback(
-    async (sectionIndex: number, customPrompt: string) => {
+    async (sectionId: string, customPrompt: string) => {
       if (!clientId) return;
       try {
         const data = JSON.parse(selectedDocument.content) as WebBriefData;
@@ -78,7 +101,7 @@ export function WebBriefDocumentContent({
           return;
         }
         const sections = [...data.homepage.sections].sort((a, b) => a.order - b.order);
-        const section = sections[sectionIndex];
+        const section = sections.find((s) => s.id === sectionId);
         if (!section) {
           toast.error('Section introuvable.');
           return;
@@ -98,8 +121,8 @@ export function WebBriefDocumentContent({
           return;
         }
         const newContent = json.content ?? section.content;
-        const updatedSections = sections.map((s, i) =>
-          i === sectionIndex ? { ...s, content: newContent } : s
+        const updatedSections = sections.map((s) =>
+          s.id === sectionId ? { ...s, content: newContent } : s
         );
         const updatedData: WebBriefData = {
           ...data,
@@ -115,8 +138,8 @@ export function WebBriefDocumentContent({
   );
 
   const handleSectionYam = useCallback(
-    async (sectionIndex: number) => {
-      await handleSectionRewrite(sectionIndex, YAM_PROMPT);
+    async (sectionId: string) => {
+      await handleSectionRewrite(sectionId, YAM_PROMPT);
     },
     [handleSectionRewrite]
   );
@@ -156,7 +179,7 @@ export function WebBriefDocumentContent({
           page: json.page ?? pageSlug,
           slug: json.slug ?? pageSlug,
           target_visitor: json.target_visitor,
-          sections: (json.sections ?? []) as PageOutput['sections'],
+          sections: ensureSectionIds((json.sections ?? []) as PageOutput['sections']),
         };
         const updatedData: WebBriefData = {
           ...data,
@@ -189,54 +212,16 @@ export function WebBriefDocumentContent({
           },
         };
         await updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
-
-        const ctx = getStrategyContext();
-        const res = await fetch('/api/page-zoning', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            siteArchitecture: { ...data.architecture, navigation: { ...nav, added_pages: [...added, payload] } },
-            pageSlug: payload.slug,
-            reportContent: ctx.reportContent,
-            brandPlatform: ctx.brandPlatform,
-            copywriterText: ctx.copywriterText,
-            agentBrief: payload.agent_brief || undefined,
-            homepage: data.homepage,
-            existingPages: data.pages ? Object.values(data.pages) : undefined,
-          }),
-        });
-        const json = (await res.json()) as {
-          page?: string;
-          slug?: string;
-          target_visitor?: string;
-          sections?: unknown[];
-          error?: string;
-        };
-        if (!res.ok || json.error) {
-          toast.error(json.error ?? 'Erreur lors de la génération.');
-          return;
-        }
-        const pageOutput: PageOutput = {
-          page: json.page ?? payload.page,
-          slug: json.slug ?? payload.slug,
-          target_visitor: json.target_visitor,
-          sections: (json.sections ?? []) as PageOutput['sections'],
-        };
-        const finalData: WebBriefData = {
-          ...updatedData,
-          pages: { ...(updatedData.pages ?? {}), [payload.slug]: pageOutput },
-        };
-        await updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(finalData) });
-        toast.success(`Page "${payload.page}" ajoutée et zoning généré`);
+        toast.success(`Page "${payload.page}" ajoutée — briefer l'agent sur la page pour générer le zoning`);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'ajout.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument, getStrategyContext]
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
   );
 
   const handlePageSectionRewrite = useCallback(
-    async (pageSlug: string, sectionIndex: number, customPrompt: string) => {
+    async (pageSlug: string, sectionId: string, customPrompt: string) => {
       if (!clientId) return;
       try {
         const data = JSON.parse(selectedDocument.content) as WebBriefData;
@@ -246,7 +231,7 @@ export function WebBriefDocumentContent({
           return;
         }
         const sections = [...pageData.sections].sort((a, b) => a.order - b.order);
-        const section = sections[sectionIndex];
+        const section = sections.find((s) => s.id === sectionId);
         if (!section) {
           toast.error('Section introuvable.');
           return;
@@ -266,8 +251,8 @@ export function WebBriefDocumentContent({
           return;
         }
         const newContent = json.content ?? section.content;
-        const updatedSections = sections.map((s, i) =>
-          i === sectionIndex ? { ...s, content: newContent } : s
+        const updatedSections = sections.map((s) =>
+          s.id === sectionId ? { ...s, content: newContent } : s
         );
         const updatedData: WebBriefData = {
           ...data,
@@ -283,23 +268,23 @@ export function WebBriefDocumentContent({
   );
 
   const handlePageSectionYam = useCallback(
-    async (pageSlug: string, sectionIndex: number) => {
-      await handlePageSectionRewrite(pageSlug, sectionIndex, YAM_PROMPT);
+    async (pageSlug: string, sectionId: string) => {
+      await handlePageSectionRewrite(pageSlug, sectionId, YAM_PROMPT);
     },
     [handlePageSectionRewrite]
   );
 
   const handleSectionContentChange = useCallback(
-    (sectionIndex: number, patch: Record<string, unknown>) => {
+    (sectionId: string, patch: Record<string, unknown>) => {
       if (!clientId) return;
       try {
         const data = JSON.parse(selectedDocument.content) as WebBriefData;
         const sections = [...(data.homepage.sections ?? [])].sort((a, b) => a.order - b.order);
-        const section = sections[sectionIndex];
+        const section = sections.find((s) => s.id === sectionId);
         if (!section) return;
         const newContent = { ...section.content, ...patch };
-        const updatedSections = sections.map((s, i) =>
-          i === sectionIndex ? { ...s, content: newContent } : s
+        const updatedSections = sections.map((s) =>
+          s.id === sectionId ? { ...s, content: newContent } : s
         );
         const updatedData: WebBriefData = {
           ...data,
@@ -314,18 +299,18 @@ export function WebBriefDocumentContent({
   );
 
   const handlePageSectionContentChange = useCallback(
-    (pageSlug: string, sectionIndex: number, patch: Record<string, unknown>) => {
+    (pageSlug: string, sectionId: string, patch: Record<string, unknown>) => {
       if (!clientId) return;
       try {
         const data = JSON.parse(selectedDocument.content) as WebBriefData;
         const pageData = data.pages?.[pageSlug];
         if (!pageData?.sections?.length) return;
         const sections = [...pageData.sections].sort((a, b) => a.order - b.order);
-        const section = sections[sectionIndex];
+        const section = sections.find((s) => s.id === sectionId);
         if (!section) return;
         const newContent = { ...section.content, ...patch };
-        const updatedSections = sections.map((s, i) =>
-          i === sectionIndex ? { ...s, content: newContent } : s
+        const updatedSections = sections.map((s) =>
+          s.id === sectionId ? { ...s, content: newContent } : s
         );
         const updatedData: WebBriefData = {
           ...data,

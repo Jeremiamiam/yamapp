@@ -4,7 +4,8 @@ import { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react
 import type { WebBriefData } from '@/types/web-brief';
 import type { HomepageSection } from '@/types/web-brief';
 import type { ZonedSection } from '@/types/section-zoning';
-import { getLayoutForRole } from '@/lib/section-registry';
+import { getLayoutForRoleWithFallback } from '@/lib/section-registry';
+import { LayoutPlaceholder } from '@/components/layouts/LayoutPlaceholder';
 import { LayoutNavbar } from '@/components/layouts/LayoutNavbar';
 import { LayoutFooter } from '@/components/layouts/LayoutFooter';
 /**
@@ -28,13 +29,13 @@ export function WebBriefView({
   immersiveMode = false,
 }: {
   data: WebBriefData;
-  onSectionRewrite?: (sectionIndex: number, customPrompt: string) => Promise<void>;
-  onSectionYam?: (sectionIndex: number) => Promise<void>;
+  onSectionRewrite?: (sectionId: string, customPrompt: string) => Promise<void>;
+  onSectionYam?: (sectionId: string) => Promise<void>;
   onGeneratePageZoning?: (slug: string, agentBrief?: string) => Promise<void>;
-  onPageSectionRewrite?: (pageSlug: string, sectionIndex: number, customPrompt: string) => Promise<void>;
-  onPageSectionYam?: (pageSlug: string, sectionIndex: number) => Promise<void>;
-  onSectionContentChange?: (sectionIndex: number, patch: Record<string, unknown>) => void;
-  onPageSectionContentChange?: (pageSlug: string, sectionIndex: number, patch: Record<string, unknown>) => void;
+  onPageSectionRewrite?: (pageSlug: string, sectionId: string, customPrompt: string) => Promise<void>;
+  onPageSectionYam?: (pageSlug: string, sectionId: string) => Promise<void>;
+  onSectionContentChange?: (sectionId: string, patch: Record<string, unknown>) => void;
+  onPageSectionContentChange?: (pageSlug: string, sectionId: string, patch: Record<string, unknown>) => void;
   /** En mode immersif, le parent contrôle l'édition via ces props */
   editMode?: boolean;
   onEditModeChange?: (v: boolean) => void;
@@ -42,13 +43,14 @@ export function WebBriefView({
 }) {
   const { architecture, homepage, pages } = data;
   const [activeTab, setActiveTab] = useState<string>('__homepage__');
-  const [rewritingIndex, setRewritingIndex] = useState<number | null>(null);
+  const [rewritingId, setRewritingId] = useState<string | null>(null);
   const [rewritingPageSlug, setRewritingPageSlug] = useState<string | null>(null);
-  const [promptForIndex, setPromptForIndex] = useState<number | null>(null);
+  const [promptForSectionId, setPromptForSectionId] = useState<string | null>(null);
   const [promptForPageSlug, setPromptForPageSlug] = useState<string | null>(null);
   const [promptValue, setPromptValue] = useState('');
   const [generatingSlug, setGeneratingSlug] = useState<string | null>(null);
   const [internalEditMode, setInternalEditMode] = useState(false);
+  const [generatePrompt, setGeneratePrompt] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const editMode = controlledEditMode ?? internalEditMode;
@@ -62,17 +64,13 @@ export function WebBriefView({
   const primaryNav = architecture.navigation?.primary ?? [];
   const footerNav = architecture.navigation?.footer_only ?? [];
   const addedPages = architecture.navigation?.added_pages ?? [];
+  // Onglets = menu principal + added_pages uniquement (pas les pages footer type mentions légales)
   const pageTabs: PageTab[] = primaryNav.length > 0
     ? [
         ...primaryNav.map((item, i) => ({
           label: item.page,
           slug: item.slug,
           isHomepage: i === 0,
-        })),
-        ...footerNav.map((item) => ({
-          label: item.page,
-          slug: item.slug,
-          isHomepage: false,
         })),
         ...addedPages.map((item) => ({
           label: item.page,
@@ -90,46 +88,46 @@ export function WebBriefView({
       ];
 
   const handleRewriteClick = useCallback(
-    (index: number, pageSlug?: string) => {
-      if (promptForPageSlug === (pageSlug ?? '__homepage__') && promptForIndex === index) {
-        setPromptForIndex(null);
+    (sectionId: string, pageSlug?: string) => {
+      if (promptForPageSlug === (pageSlug ?? '__homepage__') && promptForSectionId === sectionId) {
+        setPromptForSectionId(null);
         setPromptForPageSlug(null);
         setPromptValue('');
       } else {
-        setPromptForIndex(index);
+        setPromptForSectionId(sectionId);
         setPromptForPageSlug(pageSlug ?? null);
         setPromptValue('');
       }
     },
-    [promptForIndex, promptForPageSlug]
+    [promptForSectionId, promptForPageSlug]
   );
 
   const handleRewriteSubmit = useCallback(
-    async (index: number, pageSlug?: string) => {
+    async (sectionId: string, pageSlug?: string) => {
       const isHome = !pageSlug || pageSlug === '__homepage__';
       if (isHome) {
         if (!onSectionRewrite || !promptValue.trim()) return;
         setRewritingPageSlug(null);
-        setRewritingIndex(index);
+        setRewritingId(sectionId);
         try {
-          await onSectionRewrite(index, promptValue.trim());
-          setPromptForIndex(null);
+          await onSectionRewrite(sectionId, promptValue.trim());
+          setPromptForSectionId(null);
           setPromptForPageSlug(null);
           setPromptValue('');
         } finally {
-          setRewritingIndex(null);
+          setRewritingId(null);
         }
       } else {
         if (!onPageSectionRewrite || !promptValue.trim()) return;
         setRewritingPageSlug(pageSlug);
-        setRewritingIndex(index);
+        setRewritingId(sectionId);
         try {
-          await onPageSectionRewrite(pageSlug, index, promptValue.trim());
-          setPromptForIndex(null);
+          await onPageSectionRewrite(pageSlug, sectionId, promptValue.trim());
+          setPromptForSectionId(null);
           setPromptForPageSlug(null);
           setPromptValue('');
         } finally {
-          setRewritingIndex(null);
+          setRewritingId(null);
           setRewritingPageSlug(null);
         }
       }
@@ -138,25 +136,25 @@ export function WebBriefView({
   );
 
   const handleYamClick = useCallback(
-    async (index: number, pageSlug?: string) => {
+    async (sectionId: string, pageSlug?: string) => {
       const isHome = !pageSlug || pageSlug === '__homepage__';
       if (isHome) {
         if (!onSectionYam) return;
-        setRewritingIndex(index);
+        setRewritingId(sectionId);
         setRewritingPageSlug(null);
         try {
-          await onSectionYam(index);
+          await onSectionYam(sectionId);
         } finally {
-          setRewritingIndex(null);
+          setRewritingId(null);
         }
       } else {
         if (!onPageSectionYam) return;
         setRewritingPageSlug(pageSlug!);
-        setRewritingIndex(index);
+        setRewritingId(sectionId);
         try {
-          await onPageSectionYam(pageSlug!, index);
+          await onPageSectionYam(pageSlug!, sectionId);
         } finally {
-          setRewritingIndex(null);
+          setRewritingId(null);
           setRewritingPageSlug(null);
         }
       }
@@ -165,12 +163,14 @@ export function WebBriefView({
   );
 
   const handleGeneratePage = useCallback(
-    async (slug: string) => {
+    async (slug: string, customPrompt?: string) => {
       if (!onGeneratePageZoning) return;
       setGeneratingSlug(slug);
       try {
         const added = addedPages.find((a) => a.slug === slug);
-        await onGeneratePageZoning(slug, added?.agent_brief);
+        // Priorité : prompt saisi > agent_brief de la page ajoutée
+        const agentBrief = customPrompt?.trim() || added?.agent_brief || undefined;
+        await onGeneratePageZoning(slug, agentBrief);
       } finally {
         setGeneratingSlug(null);
       }
@@ -187,11 +187,11 @@ export function WebBriefView({
   const currentSections: (HomepageSection | ZonedSection)[] = isHomepage
     ? sections
     : [...(pageData?.sections ?? [])].sort((a, b) => a.order - b.order);
-  const isRewriting =
-    rewritingIndex !== null &&
+  const isRewriting = (sectionId: string) =>
+    rewritingId === sectionId &&
     (isHomepage ? !rewritingPageSlug : rewritingPageSlug === pageSlug);
-  const isPromptExpanded = (i: number) =>
-    promptForIndex === i && (promptForPageSlug ?? '__homepage__') === (pageSlug ?? '__homepage__');
+  const isPromptExpanded = (sectionId: string) =>
+    promptForSectionId === sectionId && (promptForPageSlug ?? '__homepage__') === (pageSlug ?? '__homepage__');
 
   const hasEditCapability = Boolean(
     onSectionRewrite || onSectionYam || onSectionContentChange ||
@@ -226,24 +226,32 @@ export function WebBriefView({
             ...(primaryNav.length > 0
               ? primaryNav.map((item) => ({ page: item.page, slug: item.slug }))
               : [{ page: 'Homepage', slug: 'home' }]),
-            ...footerNav.map((item) => ({ page: item.page, slug: item.slug })),
             ...addedPages.map((item) => ({ page: item.page, slug: item.slug })),
           ]}
           onNavClick={setActiveTab}
           generatedSlugs={Object.keys(pages ?? {})}
         />
-        <div ref={scrollRef} className="flex-1 min-h-0 scroll-touch-ios">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain scroll-touch-ios">
           {!isHomepage && !pageData && onGeneratePageZoning && pageSlug ? (
-            <div className="flex flex-col items-center justify-center p-12 text-center">
+            <div className="flex flex-col items-center justify-center p-12 text-center max-w-md mx-auto">
               <p className="text-sm font-medium text-[var(--text-primary)] mb-2">
                 Page &quot;{currentTab.label}&quot; sans zoning
               </p>
               <p className="text-xs text-[var(--text-secondary)] mb-4">
                 Générez le zoning pour obtenir les sections prêtes à éditer.
               </p>
+              <div className="w-full space-y-2 mb-4">
+                <textarea
+                  value={generatePrompt}
+                  onChange={(e) => setGeneratePrompt(e.target.value)}
+                  placeholder="Prompt optionnel (ex : 3 offres Starter/Pro/Entreprise, ton B2B rassurant, CTA sur chaque bloc)"
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none focus:border-[var(--accent-cyan)]/40"
+                />
+              </div>
               <button
                 type="button"
-                onClick={() => handleGeneratePage(pageSlug)}
+                onClick={() => { handleGeneratePage(pageSlug, generatePrompt.trim() || undefined); setGeneratePrompt(''); }}
                 disabled={generatingSlug === pageSlug}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--accent-cyan)] text-black text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
               >
@@ -258,45 +266,48 @@ export function WebBriefView({
               </button>
             </div>
           ) : currentSections.length > 0 ? (
-            currentSections.map((section, i) => (
-              <PreviewSectionWithEdit
-                key={`${section.role}-${section.order}`}
-                section={section as HomepageSection}
-                index={i}
-                editMode={editMode}
-                pageSlug={pageSlug}
-                isHomepage={isHomepage}
-                isRewriting={isRewriting && rewritingIndex === i}
-                isPromptExpanded={isPromptExpanded(i)}
-                promptValue={isPromptExpanded(i) ? promptValue : ''}
-                onPromptChange={setPromptValue}
-                onRewrite={
-                  isHomepage
-                    ? onSectionRewrite ? () => handleRewriteClick(i) : undefined
-                    : onPageSectionRewrite ? () => handleRewriteClick(i, pageSlug) : undefined
-                }
-                onYam={
-                  isHomepage
-                    ? onSectionYam ? () => handleYamClick(i) : undefined
-                    : onPageSectionYam ? () => handleYamClick(i, pageSlug) : undefined
-                }
-                onRewriteSubmit={
-                  isHomepage ? () => handleRewriteSubmit(i) : () => handleRewriteSubmit(i, pageSlug)
-                }
-                onPromptCancel={() => {
-                  setPromptForIndex(null);
-                  setPromptForPageSlug(null);
-                  setPromptValue('');
-                }}
-                onContentChange={
-                  isHomepage
-                    ? onSectionContentChange ? (p) => onSectionContentChange(i, p) : undefined
-                    : onPageSectionContentChange && pageSlug
-                      ? (p) => onPageSectionContentChange(pageSlug, i, p)
-                      : undefined
-                }
-              />
-            ))
+            currentSections.map((section) => {
+              const sectionId = (section as HomepageSection).id ?? `${section.role}-${section.order}`;
+              return (
+                <PreviewSectionWithEdit
+                  key={sectionId}
+                  section={section as HomepageSection}
+                  sectionId={sectionId}
+                  editMode={editMode}
+                  pageSlug={pageSlug}
+                  isHomepage={isHomepage}
+                  isRewriting={isRewriting(sectionId)}
+                  isPromptExpanded={isPromptExpanded(sectionId)}
+                  promptValue={isPromptExpanded(sectionId) ? promptValue : ''}
+                  onPromptChange={setPromptValue}
+                  onRewrite={
+                    isHomepage
+                      ? onSectionRewrite ? () => handleRewriteClick(sectionId) : undefined
+                      : onPageSectionRewrite ? () => handleRewriteClick(sectionId, pageSlug) : undefined
+                  }
+                  onYam={
+                    isHomepage
+                      ? onSectionYam ? () => handleYamClick(sectionId) : undefined
+                      : onPageSectionYam ? () => handleYamClick(sectionId, pageSlug) : undefined
+                  }
+                  onRewriteSubmit={
+                    isHomepage ? () => handleRewriteSubmit(sectionId) : () => handleRewriteSubmit(sectionId, pageSlug)
+                  }
+                  onPromptCancel={() => {
+                    setPromptForSectionId(null);
+                    setPromptForPageSlug(null);
+                    setPromptValue('');
+                  }}
+                  onContentChange={
+                    isHomepage
+                      ? onSectionContentChange ? (p) => onSectionContentChange(sectionId, p) : undefined
+                      : onPageSectionContentChange && pageSlug
+                        ? (p) => onPageSectionContentChange(pageSlug, sectionId, p)
+                        : undefined
+                  }
+                />
+              );
+            })
           ) : (
             <div className="flex flex-col items-center justify-center p-12">
               <p className="text-sm text-[var(--text-muted)] text-center">
@@ -306,14 +317,13 @@ export function WebBriefView({
             </div>
           )}
           <LayoutFooter
-            navItems={[
+            navItemsMain={[
               ...primaryNav.map((i) => ({ page: i.page, slug: i.slug })),
-              ...footerNav.map((i) => ({ page: i.page, slug: i.slug })),
               ...addedPages.map((i) => ({ page: i.page, slug: i.slug })),
             ]}
+            navItemsLegal={footerNav.map((i) => ({ page: i.page, slug: i.slug }))}
             tabKeys={[
               ...primaryNav.map((_, i) => (i === 0 ? '__homepage__' : primaryNav[i].slug)),
-              ...footerNav.map((i) => i.slug),
               ...addedPages.map((i) => i.slug),
             ]}
             onNavClick={setActiveTab}
@@ -328,7 +338,7 @@ export function WebBriefView({
 /** Section preview avec Layout + barre d'édition intégrée (Yam, Réécrire, Éditer) au survol. */
 function PreviewSectionWithEdit({
   section,
-  index,
+  sectionId,
   editMode,
   pageSlug,
   isHomepage,
@@ -343,7 +353,7 @@ function PreviewSectionWithEdit({
   onContentChange,
 }: {
   section: HomepageSection;
-  index: number;
+  sectionId: string;
   editMode: boolean;
   pageSlug?: string;
   isHomepage: boolean;
@@ -358,7 +368,8 @@ function PreviewSectionWithEdit({
   onContentChange?: (patch: Record<string, unknown>) => void;
 }) {
   const [editingExpanded, setEditingExpanded] = useState(false);
-  const Layout = getLayoutForRole(section.role);
+  const layoutResult = getLayoutForRoleWithFallback(section.role);
+  const Layout = layoutResult.layout;
   const content = section.content || {};
 
   const patch = (key: string, value: unknown) => {
@@ -381,7 +392,7 @@ function PreviewSectionWithEdit({
               onClick={() => setEditingExpanded(false)}
               className="px-2 py-1 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
             >
-              Fermer l’édition
+              Fermer l'édition
             </button>
           </div>
           <SectionEditFormFields content={content} role={section.role} patch={patch} />
@@ -393,7 +404,12 @@ function PreviewSectionWithEdit({
               content={content as Record<string, unknown>}
               intent={section.intent}
             />
-          ) : null}
+          ) : (
+            <LayoutPlaceholder
+              role={section.role}
+              matchedRole={layoutResult.matched ?? undefined}
+            />
+          )}
           {editMode && hasActions && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--accent-cyan)]/5 border-t border-[var(--accent-cyan)]/15">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-cyan)] flex-shrink-0">{section.role}</span>
