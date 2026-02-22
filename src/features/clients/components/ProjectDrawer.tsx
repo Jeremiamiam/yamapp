@@ -90,7 +90,7 @@ export function ProjectDrawer({ project, client, deliverables, onClose }: Projec
 
       {/* Drawer glissant depuis la droite */}
       <div
-        className="absolute inset-y-0 right-0 z-20 w-[600px] max-w-[90vw]
+        className="absolute inset-y-0 right-0 z-20 w-[820px] max-w-[90vw]
                    bg-[var(--bg-primary)] border-l-2 border-l-[var(--accent-cyan)]
                    flex flex-col transform transition-transform duration-200 ease-out"
         role="dialog"

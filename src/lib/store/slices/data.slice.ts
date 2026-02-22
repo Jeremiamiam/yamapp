@@ -102,7 +102,7 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
         } else {
           type CachedState = {
             team: TeamMember[];
-            projects?: { id: string; clientId: string; name: string; quoteAmount?: number; quoteDate?: string; depositAmount?: number; depositDate?: string; progressAmounts?: number[]; progressDates?: string[]; balanceDate?: string; createdAt: string; updatedAt: string }[];
+            projects?: { id: string; clientId: string; name: string; quoteAmount?: number; quoteDate?: string; depositAmount?: number; depositDate?: string; progressAmounts?: number[]; progressDates?: string[]; balanceAmount?: number; balanceDate?: string; potentiel?: number; createdAt: string; updatedAt: string }[];
             comptaMonthly: { month: string; year: number; entrées: number; sorties: number; soldeCumulé: number }[];
             currentUserRole: AppRole;
           };

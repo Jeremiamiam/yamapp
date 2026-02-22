@@ -195,14 +195,17 @@ export const createClientsActions: StateCreator<AppState, [], [], Pick<AppState,
     const docWithProject: ClientDocument = { ...docData, id, projectId: projectId ?? undefined, createdAt: now, updatedAt: now };
     try {
       const supabase = createClient();
-      const { error } = await supabase.from('documents').insert({
+      const insertPayload: Record<string, unknown> = {
         id,
         client_id: clientId,
-        ...toSupabaseDocument({ ...docData, projectId }),
-        project_id: projectId ?? null,
+        type: docData.type,
+        title: docData.title,
+        content: docData.content ?? '',
         created_at: now.toISOString(),
         updated_at: now.toISOString(),
-      });
+      };
+      if (projectId) insertPayload.project_id = projectId;
+      const { error } = await supabase.from('documents').insert(insertPayload);
       if (error) throw error;
       set((state) => ({
         clients: state.clients.map((client) =>

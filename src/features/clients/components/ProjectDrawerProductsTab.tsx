@@ -1,35 +1,18 @@
 'use client';
 
-import { useMemo } from 'react';
-import type { Project, Client, Deliverable, DeliverableStatus } from '@/types';
+import { useMemo, useCallback, useRef } from 'react';
+import type { Project, Client, Deliverable, DeliverableStatus, DeliverableType, DeliverableCategory } from '@/types';
 import { formatEuro } from '@/lib/project-billing';
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
-const UserIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
-
-const CalendarIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-    <line x1="16" y1="2" x2="16" y2="6" />
-    <line x1="8" y1="2" x2="8" y2="6" />
-    <line x1="3" y1="10" x2="21" y2="10" />
-  </svg>
-);
+import { useAppStore } from '@/lib/store';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_LABEL: Record<DeliverableStatus, string> = {
-  to_quote: 'À devis',
-  pending: 'En attente',
-  'in-progress': 'En cours',
-  completed: 'Terminé',
-};
+const STATUS_OPTIONS: { value: DeliverableStatus; label: string }[] = [
+  { value: 'to_quote', label: 'À deviser' },
+  { value: 'pending', label: 'En attente' },
+  { value: 'in-progress', label: 'En cours' },
+  { value: 'completed', label: 'Terminé' },
+];
 
 const STATUS_COLOR: Record<DeliverableStatus, string> = {
   to_quote: 'bg-[var(--text-muted)]/20 text-[var(--text-muted)]',
@@ -38,10 +21,35 @@ const STATUS_COLOR: Record<DeliverableStatus, string> = {
   completed: 'bg-[var(--accent-lime)]/15 text-[var(--accent-lime)]',
 };
 
-function formatDate(date: Date | string | undefined): string {
+const STATUS_LABEL: Record<DeliverableStatus, string> = {
+  to_quote: 'À deviser',
+  pending: 'En attente',
+  'in-progress': 'En cours',
+  completed: 'Terminé',
+};
+
+const TYPE_OPTIONS: { value: DeliverableType; label: string }[] = [
+  { value: 'creative', label: 'Créatif' },
+  { value: 'document', label: 'Document' },
+  { value: 'other', label: 'Autre' },
+];
+
+const CATEGORY_OPTIONS: { value: DeliverableCategory; label: string }[] = [
+  { value: 'digital', label: 'Digital' },
+  { value: 'print', label: 'Print' },
+  { value: 'other', label: 'Autre' },
+];
+
+function parseEur(raw: string): number {
+  const cleaned = raw.replace(/[^\d,.\-]/g, '').replace(',', '.');
+  return parseFloat(cleaned) || 0;
+}
+
+function toDateInput(date: Date | string | undefined): string {
   if (!date) return '';
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' });
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -73,15 +81,21 @@ export function ProjectDrawerProductsTab({
     [projectDeliverables, selectedProductId]
   );
 
-  // Unused client suppression — client kept in props for potential future use
-  void client;
+  const openModal = useAppStore((state) => state.openModal);
 
   if (projectDeliverables.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full py-12">
+      <div className="flex flex-col items-center justify-center h-full py-12 gap-3">
         <p className="text-sm text-[var(--text-muted)] text-center">
           Aucun produit dans ce projet
         </p>
+        <button
+          type="button"
+          onClick={() => openModal({ type: 'deliverable', mode: 'create', clientId: client.id })}
+          className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 transition-colors cursor-pointer"
+        >
+          + Ajouter un produit
+        </button>
       </div>
     );
   }
@@ -120,13 +134,21 @@ export function ProjectDrawerProductsTab({
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => openModal({ type: 'deliverable', mode: 'create', clientId: client.id })}
+            className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-[var(--accent-cyan)]
+                       hover:bg-[var(--accent-cyan)]/10 transition-colors cursor-pointer border border-dashed border-[var(--border-subtle)]"
+          >
+            + Ajouter un produit
+          </button>
         </div>
       </div>
 
-      {/* Pane droite — 2/3 : détail produit */}
+      {/* Pane droite — 2/3 : détail produit éditable */}
       <div className="w-2/3 overflow-y-auto">
         {selectedProduct ? (
-          <ProductDetail product={selectedProduct} />
+          <ProductDetailForm product={selectedProduct} />
         ) : (
           <div className="flex items-center justify-center h-full py-12">
             <p className="text-xs text-[var(--text-muted)]">Sélectionnez un produit</p>
@@ -137,179 +159,347 @@ export function ProjectDrawerProductsTab({
   );
 }
 
-// ─── ProductDetail ─────────────────────────────────────────────────────────────
+// ─── ProductDetailForm (inline editable) ──────────────────────────────────────
 
-function ProductDetail({ product }: { product: Deliverable }) {
+function ProductDetailForm({ product }: { product: Deliverable }) {
+  const updateDeliverable = useAppStore((state) => state.updateDeliverable);
+  const deleteDeliverable = useAppStore((state) => state.deleteDeliverable);
+  const team = useAppStore((state) => state.team);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const save = useCallback(
+    (data: Partial<Deliverable>) => {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        updateDeliverable(product.id, data);
+      }, 400);
+    },
+    [product.id, updateDeliverable]
+  );
+
+  const saveImmediate = useCallback(
+    (data: Partial<Deliverable>) => {
+      clearTimeout(debounceRef.current);
+      updateDeliverable(product.id, data);
+    },
+    [product.id, updateDeliverable]
+  );
+
+  const assignee = team.find((m) => m.id === product.assigneeId);
+
   return (
-    <div className="p-4 space-y-4">
-      {/* Nom + statut */}
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">{product.name}</h3>
-        <span className={`flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[product.status]}`}>
-          {STATUS_LABEL[product.status]}
-        </span>
+    <div className="p-4 space-y-5">
+
+      {/* ── Nom ─────────────────────────────────────────────────────────── */}
+      <input
+        key={`name-${product.id}`}
+        type="text"
+        defaultValue={product.name}
+        onChange={(e) => save({ name: e.target.value })}
+        className="w-full text-sm font-semibold text-[var(--text-primary)] bg-transparent border-b border-transparent
+                   hover:border-[var(--border-subtle)] focus:border-[var(--accent-cyan)] focus:outline-none
+                   transition-colors py-1"
+      />
+
+      {/* ── Statut + Type + Catégorie ───────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Statut">
+          <select
+            key={`status-${product.id}`}
+            defaultValue={product.status}
+            onChange={(e) => saveImmediate({ status: e.target.value as DeliverableStatus })}
+            className="w-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors"
+          >
+            {STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Type">
+          <select
+            key={`type-${product.id}`}
+            defaultValue={product.type}
+            onChange={(e) => saveImmediate({ type: e.target.value as DeliverableType })}
+            className="w-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors"
+          >
+            {TYPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Catégorie">
+          <select
+            key={`cat-${product.id}`}
+            defaultValue={product.category ?? 'other'}
+            onChange={(e) => saveImmediate({ category: e.target.value as DeliverableCategory })}
+            className="w-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors"
+          >
+            {CATEGORY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </Field>
       </div>
 
-      {/* Champs infos */}
-      <div className="space-y-2.5">
-        {/* Assigné */}
-        {product.assigneeId && (
-          <FieldRow icon={<UserIcon />} label="Assigné" value={product.assigneeId} />
-        )}
-
-        {/* Dates */}
-        {product.dueDate && (
-          <FieldRow
-            icon={<CalendarIcon />}
-            label="Deadline"
-            value={formatDate(product.dueDate)}
+      {/* ── Assigné + Dates ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Assigné">
+          <select
+            key={`assignee-${product.id}`}
+            defaultValue={product.assigneeId ?? ''}
+            onChange={(e) => saveImmediate({ assigneeId: e.target.value || undefined })}
+            className="w-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors"
+          >
+            <option value="">Non assigné</option>
+            {team.map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Deadline">
+          <input
+            key={`due-${product.id}`}
+            type="date"
+            defaultValue={toDateInput(product.dueDate)}
+            onChange={(e) => saveImmediate({ dueDate: e.target.value ? new Date(e.target.value) : undefined })}
+            className="w-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors"
           />
-        )}
-        {product.deliveredAt && (
-          <FieldRow
-            icon={<CalendarIcon />}
-            label="Livré le"
-            value={formatDate(product.deliveredAt)}
-          />
-        )}
-
-        {/* Prestataire externe */}
-        {product.externalContractor && (
-          <FieldRow label="Prestataire" value={product.externalContractor} />
-        )}
-
-        {/* Prix */}
-        {product.prixFacturé != null && product.prixFacturé > 0 && (
-          <FieldRow
-            label="Prix facturé"
-            value={formatEuro(product.prixFacturé)}
-            valueColor="text-[#22c55e]"
-          />
-        )}
-        {product.coutSousTraitance != null && product.coutSousTraitance > 0 && (
-          <FieldRow
-            label="Coût sous-traitance"
-            value={formatEuro(product.coutSousTraitance)}
-            valueColor="text-[var(--accent-coral)]"
-          />
-        )}
+        </Field>
       </div>
 
-      {/* Notes */}
-      {product.notes && (
-        <div className="rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] p-3">
-          <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1.5">
-            Notes
-          </p>
-          <p className="text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
-            {product.notes}
-          </p>
-        </div>
-      )}
-
-      {/* Facturation produit */}
-      {product.quoteAmount != null && product.quoteAmount > 0 && (
-        <div className="rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] p-3 space-y-1.5">
-          <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">
-            Facturation
-          </p>
-
-          {/* Devis */}
-          <BillingRow
-            label="Devis"
-            amount={product.quoteAmount ?? undefined}
-            date={product.quoteDate}
-          />
-
-          {/* Acompte */}
-          {product.depositAmount != null && product.depositAmount > 0 && (
-            <BillingRow
-              label="Acompte"
-              amount={product.depositAmount}
-              date={product.depositDate}
+      {/* ── Prix ────────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Prix facturé">
+          <div className="relative">
+            <input
+              key={`prix-${product.id}`}
+              type="text"
+              defaultValue={product.prixFacturé ? formatEuro(product.prixFacturé) : ''}
+              placeholder="0 €"
+              onBlur={(e) => saveImmediate({ prixFacturé: parseEur(e.target.value) })}
+              className="w-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-[#22c55e] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors pr-6"
             />
-          )}
-
-          {/* Avancements */}
-          {product.progressAmounts && product.progressAmounts.length > 0 &&
-            product.progressAmounts.map((amt, i) =>
-              amt > 0 ? (
-                <BillingRow
-                  key={i}
-                  label={`Avancement ${product.progressAmounts!.length > 1 ? i + 1 : ''}`}
-                  amount={amt}
-                  date={product.progressDates?.[i]}
-                />
-              ) : null
-            )}
-
-          {/* Solde */}
-          {product.balanceAmount != null && product.balanceAmount > 0 && (
-            <BillingRow
-              label="Solde"
-              amount={product.balanceAmount}
-              date={product.balanceDate}
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">€</span>
+          </div>
+        </Field>
+        <Field label="Coût sous-traitance">
+          <div className="relative">
+            <input
+              key={`st-${product.id}`}
+              type="text"
+              defaultValue={product.coutSousTraitance ? formatEuro(product.coutSousTraitance) : ''}
+              placeholder="0 €"
+              onBlur={(e) => saveImmediate({ coutSousTraitance: parseEur(e.target.value) })}
+              className="w-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-[var(--accent-coral)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors pr-6"
             />
-          )}
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">€</span>
+          </div>
+        </Field>
+      </div>
 
-          {/* Total */}
-          {product.totalInvoiced != null && product.totalInvoiced > 0 && (
-            <div className="pt-1.5 mt-1.5 border-t border-dashed border-[var(--border-subtle)] flex justify-between text-xs font-semibold">
-              <span className="text-[var(--text-primary)]">Total facturé</span>
-              <span className="text-[#22c55e]">{formatEuro(product.totalInvoiced)}</span>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function FieldRow({
-  icon,
-  label,
-  value,
-  valueColor = 'text-[var(--text-primary)]',
-}: {
-  icon?: React.ReactNode;
-  label: string;
-  value: string;
-  valueColor?: string;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      {icon && (
-        <span className="text-[var(--text-muted)] flex-shrink-0">{icon}</span>
-      )}
-      <span className="text-xs text-[var(--text-muted)] flex-shrink-0 w-28">{label}</span>
-      <span className={`text-xs font-medium truncate ${valueColor}`}>{value}</span>
-    </div>
-  );
-}
-
-function BillingRow({
-  label,
-  amount,
-  date,
-}: {
-  label: string;
-  amount: number | undefined;
-  date?: string;
-}) {
-  if (!amount) return null;
-  return (
-    <div className="flex items-center justify-between text-[10px]">
-      <span className="text-[var(--text-muted)]">{label}</span>
-      <div className="flex items-center gap-2">
-        {date && (
-          <span className="text-[var(--text-muted)]">
-            {new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' })}
+      {/* Marge calculée */}
+      {(product.prixFacturé ?? 0) > 0 && (
+        <div className="flex items-center justify-between text-xs px-1">
+          <span className="text-[var(--text-muted)]">Marge</span>
+          <span className="font-semibold text-[var(--accent-violet)]">
+            {formatEuro((product.prixFacturé ?? 0) - (product.coutSousTraitance ?? 0))}
           </span>
-        )}
-        <span className="font-semibold text-[var(--text-primary)]">{formatEuro(amount)}</span>
+        </div>
+      )}
+
+      {/* ── Prestataire externe ─────────────────────────────────────────── */}
+      <Field label="Prestataire externe">
+        <input
+          key={`ext-${product.id}`}
+          type="text"
+          defaultValue={product.externalContractor ?? ''}
+          placeholder="Nom du prestataire"
+          onChange={(e) => save({ externalContractor: e.target.value || undefined })}
+          className="w-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors"
+        />
+      </Field>
+
+      {/* ── Date livraison ──────────────────────────────────────────────── */}
+      <Field label="Date de livraison">
+        <input
+          key={`delivered-${product.id}`}
+          type="date"
+          defaultValue={toDateInput(product.deliveredAt)}
+          onChange={(e) => saveImmediate({ deliveredAt: e.target.value ? new Date(e.target.value) : undefined })}
+          className="w-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors"
+        />
+      </Field>
+
+      {/* ── Notes ───────────────────────────────────────────────────────── */}
+      <Field label="Notes">
+        <textarea
+          key={`notes-${product.id}`}
+          defaultValue={product.notes ?? ''}
+          placeholder="Notes sur ce produit..."
+          rows={3}
+          onChange={(e) => save({ notes: e.target.value || undefined })}
+          className="w-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors resize-none leading-relaxed"
+        />
+      </Field>
+
+      {/* ── Facturation produit ─────────────────────────────────────────── */}
+      <div className="rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] p-3 space-y-3">
+        <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+          Facturation
+        </p>
+
+        {/* Devis */}
+        <BillingFieldRow
+          label="Devis"
+          amountKey="quoteAmount"
+          dateKey="quoteDate"
+          product={product}
+          onSave={saveImmediate}
+        />
+
+        {/* Acompte */}
+        <BillingFieldRow
+          label="Acompte"
+          amountKey="depositAmount"
+          dateKey="depositDate"
+          product={product}
+          onSave={saveImmediate}
+        />
+
+        {/* Avancements */}
+        {(product.progressAmounts ?? []).map((amt, i) => (
+          <div key={i} className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
+            <label className="text-[10px] text-[var(--text-muted)]">
+              Avancement {(product.progressAmounts?.length ?? 0) > 1 ? i + 1 : ''}
+            </label>
+            <input
+              type="text"
+              defaultValue={amt ? formatEuro(amt) : ''}
+              placeholder="0 €"
+              onBlur={(e) => {
+                const amounts = [...(product.progressAmounts ?? [])];
+                amounts[i] = parseEur(e.target.value);
+                saveImmediate({ progressAmounts: amounts });
+              }}
+              className="text-[10px] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded px-1.5 py-1 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors w-24 text-right"
+            />
+            <input
+              type="date"
+              defaultValue={product.progressDates?.[i] ?? ''}
+              onChange={(e) => {
+                const dates = [...(product.progressDates ?? [])];
+                dates[i] = e.target.value;
+                saveImmediate({ progressDates: dates });
+              }}
+              className="text-[10px] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded px-1.5 py-1 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors w-32"
+            />
+          </div>
+        ))}
+
+        {/* Bouton ajouter avancement */}
+        <button
+          type="button"
+          onClick={() => {
+            saveImmediate({
+              progressAmounts: [...(product.progressAmounts ?? []), 0],
+              progressDates: [...(product.progressDates ?? []), ''],
+            });
+          }}
+          className="text-[10px] text-[var(--accent-cyan)] hover:underline cursor-pointer"
+        >
+          + Ajouter un avancement
+        </button>
+
+        {/* Solde */}
+        <BillingFieldRow
+          label="Solde"
+          amountKey="balanceAmount"
+          dateKey="balanceDate"
+          product={product}
+          onSave={saveImmediate}
+        />
+
+        {/* Total calculé */}
+        {(() => {
+          const total =
+            (product.depositAmount ?? 0) +
+            (product.progressAmounts ?? []).reduce((s, a) => s + a, 0) +
+            (product.balanceAmount ?? 0);
+          if (total <= 0) return null;
+          return (
+            <div className="pt-2 mt-2 border-t border-dashed border-[var(--border-subtle)] flex justify-between text-xs font-semibold">
+              <span className="text-[var(--text-primary)]">Total facturé</span>
+              <span className="text-[#22c55e]">{formatEuro(total)}</span>
+            </div>
+          );
+        })()}
       </div>
+
+      {/* ── Supprimer ───────────────────────────────────────────────────── */}
+      <div className="pt-2">
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm(`Supprimer "${product.name}" ?`)) {
+              deleteDeliverable(product.id);
+            }
+          }}
+          className="text-[10px] text-[var(--accent-coral)] hover:underline cursor-pointer"
+        >
+          Supprimer ce produit
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function BillingFieldRow({
+  label,
+  amountKey,
+  dateKey,
+  product,
+  onSave,
+}: {
+  label: string;
+  amountKey: keyof Deliverable;
+  dateKey: keyof Deliverable;
+  product: Deliverable;
+  onSave: (data: Partial<Deliverable>) => void;
+}) {
+  const amount = product[amountKey] as number | undefined;
+  const date = product[dateKey] as string | undefined;
+  return (
+    <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
+      <label className="text-[10px] text-[var(--text-muted)]">{label}</label>
+      <input
+        key={`${amountKey}-${product.id}`}
+        type="text"
+        defaultValue={amount ? formatEuro(amount) : ''}
+        placeholder="0 €"
+        onBlur={(e) => onSave({ [amountKey]: parseEur(e.target.value) } as Partial<Deliverable>)}
+        className="text-[10px] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded px-1.5 py-1 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors w-24 text-right"
+      />
+      <input
+        key={`${dateKey}-${product.id}`}
+        type="date"
+        defaultValue={date ?? ''}
+        onChange={(e) => onSave({ [dateKey]: e.target.value } as Partial<Deliverable>)}
+        className="text-[10px] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded px-1.5 py-1 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors w-32"
+      />
     </div>
   );
 }

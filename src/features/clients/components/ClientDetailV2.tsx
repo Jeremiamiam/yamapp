@@ -6,7 +6,7 @@ import { useClient } from '@/hooks';
 import { ClientSidebarSection } from './sections/ClientSidebarSection';
 import { ProjectsListSection } from './sections/ProjectsListSection';
 import { RetroplanningSection } from './sections/RetroplanningSection';
-import { ProjectDrawer } from './ProjectDrawer';
+import { ProjectDetailView, OrphanProductsView } from './ProjectDetailView';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -35,12 +35,13 @@ export function ClientDetailV2() {
   const selectedClientId = useAppStore((state) => state.selectedClientId);
   const navigateBack = useAppStore((state) => state.navigateBack);
   const openModal = useAppStore((state) => state.openModal);
-  const getProjectsByClientId = useAppStore((state) => state.getProjectsByClientId);
+  const projects = useAppStore((state) => state.projects);
   const deliverables = useAppStore((state) => state.deliverables);
 
   const client = useClient(selectedClientId);
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [retroExpanded, setRetroExpanded] = useState(false);
 
   // Escape key: close project selection first, then navigate back
   useEffect(() => {
@@ -65,7 +66,7 @@ export function ClientDetailV2() {
     );
   }
 
-  const clientProjects = getProjectsByClientId(client.id);
+  const clientProjects = projects.filter((p) => p.clientId === client.id);
   const selectedProject = selectedProjectId
     ? clientProjects.find((p) => p.id === selectedProjectId) ?? null
     : null;
@@ -73,7 +74,7 @@ export function ClientDetailV2() {
   const isProspect = client.status === 'prospect';
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg-primary)]">
+    <div className="h-full flex flex-col bg-[var(--bg-primary)]">
 
       {/* ── Header: bouton retour + nom client + badge statut ────────────── */}
       <header className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]/50">
@@ -114,78 +115,88 @@ export function ClientDetailV2() {
         </button>
       </header>
 
-      {/* ── Breadcrumb: toujours visible ─────────────────────────────────── */}
-      <nav
-        className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 text-xs text-[var(--text-secondary)] border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]"
-        aria-label="Fil d'Ariane"
-      >
-        <button
-          type="button"
-          onClick={() => setSelectedProjectId(null)}
-          className={`transition-colors ${selectedProjectId ? 'text-[var(--accent-cyan)] hover:underline' : 'text-[var(--text-muted)] cursor-default'}`}
-        >
-          {client.name}
-        </button>
-        <ChevronRight />
-        <button
-          type="button"
-          onClick={() => setSelectedProjectId(null)}
-          className={`transition-colors ${selectedProjectId ? 'text-[var(--accent-cyan)] hover:underline' : 'font-semibold text-[var(--text-primary)] cursor-default'}`}
-        >
-          Projets
-        </button>
-        {selectedProject && (
-          <>
-            <ChevronRight />
-            <span className="font-semibold text-[var(--text-primary)] truncate max-w-[200px]">
-              {selectedProject.name}
-            </span>
-          </>
-        )}
-      </nav>
-
       {/* ── Corps: sidebar fixe + zone principale ────────────────────────── */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
 
         {/* Sidebar client fixe */}
-        <aside className="flex-shrink-0 w-72 xl:w-80 border-r border-[var(--border-subtle)] overflow-y-auto">
-          <ClientSidebarSection client={client} />
+        <aside className="flex-shrink-0 w-60 xl:w-64 border-r border-[var(--border-subtle)] overflow-y-auto">
+          <ClientSidebarSection
+            client={client}
+            onRetroClick={() => setRetroExpanded((prev) => !prev)}
+            retroOpen={retroExpanded}
+          />
         </aside>
 
         {/* Zone principale */}
-        <main className="flex-1 min-w-0 flex flex-col overflow-hidden relative">
-
-          {/* Liste projets — dimmée quand drawer ouvert (Plan 03 ajoutera le drawer) */}
-          <div
-            className={`flex-1 overflow-y-auto transition-opacity duration-200 ${
-              selectedProjectId ? 'opacity-30 pointer-events-none' : ''
-            }`}
-          >
-            <ProjectsListSection
-              client={client}
-              projects={clientProjects}
-              onSelectProject={setSelectedProjectId}
-              selectedProjectId={selectedProjectId}
-            />
-          </div>
-
-          {/* ProjectDrawer — slides in from the right when a project is selected */}
-          {selectedProjectId && selectedProject && (
-            <ProjectDrawer
+        <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+          {selectedProject ? (
+            <ProjectDetailView
               project={selectedProject}
               client={client}
               deliverables={deliverables}
-              onClose={() => setSelectedProjectId(null)}
+              onBack={() => setSelectedProjectId(null)}
             />
+          ) : selectedProjectId === '__divers__' ? (
+            <OrphanProductsView
+              client={client}
+              deliverables={deliverables.filter((d) => d.clientId === client.id && !d.projectId)}
+              onBack={() => setSelectedProjectId(null)}
+            />
+          ) : (
+            <div className="flex-1 overflow-y-auto">
+              <ProjectsListSection
+                client={client}
+                projects={clientProjects}
+                onSelectProject={setSelectedProjectId}
+                selectedProjectId={selectedProjectId}
+              />
+            </div>
           )}
-
         </main>
       </div>
 
-      {/* ── Footer retroplanning full-width ──────────────────────────────── */}
-      <footer className="flex-shrink-0 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)]/30 p-4 sm:p-6">
-        <RetroplanningSection clientId={client.id} />
-      </footer>
+      {/* ── Retroplanning overlay footer ─────────────────────────────────── */}
+      {retroExpanded && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/30 z-40"
+            onClick={() => setRetroExpanded(false)}
+          />
+          {/* Panel */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--bg-primary)] border-t-2 border-[var(--accent-amber)]/40 shadow-[0_-8px_30px_rgba(0,0,0,0.3)]">
+            {/* Header bar */}
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-[var(--border-subtle)]">
+              <span className="text-[var(--accent-amber)]">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </span>
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--accent-amber)] flex-1">
+                Retroplanning
+              </span>
+              <button
+                type="button"
+                onClick={() => setRetroExpanded(false)}
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
+                title="Fermer"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            {/* Content */}
+            <div className="max-h-[50vh] overflow-y-auto px-5 py-4">
+              <RetroplanningSection clientId={client.id} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

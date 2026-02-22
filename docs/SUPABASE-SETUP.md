@@ -35,6 +35,16 @@ Ensuite, exécute **`supabase/migrations/00003_merge_profiles_into_team.sql`** p
 
 Après 00003, exécute **`supabase/migrations/00004_add_budget_potentiel.sql`** pour la colonne `budget_potentiel` sur `clients` (optionnel — Compta « Potentiel »).
 
+### Recharger le schéma après une migration
+
+Après avoir exécuté une migration (nouvelle colonne, table, etc.), PostgREST peut ne pas voir immédiatement les changements. Pour forcer le rechargement :
+
+1. **Via le Dashboard** : Settings → API → cliquer « Reload schema cache »
+2. **Via SQL** (plus rapide) — exécuter dans le SQL Editor :
+   ```sql
+   NOTIFY pgrst, 'reload schema';
+   ```
+
 ## 5. Lancer le seed (données initiales)
 
 À la racine du projet :

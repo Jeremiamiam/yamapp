@@ -80,7 +80,7 @@ const ArrowUpDown = ({ direction }: { direction: 'asc' | 'desc' }) => (
 
 export function ComptaView() {
   const { isAdmin, loading: roleLoading } = useUserRole();
-  const { deliverables, getClientById, comptaYear, clients } = useAppStore();
+  const { deliverables, getClientById, comptaYear, clients, projects } = useAppStore();
   const { openDeliverableModal } = useModal();
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -118,10 +118,18 @@ export function ComptaView() {
     return { totalFacturé: facturé, totalDépensé: dépensé, margeNette: facturé - dépensé };
   }, [billedDeliverables]);
 
-  // Marge potentielle Yam (only deliverables with no billing progress)
+  // Potentiel projet (projets sans devis signé, avec potentiel renseigné)
+  const totalPotentielProjets = useMemo(() => {
+    return projects
+      .filter((p) => (!p.quoteAmount || p.quoteAmount <= 0) && (p.potentiel ?? 0) > 0)
+      .reduce((sum, p) => sum + (p.potentiel ?? 0), 0);
+  }, [projects]);
+
+  // Marge potentielle Yam (deliverables + projets)
   const totalMargePotentielle = useMemo(() => {
-    return margePotentielleDeliverables.reduce((sum, d) => sum + (d.margePotentielle ?? 0), 0);
-  }, [margePotentielleDeliverables]);
+    const fromDeliverables = margePotentielleDeliverables.reduce((sum, d) => sum + (d.margePotentielle ?? 0), 0);
+    return fromDeliverables + totalPotentielProjets;
+  }, [margePotentielleDeliverables, totalPotentielProjets]);
 
   // Total unique clients (independent of filter)
   const totalClients = useMemo(() => {
@@ -178,6 +186,15 @@ export function ComptaView() {
       row.margePotentielleDeliverables.push(d);
     }
 
+    // Potentiel projet (pas encore devisé) → marge Yam
+    for (const p of projects) {
+      if ((!p.quoteAmount || p.quoteAmount <= 0) && (p.potentiel ?? 0) > 0) {
+        const row = ensureRow(p.clientId);
+        row.margePotentielleYam += p.potentiel!;
+        row.totalGlobal += p.potentiel!;
+      }
+    }
+
     let rows = Array.from(map.values());
 
     // Apply filters
@@ -197,7 +214,7 @@ export function ComptaView() {
     });
 
     return rows;
-  }, [billedDeliverables, margePotentielleDeliverables, getClientById, sortDirection, filterMode]);
+  }, [billedDeliverables, margePotentielleDeliverables, projects, getClientById, sortDirection, filterMode]);
 
   if (roleLoading) {
     return (

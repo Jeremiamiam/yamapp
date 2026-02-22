@@ -179,13 +179,20 @@ export function ProjectsListSection({
 
           {/* Divers group: orphan deliverables not attached to any project */}
           {showDiversGroup && (
-            <div
-              className="text-left p-4 rounded-xl border border-dashed border-[var(--border-subtle)]
-                         bg-[var(--bg-card)]/50 opacity-70"
-              title="Produits sans projet — créez un projet pour les organiser"
+            <button
+              type="button"
+              onClick={() => onSelectProject('__divers__')}
+              className={`
+                text-left p-4 rounded-xl border border-dashed transition-all
+                bg-[var(--bg-card)]/50
+                ${selectedProjectId === '__divers__'
+                  ? 'border-[var(--accent-amber)] ring-1 ring-[var(--accent-amber)]/40'
+                  : 'border-[var(--border-subtle)] hover:border-[var(--accent-amber)]/40 hover:bg-[var(--bg-secondary)] opacity-70 hover:opacity-100'
+                }
+              `}
             >
               <div className="flex items-start justify-between gap-2 mb-3">
-                <h3 className="text-sm font-semibold truncate flex-1 text-[var(--text-muted)]">
+                <h3 className={`text-sm font-semibold truncate flex-1 ${selectedProjectId === '__divers__' ? 'text-[var(--accent-amber)]' : 'text-[var(--text-muted)]'}`}>
                   Divers
                 </h3>
                 <span className="text-[var(--text-muted)] flex-shrink-0 mt-0.5">
@@ -196,7 +203,7 @@ export function ProjectsListSection({
                 <Package />
                 {orphanDeliverables.length} produit{orphanDeliverables.length !== 1 ? 's' : ''} sans projet
               </div>
-            </div>
+            </button>
           )}
         </div>
       )}

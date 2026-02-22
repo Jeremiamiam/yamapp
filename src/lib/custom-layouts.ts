@@ -13,8 +13,11 @@ import { LayoutLocationMap } from '@/components/layouts/LayoutLocationMap';
 
 import { LayoutHeroV2 } from '@/components/layouts/LayoutHeroV2';
 
+import { LayoutCollectifTeaser } from '@/components/layouts/LayoutCollectifTeaser';
+
 /** Layouts générés par l'IA — enrichi automatiquement via /api/generate-layout */
 export const CUSTOM_LAYOUTS: Record<string, ComponentType<LayoutComponentProps>> = {
+  collectif_teaser: LayoutCollectifTeaser,
   hero_v2: LayoutHeroV2,
   location_map: LayoutLocationMap,
   project_grid: LayoutProjectGrid,

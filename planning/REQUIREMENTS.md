@@ -130,6 +130,19 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **LGAL-09**: Read-layout API endpoint to serve layout file content to the client
 - [ ] **LGAL-10**: Wiki updated with Layout Gallery feature entry
 
+### Refonte Page Client V2
+
+- [ ] **CLV2-01**: Page client avec sidebar fixe a gauche (contacts, liens, documents client)
+- [ ] **CLV2-02**: Documents client (sans project_id) vs documents projet (avec project_id) — migration Supabase
+- [ ] **CLV2-03**: Clic sur un projet ouvre un ProjectDrawer lateral (pas une modale)
+- [ ] **CLV2-04**: ProjectDrawer avec 3 onglets : Produits (master-detail) / Docs / Facturation
+- [ ] **CLV2-05**: Import PLAUD depuis sidebar client cree un doc client (sans projectId)
+- [ ] **CLV2-06**: Import PLAUD depuis drawer projet cree un doc projet (avec projectId)
+- [ ] **CLV2-07**: Retroplanning en footer full-width permanent
+- [ ] **CLV2-08**: Produits orphelins regroupes dans un projet Divers automatique
+- [ ] **CLV2-09**: Breadcrumb hierarchique pour navigation (Client > Projets > Projet > Produits)
+- [ ] **CLV2-10**: Facturation hybride projet + produits avec devis/acompte/avancements/solde
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.

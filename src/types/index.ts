@@ -100,7 +100,10 @@ export interface Project {
   depositDate?: string;
   progressAmounts: number[];
   progressDates: string[];
+  balanceAmount?: number;
   balanceDate?: string;
+  /** Montant potentiel — pipeline, pas encore signé */
+  potentiel?: number;
   createdAt: Date;
   updatedAt: Date;
 }

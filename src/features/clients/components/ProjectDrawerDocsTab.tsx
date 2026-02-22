@@ -51,7 +51,7 @@ interface ProjectDrawerDocsTabProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ProjectDrawerDocsTab({ project, client }: ProjectDrawerDocsTabProps) {
-  const { openModal } = useAppStore();
+  const { openModal, openDocument } = useAppStore();
 
   // Filter documents belonging to this project
   const projectDocs = useMemo(
@@ -93,11 +93,13 @@ export function ProjectDrawerDocsTab({ project, client }: ProjectDrawerDocsTabPr
         ) : (
           <div className="p-3 space-y-1">
             {projectDocs.map((doc) => (
-              <div
+              <button
                 key={doc.id}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg
+                type="button"
+                onClick={() => openDocument(doc)}
+                className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg
                            bg-[var(--bg-secondary)] border border-[var(--border-subtle)]
-                           hover:border-[var(--border-default)] transition-colors"
+                           hover:border-[var(--accent-cyan)]/30 transition-colors cursor-pointer"
               >
                 <div className="text-[var(--text-muted)] flex-shrink-0">
                   <FileIcon />
@@ -117,7 +119,7 @@ export function ProjectDrawerDocsTab({ project, client }: ProjectDrawerDocsTabPr
                     month: 'short',
                   })}
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         )}

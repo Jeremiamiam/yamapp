@@ -1,7 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { useModal } from '@/hooks';
+import { useAppStore } from '@/lib/store';
 import { PlaudLogo } from '@/components/ui';
+import { LINK_SUGGESTED_LABELS } from '@/types';
 import type { Client, DocumentType } from '@/types';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -48,89 +51,132 @@ const DOC_TYPE_BADGE: Record<DocumentType, { label: string; color: string; bg: s
   'social-brief':      { label: 'Social',    color: 'text-[var(--accent-magenta)]', bg: 'bg-[var(--accent-magenta)]/15' },
 };
 
-// ─── Section header ───────────────────────────────────────────────────────────
+// ─── SectionCard ─────────────────────────────────────────────────────────────
 
-function SidebarSectionHeader({
+function SectionCard({
   icon: Icon,
   title,
   count,
   onAdd,
   addTitle,
+  accentColor = 'var(--accent-cyan)',
+  children,
 }: {
   icon: React.ElementType;
   title: string;
   count?: number;
   onAdd?: () => void;
   addTitle?: string;
+  accentColor?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[var(--border-subtle)]">
-      <span className="text-[var(--text-muted)]"><Icon /></span>
-      <span className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider flex-1">
-        {title}
-      </span>
-      {count != null && (
-        <span className="text-[10px] text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded-full">
-          {count}
+    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] overflow-hidden">
+      {/* Card header */}
+      <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderBottom: `1px solid color-mix(in srgb, ${accentColor} 15%, transparent)` }}>
+        <span style={{ color: accentColor }}><Icon /></span>
+        <span className="text-[10px] font-bold uppercase tracking-wider flex-1" style={{ color: accentColor }}>
+          {title}
         </span>
-      )}
-      {onAdd && (
-        <button
-          type="button"
-          onClick={onAdd}
-          title={addTitle}
-          className="p-1 rounded text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-        >
-          <Plus />
-        </button>
-      )}
+        {count != null && (
+          <span className="text-[10px] text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded-full font-medium">
+            {count}
+          </span>
+        )}
+        {onAdd && (
+          <button
+            type="button"
+            onClick={onAdd}
+            title={addTitle}
+            className="p-1 rounded-md transition-colors cursor-pointer"
+            style={{ color: accentColor }}
+          >
+            <Plus />
+          </button>
+        )}
+      </div>
+      {/* Card body */}
+      <div>{children}</div>
     </div>
   );
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+const CalendarRange = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+    <line x1="16" y1="2" x2="16" y2="6"/>
+    <line x1="8" y1="2" x2="8" y2="6"/>
+    <line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+);
+
 interface ClientSidebarSectionProps {
   client: Client;
+  onRetroClick?: () => void;
+  retroOpen?: boolean;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function ClientSidebarSection({ client }: ClientSidebarSectionProps) {
+export function ClientSidebarSection({ client, onRetroClick, retroOpen }: ClientSidebarSectionProps) {
   const { openContactModal, openDocumentModal, openReportUploadModal } = useModal();
+  const openDocument = useAppStore((state) => state.openDocument);
+  const { addClientLink, deleteClientLink } = useAppStore();
 
-  // Only documents that are NOT attached to a project
   const clientDocuments = client.documents.filter((d) => !d.projectId);
   const links = client.links ?? [];
 
-  return (
-    <div className="flex flex-col h-full overflow-y-auto bg-[var(--bg-secondary)]/30">
+  // Inline link form state
+  const [isAddingLink, setIsAddingLink] = useState(false);
+  const [linkLabel, setLinkLabel] = useState<string>(LINK_SUGGESTED_LABELS[0]);
+  const [linkCustomLabel, setLinkCustomLabel] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
 
-      {/* ── Contacts ────────────────────────────────────────────────────────── */}
-      <div className="border-b border-[var(--border-subtle)]">
-        <SidebarSectionHeader
-          icon={User}
-          title="Contacts"
-          count={client.contacts.length}
-          onAdd={() => openContactModal(client.id)}
-          addTitle="Ajouter un contact"
-        />
-        <div className="divide-y divide-[var(--border-subtle)]">
-          {client.contacts.length === 0 ? (
-            <button
-              type="button"
-              onClick={() => openContactModal(client.id)}
-              className="w-full px-3 py-4 text-center text-xs text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--accent-cyan)] transition-colors"
-            >
-              + Ajouter un contact
-            </button>
-          ) : (
-            client.contacts.map((contact) => (
+  const resetLinkForm = () => {
+    setIsAddingLink(false);
+    setLinkUrl('');
+    setLinkCustomLabel('');
+    setLinkLabel(LINK_SUGGESTED_LABELS[0]);
+  };
+
+  const handleAddLink = () => {
+    const title = linkLabel === 'Autre' ? linkCustomLabel.trim() : linkLabel;
+    if (title && linkUrl.trim()) {
+      addClientLink(client.id, { title, url: linkUrl.trim() });
+      resetLinkForm();
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3 p-3 h-full overflow-y-auto">
+
+      {/* ── Card Contacts ──────────────────────────────────────────────── */}
+      <SectionCard
+        icon={User}
+        title="Contacts"
+        count={client.contacts.length}
+        onAdd={() => openContactModal(client.id)}
+        addTitle="Ajouter un contact"
+        accentColor="var(--accent-cyan)"
+      >
+        {client.contacts.length === 0 ? (
+          <button
+            type="button"
+            onClick={() => openContactModal(client.id)}
+            className="w-full px-3 py-3 text-center text-xs text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--accent-cyan)] transition-colors cursor-pointer"
+          >
+            + Ajouter un contact
+          </button>
+        ) : (
+          <div className="divide-y divide-[var(--border-subtle)]">
+            {client.contacts.map((contact) => (
               <button
                 key={contact.id}
                 type="button"
                 onClick={() => openContactModal(client.id, contact)}
-                className="w-full text-left px-3 py-2 flex items-baseline gap-2 hover:bg-[var(--bg-secondary)] transition-colors group"
+                className="w-full text-left px-3 py-2 flex items-baseline gap-2 hover:bg-[var(--bg-secondary)] transition-colors group cursor-pointer"
               >
                 <span className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-cyan)] transition-colors truncate">
                   {contact.name}
@@ -141,55 +187,123 @@ export function ClientSidebarSection({ client }: ClientSidebarSectionProps) {
                   </span>
                 )}
               </button>
-            ))
-          )}
-        </div>
-      </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
 
-      {/* ── Liens ───────────────────────────────────────────────────────────── */}
-      <div className="border-b border-[var(--border-subtle)]">
-        <SidebarSectionHeader
-          icon={LinkIcon}
-          title="Liens"
-          count={links.length}
-          onAdd={() => openDocumentModal(client.id)}
-          addTitle="Ajouter un lien"
-        />
-        <div className="divide-y divide-[var(--border-subtle)]">
-          {links.length === 0 ? (
-            <p className="px-3 py-4 text-xs text-center text-[var(--text-muted)]">Aucun lien</p>
-          ) : (
-            links.map((link) => (
-              <a
-                key={link.id}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block px-3 py-2 text-xs text-[var(--accent-violet)] hover:text-[var(--accent-cyan)] hover:underline truncate transition-colors"
-                title={link.url}
+      {/* ── Card Liens ─────────────────────────────────────────────────── */}
+      <SectionCard
+        icon={LinkIcon}
+        title="Liens"
+        count={links.length}
+        onAdd={() => setIsAddingLink(true)}
+        addTitle="Ajouter un lien"
+        accentColor="var(--accent-lime)"
+      >
+        {/* Inline add form */}
+        {isAddingLink && (
+          <div className="px-3 py-2.5 space-y-2 bg-[var(--bg-secondary)] border-b border-[var(--border-subtle)]">
+            <select
+              value={linkLabel}
+              onChange={(e) => setLinkLabel(e.target.value)}
+              className="w-full text-[10px] bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] rounded-lg px-2 py-1.5 text-[var(--text-primary)] focus:border-[var(--accent-lime)] focus:outline-none transition-colors"
+            >
+              {LINK_SUGGESTED_LABELS.map((l) => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+              <option value="Autre">Autre</option>
+            </select>
+            {linkLabel === 'Autre' && (
+              <input
+                type="text"
+                value={linkCustomLabel}
+                onChange={(e) => setLinkCustomLabel(e.target.value)}
+                placeholder="Label personnalisé"
+                className="w-full text-[10px] bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] rounded-lg px-2 py-1.5 text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-lime)] focus:outline-none transition-colors"
+              />
+            )}
+            <input
+              type="url"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="https://…"
+              className="w-full text-[10px] bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] rounded-lg px-2 py-1.5 text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-lime)] focus:outline-none transition-colors"
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddLink(); }}
+            />
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                disabled={!linkUrl.trim() || (linkLabel === 'Autre' && !linkCustomLabel.trim())}
+                onClick={handleAddLink}
+                className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[var(--accent-lime)] text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity cursor-pointer"
               >
-                {link.title}
-              </a>
-            ))
-          )}
-        </div>
-      </div>
+                Ajouter
+              </button>
+              <button
+                type="button"
+                onClick={resetLinkForm}
+                className="px-2.5 py-1 rounded-lg text-[10px] text-[var(--text-muted)] bg-[var(--bg-tertiary)] hover:bg-[var(--border-subtle)] transition-colors cursor-pointer"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
 
-      {/* ── Documents client ────────────────────────────────────────────────── */}
-      <div className="flex-1">
-        <SidebarSectionHeader
-          icon={FileText}
-          title="Documents"
-          count={clientDocuments.length}
-          addTitle="Ajouter un document"
-        />
+        {links.length === 0 && !isAddingLink ? (
+          <button
+            type="button"
+            onClick={() => setIsAddingLink(true)}
+            className="w-full px-3 py-3 text-center text-xs text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--accent-lime)] transition-colors cursor-pointer"
+          >
+            + Ajouter un lien
+          </button>
+        ) : (
+          <div className="divide-y divide-[var(--border-subtle)]">
+            {links.map((link) => (
+              <div key={link.id} className="flex items-center group">
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 min-w-0 px-3 py-2 text-xs text-[var(--accent-lime)] hover:text-[var(--text-primary)] hover:underline truncate transition-colors"
+                  title={link.url}
+                >
+                  {link.title}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => deleteClientLink(client.id, link.id)}
+                  className="flex-shrink-0 p-1 mr-2 rounded text-[var(--text-muted)] hover:text-[var(--accent-coral)] opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                  title="Supprimer"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
 
-        {/* Import PLAUD button — creates a client doc (no projectId) */}
+      {/* ── Card Documents client ──────────────────────────────────────── */}
+      <SectionCard
+        icon={FileText}
+        title="Documents"
+        count={clientDocuments.length}
+        onAdd={() => openDocumentModal(client.id)}
+        addTitle="Ajouter un document"
+        accentColor="var(--accent-amber)"
+      >
+        {/* Import PLAUD button */}
         <div className="px-3 py-2 border-b border-[var(--border-subtle)]">
           <button
             type="button"
             onClick={() => openReportUploadModal(client.id)}
-            className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/20 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/20 transition-colors cursor-pointer"
             title="Importer un enregistrement PLAUD"
           >
             <PlaudLogo className="w-3 h-3" />
@@ -197,22 +311,24 @@ export function ClientSidebarSection({ client }: ClientSidebarSectionProps) {
           </button>
         </div>
 
-        <div className="divide-y divide-[var(--border-subtle)]">
-          {clientDocuments.length === 0 ? (
-            <button
-              type="button"
-              onClick={() => openDocumentModal(client.id)}
-              className="w-full px-3 py-4 text-center text-xs text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--accent-amber)] transition-colors"
-            >
-              + Ajouter un document
-            </button>
-          ) : (
-            clientDocuments.map((doc) => {
+        {clientDocuments.length === 0 ? (
+          <button
+            type="button"
+            onClick={() => openDocumentModal(client.id)}
+            className="w-full px-3 py-3 text-center text-xs text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--accent-amber)] transition-colors cursor-pointer"
+          >
+            + Ajouter un document
+          </button>
+        ) : (
+          <div className="divide-y divide-[var(--border-subtle)]">
+            {clientDocuments.map((doc) => {
               const badge = DOC_TYPE_BADGE[doc.type] ?? DOC_TYPE_BADGE['note'];
               return (
-                <div
+                <button
                   key={doc.id}
-                  className="px-3 py-2 flex items-center gap-2 hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => openDocument(doc)}
+                  className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
                 >
                   <span className={`flex-shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${badge.bg} ${badge.color}`}>
                     {badge.label}
@@ -220,12 +336,38 @@ export function ClientSidebarSection({ client }: ClientSidebarSectionProps) {
                   <span className="text-xs text-[var(--text-primary)] truncate flex-1">
                     {doc.title}
                   </span>
-                </div>
+                </button>
               );
-            })
-          )}
-        </div>
-      </div>
+            })}
+          </div>
+        )}
+      </SectionCard>
+
+      {/* ── Card Retroplanning ─────────────────────────────────────────── */}
+      {onRetroClick && (
+        <button
+          type="button"
+          onClick={onRetroClick}
+          className={`w-full rounded-xl border overflow-hidden transition-colors cursor-pointer text-left
+                     ${retroOpen
+                       ? 'border-[var(--accent-amber)]/40 bg-[var(--accent-amber)]/5'
+                       : 'border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--accent-amber)]/30'
+                     }`}
+        >
+          <div className="flex items-center gap-2 px-3 py-2.5">
+            <span className="text-[var(--accent-amber)]"><CalendarRange /></span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-amber)] flex-1">
+              Retroplanning
+            </span>
+            <svg
+              width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className={`text-[var(--accent-amber)] transition-transform ${retroOpen ? 'rotate-90' : ''}`}
+            >
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+        </button>
+      )}
     </div>
   );
 }

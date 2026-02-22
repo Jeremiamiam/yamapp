@@ -41,7 +41,8 @@ export function computeProjectBilling(
     (sum, a) => sum + a,
     0
   );
-  const totalProjectPayments = depositTotal + progressTotal;
+  const balanceTotal = project.balanceAmount || 0;
+  const totalProjectPayments = depositTotal + progressTotal + balanceTotal;
 
   const totalPaid = totalProjectPayments + totalProductInvoiced;
   const remaining = Math.max(0, project.quoteAmount - totalPaid);

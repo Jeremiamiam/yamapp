@@ -5,17 +5,18 @@ interface LayoutHeroV2Props {
 }
 
 export function LayoutHeroV2({ content }: LayoutHeroV2Props) {
-  const title = (content?.title as string) ?? 'Transformez votre vision en réalité';
-  const subtitle = (content?.subtitle as string) ?? 'Créez des expériences exceptionnelles avec nos solutions innovantes';
-  const description = (content?.description as string) ?? 'Découvrez une nouvelle façon de concevoir et développer vos projets avec des outils modernes et performants.';
-  const imageUrl = (content?.imageUrl as string) ?? 'https://images.unsplash.com/photo-1557804506-669a67965ba0?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
-  const imageAlt = (content?.imageAlt as string) ?? 'Illustration de notre solution innovante';
+  const title = (content?.title as string) ?? 'Construisez l\'avenir numérique';
+  const subtitle = (content?.subtitle as string) ?? 'Solutions technologiques sur mesure pour entreprises ambitieuses';
+  const description = (content?.description as string) ?? 'De la conception à la mise en œuvre, nous accompagnons votre transformation digitale avec expertise et innovation.';
+  const primaryCta = (content?.primaryCta as string) ?? 'Démarrer un projet';
+  const secondaryCta = (content?.secondaryCta as string) ?? 'Voir nos réalisations';
 
   return (
     <section className="px-6 py-20">
       <div className="mx-auto max-w-6xl">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
-          <div>
+          {/* Contenu texte à gauche */}
+          <div className="text-left">
             <h1 className="text-4xl font-bold tracking-tight text-[var(--text-primary)] sm:text-5xl lg:text-6xl">
               {title}
             </h1>
@@ -25,26 +26,23 @@ export function LayoutHeroV2({ content }: LayoutHeroV2Props) {
             <p className="mt-4 text-base text-[var(--text-muted)]">
               {description}
             </p>
-            <div className="mt-8 flex gap-4">
-              <button className="rounded-lg bg-[var(--accent-cyan)] px-6 py-3 text-sm font-semibold text-white shadow-sm hover:opacity-90">
-                Commencer maintenant
+            
+            <div className="mt-8 flex gap-4 flex-wrap">
+              <button className="rounded-lg bg-[var(--accent-cyan)] px-8 py-4 text-sm font-semibold text-white shadow-sm hover:opacity-90">
+                {primaryCta}
               </button>
-              <button className="rounded-lg border border-[var(--border-medium)] bg-[var(--bg-card)] px-6 py-3 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
-                En savoir plus
+              <button className="rounded-lg border border-[var(--border-medium)] bg-[var(--bg-card)] px-8 py-4 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
+                {secondaryCta}
               </button>
             </div>
           </div>
-          
-          <div className="relative">
-            <div className="aspect-square overflow-hidden rounded-2xl bg-[var(--bg-card)]">
-              <img
-                src={imageUrl}
-                alt={imageAlt}
-                className="h-full w-full object-cover"
-              />
+
+          {/* Zone image à droite (placeholder) */}
+          <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] aspect-[4/3] flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-medium)] mx-auto mb-4"></div>
+              <p className="text-sm text-[var(--text-muted)]">Zone d'illustration</p>
             </div>
-            <div className="absolute -bottom-6 -right-6 h-24 w-24 rounded-2xl bg-[var(--accent-lime)] opacity-20"></div>
-            <div className="absolute -top-6 -left-6 h-16 w-16 rounded-xl bg-[var(--accent-violet)] opacity-30"></div>
           </div>
         </div>
       </div>

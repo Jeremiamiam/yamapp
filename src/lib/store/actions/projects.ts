@@ -21,7 +21,9 @@ function mapRow(row: Record<string, unknown>): Project {
     depositDate: row.deposit_date as string | undefined,
     progressAmounts: (row.progress_amounts as number[]) || [],
     progressDates: (row.progress_dates as string[]) || [],
+    balanceAmount: row.balance_amount != null ? Number(row.balance_amount) : undefined,
     balanceDate: row.balance_date as string | undefined,
+    potentiel: row.potentiel != null ? Number(row.potentiel) : undefined,
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
   };
@@ -45,7 +47,9 @@ export function createProjectActions(set: SetState, get: GetState) {
         depositDate: data.depositDate,
         progressAmounts: data.progressAmounts || [],
         progressDates: data.progressDates || [],
+        balanceAmount: data.balanceAmount,
         balanceDate: data.balanceDate,
+        potentiel: data.potentiel,
         createdAt: now,
         updatedAt: now,
       };
@@ -62,7 +66,9 @@ export function createProjectActions(set: SetState, get: GetState) {
           deposit_date: data.depositDate ?? null,
           progress_amounts: data.progressAmounts || [],
           progress_dates: data.progressDates || [],
+          balance_amount: data.balanceAmount ?? null,
           balance_date: data.balanceDate ?? null,
+          potentiel: data.potentiel ?? null,
         });
 
         if (error) throw error;
@@ -93,7 +99,9 @@ export function createProjectActions(set: SetState, get: GetState) {
         if (data.depositDate !== undefined) dbData.deposit_date = data.depositDate ?? null;
         if (data.progressAmounts !== undefined) dbData.progress_amounts = data.progressAmounts;
         if (data.progressDates !== undefined) dbData.progress_dates = data.progressDates;
+        if (data.balanceAmount !== undefined) dbData.balance_amount = data.balanceAmount ?? null;
         if (data.balanceDate !== undefined) dbData.balance_date = data.balanceDate ?? null;
+        if (data.potentiel !== undefined) dbData.potentiel = data.potentiel ?? null;
 
         const { error } = await supabase.from('projects').update(dbData).eq('id', id);
         if (error) throw error;
