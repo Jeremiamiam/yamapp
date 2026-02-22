@@ -6,14 +6,14 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 
 **Core value:** Avoir une vue d'ensemble claire de tous les clients et deadlines en un coup d'œil, sans surcharge d'information.
 
-**Current focus:** Phase 12 (Refonte page client V2) — Plan 01 complété.
+**Current focus:** Phase 12 (Refonte page client V2) — Plans 01 + 02 + 03 complétés.
 
 ---
 
 ## Current Position
 
 **Phase en cours:** 12 (Refonte page client V2)
-**Current Plan:** 02
+**Current Plan:** 04
 
 **Complété:**
 - Phases 1–4 (Timeline, Clients, Deliverables/Calls, Documents) ✅
@@ -29,10 +29,12 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - **Phase 9 Plan 02:** CSS Grid Gantt, drag-move + resize, RetroplanningSection + ClientDetail integration, wiki updated ✅
 - **Phase 10 Plan 01:** Layout Gallery modal (LayoutCard + LayoutGalleryGrid + LayoutGallery), dual entry points (WikiView + SectionDrawer), variant creation via /api/generate-layout, wiki entry ✅
 - **Phase 10 Plan 02:** read-layout API, edit-layout API, LayoutCodeEditor (Code + AI tabs), generate-layout direct code write, gallery "Éditer" button ✅
+- **Phase 12 Plan 02:** ClientDetailV2 layout (sidebar fixe + zone projets + footer retroplanning), ClientSidebarSection, ProjectsListSection, ClientDetail délègue à V2 ✅
+- **Phase 12 Plan 03:** ProjectDrawer shell (overlay, tabs, keyboard close, state reset) + 3 tab components (Produits master-detail, Docs filtered + PLAUD import, Facturation hybride) ✅
 
-**Dernière activité:** 2026-02-22 — Phase 12 Plan 01 complété (migration project_id documents + types + mappers + store)
+**Dernière activité:** 2026-02-22 — Phase 12 Plan 02 complété (ClientDetailV2 layout + ClientSidebarSection + ProjectsListSection)
 
-**Progress:** [██████████] 100%
+**Progress:** [███████░░░] 67%
 
 ---
 
@@ -128,10 +130,23 @@ Les décisions sont dans PROJECT.md (Key Decisions). Contexte technique dans `pl
 - project_id FK uses ON DELETE SET NULL — project deletion detaches documents rather than cascading
 - openReportUploadModal extended with optional projectId — existing callers unbroken
 
+**Phase 12 Plan 02 decisions:**
+- ClientDetail.tsx réduit à un simple wrapper qui rend ClientDetailV2 — routing Zustand (view 'client-detail') inchangé
+- selectedProjectId est state local dans ClientDetailV2 (pas Zustand) — état éphémère de navigation
+- Zone projets dimmée (opacity-30 + pointer-events-none) quand projet sélectionné — placeholder pour drawer Plan 03
+- Escape: désélectionne projet d'abord, navigateBack seulement si aucun projet sélectionné
+- ClientSidebarSection gère liens en interne (pas via LinksSection) — style compact sidebar différent du style card
+
+**Phase 12 Plan 03 decisions:**
+- deliverables passed as prop to ProjectDrawer (not fetched from store inside) — avoids store coupling in presentational drawer
+- billing badge status 'none' hidden from drawer header — only shown when project has a quote
+- product count badge in Produits tab label for at-a-glance count
+- PLAUD import button in DocsTab opens report-upload modal with projectId pre-set (reuses Plan 01 infrastructure)
+
 ### Blockers
 
 Aucun.
 
 ---
 *State initial: 2026-02-13*
-*Updated: 2026-02-22 — Phase 12 Plan 01 complété (migration project_id documents, ClientDocument.projectId, addDocument store action, ModalType report-upload)*
+*Updated: 2026-02-22 — Phase 12 Plan 02 complété (ClientDetailV2 layout + ClientSidebarSection + ProjectsListSection + ClientDetail wrapper)*

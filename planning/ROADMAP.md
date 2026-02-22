@@ -313,7 +313,7 @@ Plans:
 Plans:
 - [x] 12-01-PLAN.md -- Migration Supabase project_id + types + mappers + store (data layer) ✅
 - [ ] 12-02-PLAN.md -- ClientDetailV2 layout + ClientSidebarSection + ProjectsListSection + footer retro
-- [ ] 12-03-PLAN.md -- ProjectDrawer (3 onglets: Produits master-detail, Docs, Facturation hybride)
+- [x] 12-03-PLAN.md -- ProjectDrawer (3 onglets: Produits master-detail, Docs, Facturation hybride) ✅
 - [ ] 12-04-PLAN.md -- Wiring complet + PLAUD double entry + Divers orphelins + checkpoint
 
 ---
@@ -331,3 +331,4 @@ Plans:
 *2026-02-22: Phase 8 Plan 02 complété -- LayoutNavbar submenus, children page tabs, page delete, @hello-pangea/dnd section reorder with grip handles, section add/delete*
 *2026-02-22: Phase 8 Plan 03 complété -- dynamic edit form (inferFieldType), merged AI button "IA ◆", strategy context wired to rewrite API*
 *2026-02-22: Phase 10 complète -- Plan 01 (gallery modal, scaled previews, variant creation, dual entry points) + Plan 02 (read-layout API, edit-layout API, LayoutCodeEditor Code+AI tabs, gallery "Éditer" button)*
+*2026-02-22: Phase 12 Plan 03 complété -- ProjectDrawer shell (overlay, tabs, keyboard close, state reset on project change) + 3 tab components: Produits master-detail 1/3+2/3, Docs project-filtered + PLAUD import, Facturation hybride projet+produits*
