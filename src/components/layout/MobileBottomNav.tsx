@@ -28,12 +28,6 @@ const KanbanIcon = () => (
   </svg>
 );
 
-const SparkleIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
-  </svg>
-);
-
 const ChartIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="20" x2="18" y2="10" />
@@ -64,7 +58,7 @@ interface MobileBottomNavProps {
 }
 
 export function MobileBottomNav({ onOpenTodo, onOpenBacklog, canAccessCompta }: MobileBottomNavProps) {
-  const { currentView, navigateToTimeline, navigateToProduction, navigateToCreativeBoard, navigateToClients, navigateToCompta } = useAppStore();
+  const { currentView, navigateToTimeline, navigateToProduction, navigateToClients, navigateToCompta } = useAppStore();
 
   const NavTab = ({
     onClick,
@@ -110,12 +104,6 @@ export function MobileBottomNav({ onOpenTodo, onOpenBacklog, canAccessCompta }: 
           active={currentView === 'production'}
           icon={<KanbanIcon />}
           label="Prod"
-        />
-        <NavTab
-          onClick={navigateToCreativeBoard}
-          active={currentView === 'creative-board'}
-          icon={<SparkleIcon />}
-          label="Créa"
         />
         <NavTab
           onClick={navigateToClients}
