@@ -601,7 +601,7 @@ export default function ClientDetailV2ProtoPage() {
   }));
   const orphanProducts = MOCK_DELIVERABLES.filter(d => !d.projectId);
   const productProject = selectedProduct?.projectId ? MOCK_PROJECTS.find(p => p.id === selectedProduct.projectId) ?? null : null;
-  const getAssignee = (id?: string) => id ? MOCK_TEAM.find(t => t.id === id) : null;
+  const getAssignee = (id?: string) => (id ? MOCK_TEAM.find(t => t.id === id) : null) ?? null;
 
   const isProjectView = !!selectedProjectId;
   const toggleCollapse = (id: string) => setCollapsedProjectIds(prev => {
@@ -665,7 +665,7 @@ export default function ClientDetailV2ProtoPage() {
           <div className="flex-shrink-0 px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-primary)]">
               <Breadcrumb
                 level={breadcrumbLevel}
-                selectedProject={selectedProject}
+                selectedProject={selectedProject ?? null}
                 selectedProduct={selectedProduct ?? null}
                 onClient={() => { setSelectedProjectId(null); setSelectedProductId(null); }}
                 onProject={() => setSelectedProductId(null)}
@@ -729,7 +729,7 @@ export default function ClientDetailV2ProtoPage() {
                                   <ChevronDown />
                                 </span>
                               </button>
-                              <Folder className="text-[var(--accent-cyan)]" />
+                              <span className="text-[var(--accent-cyan)]"><Folder /></span>
                               <span className="text-sm font-semibold text-[var(--accent-cyan)] uppercase tracking-wider flex-1 text-left">{p.name}</span>
                               <span className="text-[10px] text-[var(--text-muted)]">{p.products.length} produit{p.products.length !== 1 ? 's' : ''}</span>
                               {totalBudget > 0 && (

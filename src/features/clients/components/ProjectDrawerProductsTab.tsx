@@ -166,11 +166,11 @@ function ProductDetailForm({ product }: { product: Deliverable }) {
   const deleteDeliverable = useAppStore((state) => state.deleteDeliverable);
   const team = useAppStore((state) => state.team);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const save = useCallback(
     (data: Partial<Deliverable>) => {
-      clearTimeout(debounceRef.current);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         updateDeliverable(product.id, data);
       }, 400);
@@ -180,7 +180,7 @@ function ProductDetailForm({ product }: { product: Deliverable }) {
 
   const saveImmediate = useCallback(
     (data: Partial<Deliverable>) => {
-      clearTimeout(debounceRef.current);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       updateDeliverable(product.id, data);
     },
     [product.id, updateDeliverable]
