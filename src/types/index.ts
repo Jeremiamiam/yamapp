@@ -198,3 +198,24 @@ export interface TimelineItem {
   status?: DeliverableStatus;
   deliverableType?: DeliverableType;
 }
+
+// Retroplanning
+export type RetroplanningTaskColor = 'cyan' | 'lime' | 'violet' | 'coral' | 'amber' | 'magenta';
+
+export interface RetroplanningTask {
+  id: string;
+  label: string;
+  startDate: string;      // ISO YYYY-MM-DD (computed)
+  endDate: string;        // ISO YYYY-MM-DD (computed)
+  durationDays: number;
+  color: RetroplanningTaskColor;
+}
+
+export interface RetroplanningPlan {
+  id?: string;            // Supabase row id
+  clientId: string;
+  deadline: string;       // ISO YYYY-MM-DD
+  tasks: RetroplanningTask[];
+  generatedAt: string;    // ISO datetime
+  updatedAt: string;      // ISO datetime
+}
