@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3.7: Code Quality & Refactoring** - Clean architecture before Mobile ✅
 - [ ] **Phase 5: Mobile & Polish** - Responsive design and performance optimization
 - [ ] **Phase 6: Vue Comptabilite / Facturation** - Vue dediee tresorerie avec sélecteur année, KPIs, detail par client, histogramme mensuel
-- [ ] **Phase 9: Retroplanning IA** - Génération automatique de retroplanning par l'IA à partir du brief client, vue Gantt dans la fiche client
+- [x] **Phase 9: Retroplanning IA** - Génération automatique de retroplanning par l'IA à partir du brief client, vue Gantt dans la fiche client (completed 2026-02-22)
 - [x] **Phase 7: Supabase & Persistence** - BDD réelle, store branché Supabase, auth, migrations ✅
 - [x] **Phase 7.1: Security (Auth + RLS)** - Login, RLS tables, middleware ✅
 - [x] **Phase 7.2: Admin & Permissions** - user_roles, Compta/Settings réservés admins, champs prix masqués members ✅
@@ -253,7 +253,7 @@ Plans:
 **Goal:** Génération automatique de retroplanning par l'IA à partir du brief client (web brief ou autre). L'IA déduit les étapes et durées, propose un planning inversé depuis la deadline. Vue Gantt/Timeline dans la fiche client, édition drag & drop + formulaire. Usage interne uniquement.
 **Depends on:** Phase 8
 **Requirements:** RETRO-01, RETRO-02, RETRO-03, RETRO-04, RETRO-05, RETRO-06, RETRO-07, RETRO-08
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 09-01-PLAN.md -- Types + migration Supabase + store CRUD + endpoint IA + utilitaire dates

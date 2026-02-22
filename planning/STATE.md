@@ -6,14 +6,14 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 
 **Core value:** Avoir une vue d'ensemble claire de tous les clients et deadlines en un coup d'œil, sans surcharge d'information.
 
-**Current focus:** Phase 9 (Retroplanning IA) — Plan 01 complété. Plan 02 (UI Gantt) restant.
+**Current focus:** Phase 9 (Retroplanning IA) — Plans 01 et 02 complétés. Phase 9 complète.
 
 ---
 
 ## Current Position
 
-**Phase en cours:** 9 (Retroplanning IA) — Plan 01 complété
-**Current Plan:** Plan 02 (UI Gantt)
+**Phase en cours:** 9 (Retroplanning IA) — Complète (Plans 01 + 02)
+**Current Plan:** Phase 9 complète — prochaine : Phase 5 ou Phase 6 Plan 02
 
 **Complété:**
 - Phases 1–4 (Timeline, Clients, Deliverables/Calls, Documents) ✅
@@ -26,18 +26,19 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - **Phase 8 Plan 02:** Navigation submenus, children tabs, page delete, section DnD reorder + add/delete ✅
 - **Phase 8 Plan 03:** Dynamic edit form (inferFieldType), merged AI button "IA ◆", strategy context wired to rewrite API ✅
 - **Phase 9 Plan 01:** Retroplanning types, Supabase migration, date utility, AI endpoint, Zustand CRUD ✅
+- **Phase 9 Plan 02:** CSS Grid Gantt, drag-move + resize, RetroplanningSection + ClientDetail integration, wiki updated ✅
 
-**Dernière activité:** 2026-02-22 — Phase 9 Plan 01 complété (retroplanning data layer: types + migration + API + store)
+**Dernière activité:** 2026-02-22 — Phase 9 Plan 02 complété (Gantt UI: CSS Grid, drag-move, resize, ClientDetail integration, wiki)
 
-**Progress:** [███████░░░] 71%
+**Progress:** [█████████░] 86%
 
 ---
 
 ## What's Next
 
-**Phase 9 – Retroplanning IA:**
+**Phase 9 – Retroplanning IA:** COMPLETE ✅
 - [x] Plan 09-01: Types + Supabase migration + AI endpoint + Zustand CRUD ✅
-- [ ] Plan 09-02: UI Gantt — RetroplanningView component + Gantt chart + client integration
+- [x] Plan 09-02: CSS Grid Gantt, drag-move + resize, ClientDetail integration, wiki ✅
 
 ---
 
@@ -49,7 +50,7 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - Phase 5 : Mobile & Polish — à faire
 - Phase 6 : Vue Comptabilité — Plan 01 complété (year filtering, status-based KPIs), reste Plan 02 (histogram)
 - Phase 8 : Web Brief Preview & Zoning — Plans 01, 02 et 03 complétés (phase complète)
-- Phase 9 : Retroplanning IA — Plan 01 complété (data layer), Plan 02 (UI Gantt) en cours
+- Phase 9 : Retroplanning IA — Plans 01 et 02 complétés (phase complète)
 
 ### Roadmap Evolution
 
@@ -92,6 +93,9 @@ Les décisions sont dans PROJECT.md (Key Decisions). Contexte technique dans `pl
 - One retroplan per client enforced by UNIQUE constraint on client_id in Supabase
 - computeDatesFromDeadline uses UTC dates to avoid DST issues; durationDays is inclusive range
 - AI endpoint receives briefContent (6000 chars max) + deadline; returns durationDays only, dates computed server-side
+- [Phase 09]: CSS Grid Gantt: gridTemplateColumns repeat(totalDays,1fr) each column = 1 day, bar positions via daysBetween
+- [Phase 09]: Pointer capture drag-move: setPointerCapture ensures tracking outside bar boundary, hasMoved guards click
+- [Phase 09]: Preview state local to Gantt: previewTask useState flushed to store only on pointerup (no O(n) writes per move)
 
 ### Blockers
 
@@ -99,4 +103,4 @@ Aucun.
 
 ---
 *State initial: 2026-02-13*
-*Updated: 2026-02-22 — Phase 9 Plan 01 complété (retroplanning data layer: types + migration + AI endpoint + Zustand CRUD)*
+*Updated: 2026-02-22 — Phase 9 Plan 02 complété (Gantt UI: CSS Grid, drag-move, resize, ClientDetail integration, wiki)*

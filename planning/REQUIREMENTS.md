@@ -113,9 +113,9 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **RETRO-03**: Retroplanning computed backward from user-supplied deadline
 - [x] **RETRO-04**: Retroplanning data persisted per client in Supabase (JSONB tasks)
 - [x] **RETRO-05**: Store CRUD actions for retroplanning (load, save, delete)
-- [ ] **RETRO-06**: Gantt chart visualization with horizontal bars per task in client detail
-- [ ] **RETRO-07**: User can drag-move and resize Gantt bars to adjust dates
-- [ ] **RETRO-08**: User can edit task details via inline form (label, dates, color)
+- [x] **RETRO-06**: Gantt chart visualization with horizontal bars per task in client detail
+- [x] **RETRO-07**: User can drag-move and resize Gantt bars to adjust dates
+- [x] **RETRO-08**: User can edit task details via inline form (label, dates, color)
 
 ## v2 Requirements
 
