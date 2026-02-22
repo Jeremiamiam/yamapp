@@ -95,16 +95,16 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Web Brief Preview & Zoning
 
-- [ ] **WBPZ-01**: Sections have stable UUID identity (not array-index based)
-- [ ] **WBPZ-02**: Unknown layout roles show a visible fallback placeholder with option to generate
-- [ ] **WBPZ-03**: Intelligent layout matching maps similar roles to existing layouts before showing fallback
-- [ ] **WBPZ-04**: Navigation renders hierarchical submenus when children are present
-- [ ] **WBPZ-05**: User can delete a page (removes page + sections + nav entry)
-- [ ] **WBPZ-06**: User can reorder sections within a page via drag & drop
-- [ ] **WBPZ-07**: User can add and delete individual sections within a page
-- [ ] **WBPZ-08**: Section edit form dynamically adapts to all content keys (not hardcoded fields)
-- [ ] **WBPZ-09**: Single AI button for re-prompting (replaces separate Yam + Réécrire buttons)
-- [ ] **WBPZ-10**: AI rewrite agent re-reads full strategy context (brand platform, copywriter text, report) before rewriting
+- [x] **WBPZ-01**: Sections have stable UUID identity (not array-index based)
+- [x] **WBPZ-02**: Unknown layout roles show a visible fallback placeholder with option to generate
+- [x] **WBPZ-03**: Intelligent layout matching maps similar roles to existing layouts before showing fallback
+- [x] **WBPZ-04**: Navigation renders hierarchical submenus when children are present
+- [x] **WBPZ-05**: User can delete a page (removes page + sections + nav entry)
+- [x] **WBPZ-06**: User can reorder sections within a page via drag & drop
+- [x] **WBPZ-07**: User can add and delete individual sections within a page
+- [x] **WBPZ-08**: Section edit form dynamically adapts to all content keys (not hardcoded fields)
+- [x] **WBPZ-09**: Single AI button for re-prompting (replaces separate Yam + Réécrire buttons)
+- [x] **WBPZ-10**: AI rewrite agent re-reads full strategy context (brand platform, copywriter text, report) before rewriting
 
 ### Retroplanning IA
 
@@ -116,6 +116,19 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **RETRO-06**: Gantt chart visualization with horizontal bars per task in client detail
 - [x] **RETRO-07**: User can drag-move and resize Gantt bars to adjust dates
 - [x] **RETRO-08**: User can edit task details via inline form (label, dates, color)
+
+### Layout Gallery & Variants
+
+- [ ] **LGAL-01**: Visual gallery displays all existing layouts (standard + custom) with scaled live preview cards
+- [ ] **LGAL-02**: Gallery accessible from WikiView via dedicated button/section
+- [ ] **LGAL-03**: Gallery accessible from LayoutPicker in SectionDrawer via gallery button
+- [ ] **LGAL-04**: User can create layout variants from the gallery (calls existing generate-layout API)
+- [ ] **LGAL-05**: Variants are distinct components (not overwriting base layouts), registered in custom-layouts.ts
+- [ ] **LGAL-06**: User can select a variant from gallery and apply it to current section (onSelectRole callback)
+- [ ] **LGAL-07**: AI prompt editing — user provides instruction, AI modifies existing layout code
+- [ ] **LGAL-08**: Manual code editing — user can view and edit layout TSX code directly
+- [ ] **LGAL-09**: Read-layout API endpoint to serve layout file content to the client
+- [ ] **LGAL-10**: Wiki updated with Layout Gallery feature entry
 
 ## v2 Requirements
 

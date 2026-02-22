@@ -23,6 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Supabase & Persistence** - BDD réelle, store branché Supabase, auth, migrations ✅
 - [x] **Phase 7.1: Security (Auth + RLS)** - Login, RLS tables, middleware ✅
 - [x] **Phase 7.2: Admin & Permissions** - user_roles, Compta/Settings réservés admins, champs prix masqués members ✅
+- [ ] **Phase 10: Layout Gallery & Variants** - Galerie visuelle des layouts, variantes, édition par prompt IA, accès wiki + LayoutPicker
 
 ## Phase Details
 
@@ -258,6 +259,17 @@ Plans:
 Plans:
 - [ ] 09-01-PLAN.md -- Types + migration Supabase + store CRUD + endpoint IA + utilitaire dates
 - [ ] 09-02-PLAN.md -- Gantt CSS Grid + RetroplanningSection + formulaire edition + integration ClientDetail + wiki
+
+### Phase 10: Layout Gallery & Variants
+
+**Goal:** Galerie visuelle des layouts avec système de variantes, édition par prompt IA ou manuelle, création de nouveaux layouts, accès depuis le wiki et le LayoutPicker du SectionDrawer
+**Depends on:** Phase 8
+**Requirements:** LGAL-01, LGAL-02, LGAL-03, LGAL-04, LGAL-05, LGAL-06, LGAL-07, LGAL-08, LGAL-09, LGAL-10
+**Plans:** 2 plans
+
+Plans:
+- [ ] 10-01-PLAN.md -- Gallery UI + scaled preview cards + variant creation + entry points (wiki + LayoutPicker) + wiki docs
+- [ ] 10-02-PLAN.md -- AI prompt editing + manual code editing + read-layout API + edit-layout API
 
 ---
 *Roadmap created: 2026-02-13*
