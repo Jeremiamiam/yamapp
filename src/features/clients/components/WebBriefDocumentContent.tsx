@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useReducer } from 'react';
 import { useAppStore } from '@/lib/store';
 import { toast } from '@/lib/toast';
 import { downloadDocumentAsMarkdown } from '@/lib/document-to-markdown';
@@ -16,12 +16,6 @@ import { generateSectionId } from '@/lib/section-id';
 const X = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-);
-const Edit = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
   </svg>
 );
 const Download = () => (
@@ -78,6 +72,9 @@ export function WebBriefDocumentContent({
 
   const [webBriefEditMode, setWebBriefEditMode] = useState(false);
   const [showAddPageModal, setShowAddPageModal] = useState(false);
+  const [, forceRerender] = useReducer((x: number) => x + 1, 0);
+
+  const clientName = clientId ? getClientById(clientId)?.name : undefined;
 
   const getStrategyContext = useCallback(() => {
     if (!clientId) return { reportContent: '', brandPlatform: undefined, copywriterText: '' };
@@ -89,6 +86,34 @@ export function WebBriefDocumentContent({
   useEffect(() => {
     setWebBriefEditMode(false);
   }, [selectedDocument.id]);
+
+  // "E" keyboard shortcut to toggle edit mode
+  useEffect(() => {
+    if (!onEditDocument) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'e' && e.key !== 'E') return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      e.preventDefault();
+      setWebBriefEditMode((v) => !v);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onEditDocument]);
+
+  // Escape key cascade: edit mode off → then let DocumentModal close
+  useEffect(() => {
+    if (!webBriefEditMode) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      setWebBriefEditMode(false);
+    };
+    document.addEventListener('keydown', handler, true); // capture phase
+    return () => document.removeEventListener('keydown', handler, true);
+  }, [webBriefEditMode]);
 
   const webBriefData = parseAndMigrateWebBriefData(selectedDocument.content);
   const arch = webBriefData?.architecture;
@@ -449,6 +474,222 @@ export function WebBriefDocumentContent({
     [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
   );
 
+  /** Générer un layout IA pour un rôle custom. */
+  const handleGenerateLayout = useCallback(
+    async (role: string, sampleContent: Record<string, unknown>) => {
+      try {
+        toast.info(`Génération du layout "${role}"…`);
+        const res = await fetch('/api/generate-layout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role, sampleContent }),
+        });
+        const json = (await res.json()) as { success?: boolean; error?: string; alreadyExisted?: boolean };
+        if (!res.ok || json.error) {
+          toast.error(json.error ?? 'Erreur lors de la génération du layout.');
+          return;
+        }
+        toast.success(json.alreadyExisted ? 'Layout déjà existant' : 'Layout généré !');
+        // Force re-render after HMR picks up the new file (sans remount → garde l'onglet actif)
+        setTimeout(() => forceRerender(), 1000);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la génération du layout.');
+      }
+    },
+    []
+  );
+
+  /** Changer le rôle (layout) d'une section. */
+  const handleSectionRoleChange = useCallback(
+    (pageSlug: string | null, sectionId: string, newRole: string) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+
+        if (pageSlug === null) {
+          const sections = [...(data.homepage.sections ?? [])];
+          const updatedSections = sections.map((s) =>
+            s.id === sectionId ? { ...s, role: newRole } : s
+          );
+          const updatedData: WebBriefData = {
+            ...data,
+            homepage: { ...data.homepage, sections: updatedSections },
+          };
+          updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        } else {
+          const pageData = data.pages?.[pageSlug];
+          if (!pageData) return;
+          const sections = [...(pageData.sections ?? [])];
+          const updatedSections = sections.map((s) =>
+            s.id === sectionId ? { ...s, role: newRole } : s
+          );
+          const updatedData: WebBriefData = {
+            ...data,
+            pages: { ...(data.pages ?? {}), [pageSlug]: { ...pageData, sections: updatedSections } },
+          };
+          updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors du changement de layout.');
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
+  /** Déplacer une page comme sous-page d'un parent (ou remonter au top-level). */
+  const handleSetPageParent = useCallback(
+    (slug: string, parentSlug: string | null) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const nav = data.architecture.navigation ?? {};
+
+        // Find the page label by searching everywhere
+        let pageLabel = slug;
+        for (const item of (nav.primary ?? [])) {
+          if (item.slug === slug) { pageLabel = item.page; break; }
+          for (const child of (item.children ?? [])) {
+            if (child.slug === slug) { pageLabel = child.page; break; }
+          }
+        }
+        for (const item of (nav.added_pages ?? [])) {
+          if (item.slug === slug) { pageLabel = item.page; break; }
+        }
+
+        // Remove the page from everywhere in the nav structure
+        let updatedPrimary = (nav.primary ?? [])
+          .filter((item) => item.slug !== slug)
+          .map((item) => ({
+            ...item,
+            children: item.children?.filter((c) => c.slug !== slug),
+          }));
+        let updatedAddedPages = (nav.added_pages ?? []).filter((item) => item.slug !== slug);
+
+        if (parentSlug === null) {
+          // Promote to top-level (add to added_pages)
+          updatedAddedPages = [...updatedAddedPages, { page: pageLabel, slug, agent_brief: '' }];
+        } else {
+          // Add as child of parentSlug
+          updatedPrimary = updatedPrimary.map((item) => {
+            if (item.slug === parentSlug) {
+              return {
+                ...item,
+                children: [...(item.children ?? []), { page: pageLabel, slug, justification: '' }],
+              };
+            }
+            return item;
+          });
+          // Also check added_pages items — they can't have children in the current data model,
+          // so if the parent is an added_page, we need to move it to primary first
+          const addedParentIdx = updatedAddedPages.findIndex(a => a.slug === parentSlug);
+          if (addedParentIdx >= 0) {
+            const addedParent = updatedAddedPages[addedParentIdx];
+            updatedAddedPages = updatedAddedPages.filter((_, i) => i !== addedParentIdx);
+            updatedPrimary = [
+              ...updatedPrimary,
+              {
+                page: addedParent.page,
+                slug: addedParent.slug,
+                justification: '',
+                children: [{ page: pageLabel, slug, justification: '' }],
+              },
+            ];
+          }
+        }
+
+        const updatedData: WebBriefData = {
+          ...data,
+          architecture: {
+            ...data.architecture,
+            navigation: {
+              ...nav,
+              primary: updatedPrimary,
+              added_pages: updatedAddedPages,
+            },
+          },
+        };
+        updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        toast.success(parentSlug === null ? `"${pageLabel}" remonté au niveau principal` : `"${pageLabel}" ajouté comme sous-page`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors du déplacement de la page.');
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
+  /** Renommer une page dans la navigation. */
+  const handleRenamePage = useCallback(
+    (slug: string, newName: string) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const nav = data.architecture.navigation ?? {};
+
+        // Rename in primary nav (and in their children arrays)
+        const updatedPrimary = (nav.primary ?? []).map((item) => ({
+          ...item,
+          page: item.slug === slug ? newName : item.page,
+          children: item.children?.map((c) =>
+            c.slug === slug ? { ...c, page: newName } : c
+          ),
+        }));
+        // Rename in added_pages
+        const updatedAddedPages = (nav.added_pages ?? []).map((item) =>
+          item.slug === slug ? { ...item, page: newName } : item
+        );
+        // Rename in footer_only
+        const updatedFooterOnly = (nav.footer_only ?? []).map((item) =>
+          item.slug === slug ? { ...item, page: newName } : item
+        );
+        // Rename in pages data if exists
+        const updatedPages = { ...(data.pages ?? {}) };
+        if (updatedPages[slug]) {
+          updatedPages[slug] = { ...updatedPages[slug], page: newName };
+        }
+
+        const updatedData: WebBriefData = {
+          ...data,
+          architecture: {
+            ...data.architecture,
+            navigation: {
+              ...nav,
+              primary: updatedPrimary,
+              added_pages: updatedAddedPages,
+              footer_only: updatedFooterOnly,
+            },
+          },
+          pages: updatedPages,
+        };
+        updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+        toast.success(`Page renommée en "${newName}"`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors du renommage.');
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
+  /** Modifier le CTA de la navbar. */
+  const handleCtaChange = useCallback(
+    (label: string, visible: boolean) => {
+      if (!clientId) return;
+      try {
+        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const updatedData: WebBriefData = {
+          ...data,
+          architecture: {
+            ...data.architecture,
+            cta: { label, visible },
+          },
+        };
+        updateDocument(clientId, selectedDocument.id, { content: JSON.stringify(updatedData) });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la mise à jour du CTA.');
+      }
+    },
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+  );
+
   /** Supprimer une section et recalculer les ordres. */
   const handleDeleteSection = useCallback(
     (pageSlug: string | null, sectionId: string) => {
@@ -501,16 +742,6 @@ export function WebBriefDocumentContent({
           )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          {clientId && (
-            <button
-              type="button"
-              onClick={() => setShowAddPageModal(true)}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--accent-cyan)]/40 bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 transition-colors"
-              title="Ajouter une page non prévue"
-            >
-              + Page
-            </button>
-          )}
           <button
             type="button"
             onClick={() => downloadDocumentAsMarkdown(selectedDocument)}
@@ -523,14 +754,14 @@ export function WebBriefDocumentContent({
             <button
               type="button"
               onClick={() => setWebBriefEditMode((v) => !v)}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-colors ${
                 webBriefEditMode
                   ? 'bg-[var(--accent-cyan)]/15 text-[var(--accent-cyan)]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
               }`}
-              title={webBriefEditMode ? "Désactiver l'édition" : 'Modifier'}
+              title={webBriefEditMode ? "Désactiver l'édition (E)" : 'Modifier (E)'}
             >
-              <Edit />
+              E
             </button>
           )}
           <button
@@ -552,6 +783,7 @@ export function WebBriefDocumentContent({
             immersiveMode
             editMode={webBriefEditMode}
             onEditModeChange={setWebBriefEditMode}
+            brandName={clientName}
             onAiRewrite={clientId ? handleAiRewrite : undefined}
             onGeneratePageZoning={clientId ? handleGeneratePageZoning : undefined}
             onPageAiRewrite={clientId ? handlePageAiRewrite : undefined}
@@ -561,6 +793,12 @@ export function WebBriefDocumentContent({
             onDeleteSection={clientId ? handleDeleteSection : undefined}
             onAddSection={clientId ? handleAddSection : undefined}
             onReorderSections={clientId ? handleReorderSections : undefined}
+            onSectionRoleChange={clientId ? handleSectionRoleChange : undefined}
+            onAddPage={clientId ? () => setShowAddPageModal(true) : undefined}
+            onSetPageParent={clientId ? handleSetPageParent : undefined}
+            onRenamePage={clientId ? handleRenamePage : undefined}
+            onCtaChange={clientId ? handleCtaChange : undefined}
+            onGenerateLayout={handleGenerateLayout}
           />
         ) : (
           <p className="text-[var(--text-secondary)] text-sm p-4">Contenu invalide.</p>

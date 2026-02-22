@@ -30,6 +30,8 @@ export interface WebArchitectOutput {
     /** Pages ajoutées à la main (hors archi initiale). */
     added_pages?: AddedPage[];
   };
+  /** Bouton CTA affiché dans la navbar. */
+  cta?: { label: string; visible: boolean };
   user_flows?: { persona: string; entry_point: string; flow: string[]; conversion_goal: string }[];
   content_dependencies?: string[];
   pages_rejected?: { page: string; reason: string }[];

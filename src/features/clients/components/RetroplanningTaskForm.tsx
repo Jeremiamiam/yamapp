@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { RetroplanningTask, RetroplanningTaskColor } from '@/types';
 import { daysBetween } from '@/lib/retroplanning-utils';
 
@@ -32,6 +32,14 @@ export function RetroplanningTaskForm({ task, onSave, onClose }: RetroplanningTa
   const [endDate, setEndDate] = useState(task.endDate);
   const [color, setColor] = useState<RetroplanningTaskColor>(task.color);
 
+  // Sync form when task prop changes (e.g. after drag)
+  useEffect(() => {
+    setLabel(task.label);
+    setStartDate(task.startDate);
+    setEndDate(task.endDate);
+    setColor(task.color);
+  }, [task.label, task.startDate, task.endDate, task.color]);
+
   // Auto-compute durationDays from dates
   const durationDays = startDate && endDate ? daysBetween(startDate, endDate) : task.durationDays;
 
@@ -48,7 +56,7 @@ export function RetroplanningTaskForm({ task, onSave, onClose }: RetroplanningTa
 
   return (
     <div
-      className="mt-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-secondary)] p-4 space-y-4"
+      className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-secondary)] p-4 space-y-3 h-full"
       role="form"
       aria-label="Modifier la tâche"
     >

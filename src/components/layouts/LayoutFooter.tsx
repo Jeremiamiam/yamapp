@@ -8,26 +8,42 @@ export interface FooterNavItem {
 
 interface LayoutFooterProps {
   content?: Record<string, unknown>;
+  /** @deprecated Préférer navItemsMain + navItemsLegal */
   navItems?: FooterNavItem[];
-  /** tabKey par index (__homepage__ pour homepage, slug sinon) — requis si onNavClick fourni */
+  /** tabKey par index (__homepage__ pour homepage, slug sinon) — requis si onNavClick fourni pour main */
   tabKeys?: string[];
   onNavClick?: (tabKey: string) => void;
   /** Padding réduit pour aperçu dans une modale */
   compact?: boolean;
+  /** Colonne Navigation (menu principal + added_pages) — cliquables */
+  navItemsMain?: FooterNavItem[];
+  /** Colonne Legal (mentions légales, etc.) — affichage seul, pas dans le menu */
+  navItemsLegal?: FooterNavItem[];
+  /** Nom affiché à la place de "Logo" (ex: nom du client) */
+  brandName?: string;
 }
 
-export function LayoutFooter({ content, navItems, tabKeys, onNavClick, compact = false }: LayoutFooterProps) {
-  const links = navItems?.length
-    ? navItems.map((i, idx) => ({ label: i.page, href: `#${i.slug}`, tabKey: tabKeys?.[idx] ?? i.slug }))
-    : [
-        { label: 'Services', href: '#services', tabKey: 'services' },
-        { label: 'À propos', href: '#a-propos', tabKey: 'a-propos' },
-        { label: 'Contact', href: '#contact', tabKey: 'contact' },
-        { label: 'Mentions légales', href: '#mentions', tabKey: 'mentions' },
-        { label: 'Confidentialité', href: '#confidentialite', tabKey: 'confidentialite' },
-      ];
+export function LayoutFooter({ content, navItems, tabKeys, onNavClick, compact = false, navItemsMain, navItemsLegal, brandName }: LayoutFooterProps) {
+  const mainLinks = navItemsMain?.length
+    ? navItemsMain.map((i, idx) => ({ label: i.page, href: `#${i.slug}`, tabKey: tabKeys?.[idx] ?? i.slug }))
+    : navItems?.length
+      ? navItems.slice(0, 3).map((i, idx) => ({ label: i.page, href: `#${i.slug}`, tabKey: tabKeys?.[idx] ?? i.slug }))
+      : [
+          { label: 'Services', href: '#services', tabKey: 'services' },
+          { label: 'À propos', href: '#a-propos', tabKey: 'a-propos' },
+          { label: 'Contact', href: '#contact', tabKey: 'contact' },
+        ];
 
-  const renderLink = (l: { label: string; href: string; tabKey: string }, key: number) => {
+  const legalLinks = navItemsLegal?.length
+    ? navItemsLegal.map((i) => ({ label: i.page, href: `#${i.slug}` }))
+    : navItems?.length && navItems.length > 3
+      ? navItems.slice(3).map((i) => ({ label: i.page, href: `#${i.slug}` }))
+      : [
+          { label: 'Mentions légales', href: '#mentions' },
+          { label: 'Confidentialité', href: '#confidentialite' },
+        ];
+
+  const renderMainLink = (l: { label: string; href: string; tabKey: string }, key: number) => {
     if (onNavClick) {
       return (
         <li key={key}>
@@ -55,7 +71,7 @@ export function LayoutFooter({ content, navItems, tabKeys, onNavClick, compact =
       <div className="mx-auto max-w-6xl">
         <div className="grid gap-12 md:grid-cols-4">
           <div>
-            <span className="text-lg font-semibold text-[var(--text-primary)]">Logo</span>
+            <span className="text-lg font-semibold text-[var(--text-primary)]">{brandName || 'Logo'}</span>
             <p className="mt-3 text-sm text-[var(--text-muted)]">
               Description courte. Liens, legal, réseaux sociaux.
             </p>
@@ -63,13 +79,19 @@ export function LayoutFooter({ content, navItems, tabKeys, onNavClick, compact =
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Navigation</h4>
             <ul className="mt-4 space-y-2">
-              {links.slice(0, 3).map((l, i) => renderLink(l, i))}
+              {mainLinks.map((l, i) => renderMainLink(l, i))}
             </ul>
           </div>
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Legal</h4>
             <ul className="mt-4 space-y-2">
-              {links.slice(3).map((l, i) => renderLink(l, 3 + i))}
+              {legalLinks.map((l, i) => (
+                <li key={i}>
+                  <a href={l.href} className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                    {l.label}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
           <div>
@@ -81,7 +103,7 @@ export function LayoutFooter({ content, navItems, tabKeys, onNavClick, compact =
           </div>
         </div>
         <div className="mt-12 border-t border-[var(--border-subtle)] pt-8 text-center text-sm text-[var(--text-muted)]">
-          © 2025 Nom. Tous droits réservés.
+          © {new Date().getFullYear()} {brandName || 'Nom'}. Tous droits réservés.
         </div>
       </div>
     </footer>

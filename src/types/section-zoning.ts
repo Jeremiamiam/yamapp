@@ -30,7 +30,9 @@ export interface ZonedSection {
   /** UUID stable — optionnel pour rétrocompat avec les sorties agents legacy. */
   id?: string;
   order: number;
-  role: SectionRole;
+  /** Rôle connu (SectionRole) ou rôle custom inventé par l'IA (ex: product_grid, blog_list).
+   *  Les rôles custom s'affichent via LayoutPlaceholder avec option de générer le layout. */
+  role: SectionRole | (string & {});
   intent?: string;
   content: Record<string, unknown>;
   layout?: SectionLayoutVariant;

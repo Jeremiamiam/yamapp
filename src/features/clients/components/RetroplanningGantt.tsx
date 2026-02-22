@@ -17,7 +17,6 @@ const COLOR_MAP: Record<RetroplanningTaskColor, string> = {
 
 // ─── Date helpers ──────────────────────────────────────────────────────────
 
-/** Add `days` calendar days to an ISO YYYY-MM-DD string */
 function addDays(dateStr: string, days: number): string {
   const MS_PER_DAY = 86400000;
   const d = new Date(dateStr);
@@ -29,7 +28,6 @@ function addDays(dateStr: string, days: number): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Return today as YYYY-MM-DD (local date) */
 function todayString(): string {
   const now = new Date();
   const y = now.getFullYear();
@@ -38,7 +36,6 @@ function todayString(): string {
   return `${y}-${m}-${d}`;
 }
 
-/** Clamp delta so task doesn't go before projectStart or after deadline */
 function clampDelta(task: RetroplanningTask, delta: number, projectStart: string, deadline: string): number {
   const MS_PER_DAY = 86400000;
   const startMs = new Date(task.startDate).getTime();
@@ -53,42 +50,45 @@ function clampDelta(task: RetroplanningTask, delta: number, projectStart: string
   return Math.round(clampedDelta / MS_PER_DAY);
 }
 
-// ─── Month label computation ────────────────────────────────────────────────
+// ─── Month markers ──────────────────────────────────────────────────────────
 
-interface MonthSegment {
+interface MonthMarker {
   label: string;
-  startCol: number; // 1-based CSS grid column
-  span: number;     // number of days in this month within range
+  percent: number; // position as % of total width
 }
 
-function computeMonthSegments(projectStart: string, totalDays: number): MonthSegment[] {
-  const segments: MonthSegment[] = [];
-  let current = projectStart;
-  let col = 1;
+function computeMonthMarkers(projectStart: string, totalDays: number): MonthMarker[] {
+  const markers: MonthMarker[] = [];
+  const d = new Date(projectStart);
+  let year = d.getUTCFullYear();
+  let month = d.getUTCMonth();
 
-  while (col <= totalDays) {
-    const d = new Date(current);
-    const year = d.getUTCFullYear();
-    const month = d.getUTCMonth();
+  // Start from the first day of the next month after projectStart
+  month += 1;
+  if (month > 11) { month = 0; year += 1; }
 
-    // End of this month (last day of the month in UTC)
-    const lastOfMonth = new Date(Date.UTC(year, month + 1, 0));
-    const lastStr = `${lastOfMonth.getUTCFullYear()}-${String(lastOfMonth.getUTCMonth() + 1).padStart(2, '0')}-${String(lastOfMonth.getUTCDate()).padStart(2, '0')}`;
+  while (true) {
+    const firstOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const daysFromStart = daysBetween(projectStart, firstOfMonth);
+    if (daysFromStart >= totalDays) break;
 
-    // Days from `current` to end of month (inclusive, capped by remaining totalDays)
-    const daysInSegment = Math.min(daysBetween(current, lastStr), totalDays - col + 1);
-
-    segments.push({
-      label: new Date(current).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit', timeZone: 'UTC' }),
-      startCol: col,
-      span: daysInSegment,
+    markers.push({
+      label: new Date(Date.UTC(year, month, 1)).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit', timeZone: 'UTC' }),
+      percent: (daysFromStart / totalDays) * 100,
     });
 
-    col += daysInSegment;
-    current = addDays(lastStr, 1);
+    month += 1;
+    if (month > 11) { month = 0; year += 1; }
   }
 
-  return segments;
+  return markers;
+}
+
+// ─── Format date for display ─────────────────────────────────────────────────
+
+function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -117,18 +117,25 @@ interface DragState {
 export function RetroplanningGantt({ tasks, deadline, onTaskUpdate, onTaskClick }: RetroplanningGanttProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
-
-  // Local preview state for dragged bar (avoids re-rendering whole list)
+  const previewRef = useRef<RetroplanningTask | null>(null);
   const [previewTask, setPreviewTask] = useState<RetroplanningTask | null>(null);
 
-  // Compute project range
-  const projectStart = tasks.reduce((earliest, t) => t.startDate < earliest ? t.startDate : earliest, tasks[0]?.startDate ?? deadline);
-  const totalDays = daysBetween(projectStart, deadline);
+  // Compute project range (expand to include tasks that go beyond deadline)
+  const projectStart = tasks.reduce(
+    (earliest, t) => t.startDate < earliest ? t.startDate : earliest,
+    tasks[0]?.startDate ?? deadline
+  );
+  const projectEnd = tasks.reduce(
+    (latest, t) => t.endDate > latest ? t.endDate : latest,
+    deadline
+  );
+  const totalDays = Math.max(1, daysBetween(projectStart, projectEnd));
   const today = todayString();
   const todayInRange = today >= projectStart && today <= deadline;
-  const todayCol = todayInRange ? daysBetween(projectStart, today) : null;
+  const todayPercent = todayInRange ? (daysBetween(projectStart, today) / totalDays) * 100 : null;
+  const deadlinePercent = projectEnd > deadline ? (daysBetween(projectStart, deadline) / totalDays) * 100 : null;
 
-  const monthSegments = computeMonthSegments(projectStart, totalDays);
+  const monthMarkers = computeMonthMarkers(projectStart, totalDays);
 
   // ── Pointer Handlers ──────────────────────────────────────────────────────
 
@@ -176,37 +183,41 @@ export function RetroplanningGantt({ tasks, deadline, onTaskUpdate, onTaskClick 
     if (rawDelta !== 0) dragRef.current.hasMoved = true;
 
     if (mode === 'move') {
-      const clampedDelta = clampDelta(originalTask, rawDelta, projectStart, deadline);
+      const clampedDelta = clampDelta(originalTask, rawDelta, projectStart, projectEnd);
       if (clampedDelta !== 0 || dragRef.current.hasMoved) {
         const newStartDate = addDays(originalTask.startDate, clampedDelta);
         const newEndDate = addDays(originalTask.endDate, clampedDelta);
-        setPreviewTask({ ...originalTask, startDate: newStartDate, endDate: newEndDate });
+        const updated = { ...originalTask, startDate: newStartDate, endDate: newEndDate };
+        previewRef.current = updated;
+        setPreviewTask(updated);
       }
     } else {
-      // Resize right edge → adjust endDate
       const newDelta = Math.max(1 - originalTask.durationDays, rawDelta);
       const newEndDate = addDays(originalTask.endDate, newDelta);
-      // Clamp endDate to deadline
-      const clampedEnd = newEndDate > deadline ? deadline : newEndDate;
+      const clampedEnd = newEndDate > projectEnd ? projectEnd : newEndDate;
       const newDuration = Math.max(1, daysBetween(originalTask.startDate, clampedEnd));
-      setPreviewTask({ ...originalTask, endDate: clampedEnd, durationDays: newDuration });
+      const updated = { ...originalTask, endDate: clampedEnd, durationDays: newDuration };
+      previewRef.current = updated;
+      setPreviewTask(updated);
     }
   }, [projectStart, deadline]);
 
   const handlePointerUp = useCallback(() => {
     if (!dragRef.current) return;
     const { hasMoved } = dragRef.current;
+    const currentPreview = previewRef.current;
 
-    if (hasMoved && previewTask) {
-      onTaskUpdate(previewTask);
+    if (hasMoved && currentPreview) {
+      onTaskUpdate(currentPreview);
     }
 
     dragRef.current = null;
+    previewRef.current = null;
     setPreviewTask(null);
-  }, [previewTask, onTaskUpdate]);
+  }, [onTaskUpdate]);
 
   const handleBarClick = useCallback((e: React.MouseEvent, task: RetroplanningTask) => {
-    if (dragRef.current?.hasMoved) return; // was a drag, not a click
+    if (dragRef.current?.hasMoved) return;
     onTaskClick(task);
   }, [onTaskClick]);
 
@@ -217,200 +228,184 @@ export function RetroplanningGantt({ tasks, deadline, onTaskUpdate, onTaskClick 
     return task;
   }
 
-  function getBarCols(task: RetroplanningTask): { start: number; end: number } {
+  function getBarPosition(task: RetroplanningTask): { left: number; width: number; isNarrow: boolean } {
     const dt = getDisplayTask(task);
-    const start = daysBetween(projectStart, dt.startDate);
-    const end = start + daysBetween(dt.startDate, dt.endDate); // exclusive end for CSS grid
-    return { start, end: end + 1 }; // CSS grid is 1-based
+    const startOffset = daysBetween(projectStart, dt.startDate);
+    const duration = daysBetween(dt.startDate, dt.endDate);
+    const widthPct = Math.max(2, (duration / totalDays) * 100);
+    return {
+      left: (startOffset / totalDays) * 100,
+      width: widthPct,
+      isNarrow: widthPct < 12, // bar too small to fit label inside
+    };
   }
 
-  const LABEL_WIDTH = 160;
+  // First month label (projectStart month)
+  const startMonthLabel = new Date(projectStart).toLocaleDateString('fr-FR', {
+    month: 'short', year: '2-digit', timeZone: 'UTC',
+  });
 
   return (
-    <div className="w-full overflow-x-auto rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]">
-      <div style={{ minWidth: Math.max(600, totalDays * 20 + LABEL_WIDTH) }}>
-        {/* Time axis header */}
-        <div className="flex border-b border-[var(--border-subtle)]">
-          {/* Label column spacer */}
-          <div style={{ width: LABEL_WIDTH, flexShrink: 0 }} className="border-r border-[var(--border-subtle)] px-3 py-2">
-            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Étape</span>
+    <div className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] overflow-x-auto overflow-y-hidden">
+      {/* Timeline header with month markers */}
+      <div className="relative h-7 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]">
+        {/* Start month */}
+        <span
+          className="absolute text-[10px] font-medium text-[var(--text-muted)] capitalize"
+          style={{ left: 8, top: '50%', transform: 'translateY(-50%)' }}
+        >
+          {startMonthLabel}
+        </span>
+
+        {/* Month markers */}
+        {monthMarkers.map((marker, i) => (
+          <div key={i} className="absolute top-0 bottom-0" style={{ left: `${marker.percent}%` }}>
+            <div className="h-full border-l border-[var(--border-subtle)]" />
+            <span
+              className="absolute text-[10px] font-medium text-[var(--text-muted)] capitalize whitespace-nowrap"
+              style={{ left: 6, top: '50%', transform: 'translateY(-50%)' }}
+            >
+              {marker.label}
+            </span>
           </div>
+        ))}
 
-          {/* Month labels using CSS grid */}
+        {/* Deadline marker in header (only when timeline extends past deadline) */}
+        {deadlinePercent !== null && (
           <div
-            className="flex-1 relative"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${totalDays}, 1fr)`,
-            }}
-          >
-            {monthSegments.map((seg, i) => (
-              <div
-                key={i}
-                style={{
-                  gridColumn: `${seg.startCol} / span ${seg.span}`,
-                  borderRight: i < monthSegments.length - 1 ? '1px solid var(--border-subtle)' : undefined,
-                }}
-                className="px-2 py-2 text-[10px] font-medium text-[var(--text-muted)] capitalize"
-              >
-                {seg.label}
-              </div>
-            ))}
+            className="absolute top-0 bottom-0 w-0.5"
+            style={{ left: `${deadlinePercent}%`, backgroundColor: 'var(--accent-amber)', opacity: 0.6, zIndex: 4 }}
+          />
+        )}
 
-            {/* Week lines overlay */}
-            {Array.from({ length: Math.floor(totalDays / 7) }, (_, i) => {
-              const col = (i + 1) * 7;
-              return col < totalDays ? (
+        {/* Today indicator in header */}
+        {todayPercent !== null && (
+          <div
+            className="absolute top-0 bottom-0 w-0.5"
+            style={{ left: `${todayPercent}%`, backgroundColor: '#ef4444', opacity: 0.7, zIndex: 5 }}
+          />
+        )}
+      </div>
+
+      {/* Task rows */}
+      <div
+        ref={containerRef}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className="relative"
+      >
+        {tasks.map((task) => {
+          const { left, width, isNarrow } = getBarPosition(task);
+          const color = COLOR_MAP[task.color] || 'var(--accent-amber)';
+          const dt = getDisplayTask(task);
+          const isDragging = dragRef.current?.taskId === task.id;
+          const barRight = left + width; // % from left edge where bar ends
+
+          return (
+            <div
+              key={task.id}
+              className="relative border-b border-[var(--border-subtle)] last:border-b-0"
+              style={{ height: 44 }}
+            >
+              {/* Month grid lines (subtle) */}
+              {monthMarkers.map((marker, i) => (
                 <div
-                  key={`week-${i}`}
+                  key={`ml-${i}`}
+                  className="absolute top-0 bottom-0 border-l border-[var(--border-subtle)] opacity-40"
+                  style={{ left: `${marker.percent}%`, pointerEvents: 'none' }}
+                />
+              ))}
+
+              {/* Deadline marker (when timeline extends past) */}
+              {deadlinePercent !== null && (
+                <div
+                  className="absolute top-0 bottom-0 w-0.5"
                   style={{
-                    gridColumn: `${col} / ${col + 1}`,
-                    gridRow: '1',
-                    borderRight: '1px solid var(--border-subtle)',
-                    height: '100%',
-                    position: 'absolute',
-                    left: `${(col / totalDays) * 100}%`,
-                    top: 0,
-                    bottom: 0,
-                    width: 1,
-                    opacity: 0.5,
+                    left: `${deadlinePercent}%`,
+                    backgroundColor: 'var(--accent-amber)',
+                    opacity: 0.25,
+                    pointerEvents: 'none',
+                    zIndex: 4,
                   }}
                 />
-              ) : null;
-            })}
-          </div>
-        </div>
+              )}
 
-        {/* Task rows */}
-        <div
-          ref={containerRef}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          className="relative"
-        >
-          {tasks.map((task) => {
-            const { start, end } = getBarCols(task);
-            const color = COLOR_MAP[task.color] || 'var(--accent-amber)';
-            const dt = getDisplayTask(task);
-            const isDragging = dragRef.current?.taskId === task.id;
-
-            return (
-              <div key={task.id} className="flex border-b border-[var(--border-subtle)] last:border-b-0 items-center" style={{ height: 44 }}>
-                {/* Label column */}
+              {/* Today indicator */}
+              {todayPercent !== null && (
                 <div
-                  style={{ width: LABEL_WIDTH, flexShrink: 0 }}
-                  className="border-r border-[var(--border-subtle)] px-3 flex items-center overflow-hidden"
-                >
-                  <span className="text-xs text-[var(--text-primary)] truncate font-medium">{task.label}</span>
-                </div>
-
-                {/* Gantt bar area */}
-                <div
-                  className="flex-1 relative"
+                  className="absolute top-0 bottom-0 w-0.5"
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${totalDays}, 1fr)`,
-                    height: '100%',
-                    alignItems: 'center',
+                    left: `${todayPercent}%`,
+                    backgroundColor: '#ef4444',
+                    opacity: 0.35,
+                    pointerEvents: 'none',
+                    zIndex: 5,
                   }}
-                >
-                  {/* Grid lines (every 7 days) */}
-                  {Array.from({ length: Math.floor(totalDays / 7) }, (_, i) => {
-                    const col = (i + 1) * 7;
-                    return col < totalDays ? (
-                      <div
-                        key={`gl-${i}`}
-                        style={{
-                          position: 'absolute',
-                          left: `${(col / totalDays) * 100}%`,
-                          top: 0,
-                          bottom: 0,
-                          width: 1,
-                          backgroundColor: 'var(--border-subtle)',
-                          opacity: 0.5,
-                          pointerEvents: 'none',
-                        }}
-                      />
-                    ) : null;
-                  })}
+                />
+              )}
 
-                  {/* Today indicator */}
-                  {todayCol && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        left: `${((todayCol - 1) / totalDays) * 100}%`,
-                        top: 0,
-                        bottom: 0,
-                        width: 2,
-                        backgroundColor: '#ef4444',
-                        opacity: 0.7,
-                        pointerEvents: 'none',
-                        zIndex: 5,
-                      }}
-                    />
-                  )}
-
-                  {/* The actual bar */}
-                  <div
-                    style={{
-                      gridColumn: `${start} / ${end}`,
-                      backgroundColor: color.replace(')', ', 0.25)').replace('var(', 'color-mix(in srgb, ').replace(', 0.25)', ' 25%, transparent)'),
-                      borderLeft: `4px solid ${color}`,
-                      cursor: isDragging ? 'grabbing' : 'grab',
-                      position: 'relative',
-                      userSelect: 'none',
-                      zIndex: isDragging ? 10 : 1,
-                      opacity: isDragging ? 0.85 : 1,
-                    }}
-                    className="h-8 mx-0.5 rounded flex items-center px-2 overflow-hidden select-none"
-                    onPointerDown={(e) => handleBarPointerDown(e, task)}
-                    onClick={(e) => handleBarClick(e, dt)}
-                  >
-                    <span className="text-[11px] font-medium truncate" style={{ color, filter: 'brightness(1.4)' }}>
+              {/* Bar */}
+              <div
+                className="absolute top-1 bottom-1 rounded-md flex items-center select-none"
+                style={{
+                  left: `${left}%`,
+                  width: `${width}%`,
+                  backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)`,
+                  borderLeft: `3px solid ${color}`,
+                  cursor: isDragging ? 'grabbing' : 'grab',
+                  zIndex: isDragging ? 10 : 1,
+                  opacity: isDragging ? 0.85 : 1,
+                  transition: isDragging ? 'none' : 'opacity 0.15s',
+                  overflow: 'hidden',
+                }}
+                onPointerDown={(e) => handleBarPointerDown(e, task)}
+                onClick={(e) => handleBarClick(e, dt)}
+              >
+                {/* Label inside bar (only if wide enough) */}
+                {!isNarrow && (
+                  <div className="flex items-center gap-2 px-2 min-w-0 w-full">
+                    <span
+                      className="text-[11px] font-semibold truncate"
+                      style={{ color, filter: 'brightness(1.3)' }}
+                    >
                       {dt.label}
                     </span>
-
-                    {/* Resize handle */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        right: 0,
-                        top: 0,
-                        bottom: 0,
-                        width: 8,
-                        cursor: 'ew-resize',
-                        borderRight: `2px solid ${color}`,
-                        opacity: 0.6,
-                      }}
-                      className="rounded-r hover:opacity-100 transition-opacity"
-                      onPointerDown={(e) => handleResizePointerDown(e, task)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
+                    <span className="text-[9px] text-[var(--text-muted)] opacity-70 whitespace-nowrap ml-auto hidden sm:inline">
+                      {formatShortDate(dt.startDate)} → {formatShortDate(dt.endDate)}
+                    </span>
                   </div>
-                </div>
-              </div>
-            );
-          })}
+                )}
 
-          {/* Today line spanning full height (drawn over all rows) — duplicated at task level but also full height */}
-          {todayCol && tasks.length > 0 && (
-            <div
-              style={{
-                position: 'absolute',
-                left: `calc(${LABEL_WIDTH}px + ${((todayCol - 1) / totalDays) * (100)}%)`,
-                top: 0,
-                bottom: 0,
-                width: 2,
-                backgroundColor: '#ef4444',
-                opacity: 0.35,
-                pointerEvents: 'none',
-                zIndex: 20,
-              }}
-            />
-          )}
-        </div>
+                {/* Resize handle */}
+                <div
+                  className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-r hover:opacity-100 transition-opacity"
+                  style={{ borderRight: `2px solid ${color}`, opacity: 0.5 }}
+                  onPointerDown={(e) => handleResizePointerDown(e, task)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+
+              {/* Label outside bar (when bar is too narrow) */}
+              {isNarrow && (
+                <span
+                  className="absolute text-[11px] font-semibold whitespace-nowrap pointer-events-none"
+                  style={{
+                    ...(barRight > 75
+                      ? { right: `${100 - left + 0.5}%` } // label to the left if bar is near right edge
+                      : { left: `${barRight + 0.5}%` }),   // label to the right otherwise
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color,
+                    filter: 'brightness(1.3)',
+                  }}
+                >
+                  {dt.label}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

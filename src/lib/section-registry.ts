@@ -17,6 +17,7 @@ import { LayoutFaq } from '@/components/layouts/LayoutFaq';
 import { LayoutCtaFinal } from '@/components/layouts/LayoutCtaFinal';
 import { LayoutContactForm } from '@/components/layouts/LayoutContactForm';
 import { LayoutFooter } from '@/components/layouts/LayoutFooter';
+import { CUSTOM_LAYOUTS } from './custom-layouts';
 
 export interface LayoutComponentProps {
   content?: Record<string, unknown>;
@@ -88,6 +89,11 @@ export function getLayoutForRoleWithFallback(role: string): LayoutMatchResult {
     };
   }
 
+  // 1.5 Check custom layouts (AI-generated)
+  if (role in CUSTOM_LAYOUTS) {
+    return { layout: CUSTOM_LAYOUTS[role], matched: null, isExact: true };
+  }
+
   // 2. Match via similarity map (case-insensitive)
   const normalizedRole = role.toLowerCase();
   if (normalizedRole in ROLE_SIMILARITY_MAP) {
@@ -120,4 +126,21 @@ export function getLayoutForRole(role: string): ComponentType<LayoutComponentPro
  */
 export function isValidSectionRole(role: string): role is SectionRole {
   return role in SECTION_TO_LAYOUT;
+}
+
+/**
+ * Retourne la liste de tous les layouts disponibles, groupés en "standard" et "custom".
+ * Exclut navbar et footer (pas pertinents en tant que sections éditables).
+ */
+export function getAvailableLayouts(): { role: string; label: string; group: 'standard' | 'custom' }[] {
+  const standard = Object.keys(SECTION_TO_LAYOUT)
+    .filter(r => r !== 'navbar' && r !== 'footer')
+    .map(r => ({ role: r, label: humanizeRole(r), group: 'standard' as const }));
+  const custom = Object.keys(CUSTOM_LAYOUTS)
+    .map(r => ({ role: r, label: humanizeRole(r), group: 'custom' as const }));
+  return [...standard, ...custom];
+}
+
+function humanizeRole(role: string): string {
+  return role.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
 }

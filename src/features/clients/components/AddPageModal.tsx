@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { AddedPage } from '@/types/web-brief';
 
 /**
  * Modal pour ajouter une page non prévue à l'architecture (added_pages).
- * Label + slug + brief agent pour briefer l'agent de page-zoning.
+ * Label + slug uniquement — le prompting se fait sur la page vide après ajout.
  */
 export function AddPageModal({
   onConfirm,
@@ -18,7 +18,19 @@ export function AddPageModal({
 }) {
   const [label, setLabel] = useState('');
   const [slug, setSlug] = useState('');
-  const [agentBrief, setAgentBrief] = useState('');
+
+  // Escape key closes this modal (and stops propagation to parent modals)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handler, true); // capture phase
+    return () => document.removeEventListener('keydown', handler, true);
+  }, [onClose]);
 
   const slugFromLabel = (s: string) =>
     s
@@ -44,10 +56,10 @@ export function AddPageModal({
     onConfirm({
       page: label.trim(),
       slug: slug.trim(),
-      agent_brief: agentBrief.trim(),
+      agent_brief: '',
     });
     onClose();
-  }, [label, slug, agentBrief, existingSlugs, onConfirm, onClose]);
+  }, [label, slug, existingSlugs, onConfirm, onClose]);
 
   return (
     <div
@@ -65,7 +77,7 @@ export function AddPageModal({
           Ajouter une page
         </h2>
         <p className="text-sm text-[var(--text-secondary)]">
-          Page non prévue par l&apos;architecte. L&apos;agent utilisera ton brief + l&apos;existant (archi, brief stratégique) pour générer le zoning.
+          Page non prévue par l&apos;architecte. Tu pourras briefer l&apos;agent sur la page vide après ajout.
         </p>
 
         <div>
@@ -99,19 +111,6 @@ export function AddPageModal({
           )}
         </div>
 
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">
-            Brief agent (tes instructions pour cette page)
-          </label>
-          <textarea
-            value={agentBrief}
-            onChange={(e) => setAgentBrief(e.target.value)}
-            placeholder="ex. 3 offres (Starter, Pro, Entreprise), CTA sur chaque, comparatif en tableau. Ton pro, rassurant."
-            rows={4}
-            className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none focus:border-[var(--accent-cyan)]/50"
-          />
-        </div>
-
         <div className="flex gap-2 justify-end pt-2">
           <button
             type="button"
@@ -126,7 +125,7 @@ export function AddPageModal({
             disabled={!label.trim() || !slug.trim() || !!slugError}
             className="px-4 py-2 rounded-lg bg-[var(--accent-cyan)] text-black text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
           >
-            Ajouter et générer le zoning
+            Ajouter la page
           </button>
         </div>
       </div>

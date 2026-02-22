@@ -1317,9 +1317,9 @@ function DocumentModalContent({
     >
       <div className={`absolute inset-0 ${isWebBrief ? 'bg-black/60' : 'bg-black/70'}`} />
       <div
-        className={`relative overflow-hidden animate-fade-in-up flex flex-col bg-[var(--bg-card)] shadow-2xl ${isWebBrief ? 'max-sm:w-full max-sm:h-full max-sm:m-0 max-sm:rounded-none max-sm:border-0 sm:rounded-2xl sm:border sm:border-[var(--border-subtle)] sm:w-[90vw] sm:max-w-6xl sm:max-h-[90vh] sm:m-4' : 'rounded-2xl border border-[var(--border-subtle)] w-[95vw] sm:w-[90vw] max-w-6xl max-h-[90vh] m-4'}`}
+        className={`relative overflow-hidden animate-fade-in-up flex flex-col bg-[var(--bg-card)] shadow-2xl ${isWebBrief ? 'max-sm:w-full max-sm:h-full max-sm:m-0 max-sm:rounded-none max-sm:border-0 sm:rounded-2xl sm:border sm:border-[var(--border-subtle)] sm:w-[96vw] sm:max-w-[1600px] sm:max-h-[94vh] sm:m-6 md:max-h-[96vh] md:m-8' : 'rounded-2xl border border-[var(--border-subtle)] w-[95vw] sm:w-[90vw] max-w-6xl max-h-[90vh] m-4'}`}
         onClick={e => e.stopPropagation()}
-        style={{ animationDuration: '0.2s' }}
+        style={{ animationDuration: '0.2s', backfaceVisibility: 'hidden', willChange: 'transform, opacity' }}
       >
         {/* Web-brief : composant dédié avec header enrichi + WebBriefView */}
         {isWebBrief ? (
@@ -1589,7 +1589,11 @@ export function DocumentModal() {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeDocument();
+      if (e.key === 'Escape') {
+        // If an inner layer already handled Escape (capture phase), skip
+        if (e.defaultPrevented) return;
+        closeDocument();
+      }
     },
     [closeDocument]
   );

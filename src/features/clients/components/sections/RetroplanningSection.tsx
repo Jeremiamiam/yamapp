@@ -183,9 +183,9 @@ export function RetroplanningSection({ clientId }: RetroplanningProps) {
     if (!plan) return;
     const updatedTasks = plan.tasks.map((t) => t.id === updatedTask.id ? updatedTask : t);
     await saveRetroplanning(clientId, { ...plan, tasks: updatedTasks, updatedAt: new Date().toISOString() });
-    // Close form if the updated task is currently editing
+    // Sync drawer form if the updated task is currently editing (drag updates dates)
     if (editingTask?.id === updatedTask.id) {
-      setEditingTask(null);
+      setEditingTask(updatedTask);
     }
   }, [plan, clientId, saveRetroplanning, editingTask]);
 
@@ -303,25 +303,31 @@ export function RetroplanningSection({ clientId }: RetroplanningProps) {
           </>
         )}
 
-        {/* ── Has plan — show Gantt ── */}
+        {/* ── Has plan — show Gantt + drawer ── */}
         {plan && plan.tasks.length > 0 && (
-          <>
-            <RetroplanningGantt
-              tasks={plan.tasks}
-              deadline={plan.deadline}
-              onTaskUpdate={handleTaskUpdate}
-              onTaskClick={(task) => setEditingTask((prev) => prev?.id === task.id ? null : task)}
-            />
-
-            {/* Edit form */}
-            {editingTask && (
-              <RetroplanningTaskForm
-                task={editingTask}
-                onSave={handleFormSave}
-                onClose={() => setEditingTask(null)}
+          <div className="flex gap-0">
+            {/* Gantt (shrinks when drawer opens) */}
+            <div className={`transition-all duration-200 ${editingTask ? 'flex-1 min-w-0' : 'w-full'}`}>
+              <RetroplanningGantt
+                tasks={plan.tasks}
+                deadline={plan.deadline}
+                onTaskUpdate={handleTaskUpdate}
+                onTaskClick={(task) => setEditingTask((prev) => prev?.id === task.id ? null : task)}
               />
+            </div>
+
+            {/* Edit drawer (right side panel) */}
+            {editingTask && (
+              <div className="w-72 flex-shrink-0 ml-3">
+                <RetroplanningTaskForm
+                  key={editingTask.id}
+                  task={editingTask}
+                  onSave={handleFormSave}
+                  onClose={() => setEditingTask(null)}
+                />
+              </div>
             )}
-          </>
+          </div>
         )}
 
         {/* Error */}

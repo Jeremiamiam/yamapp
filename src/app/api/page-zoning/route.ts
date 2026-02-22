@@ -2,23 +2,39 @@ import Anthropic from '@anthropic-ai/sdk';
 import { jsonrepair } from 'jsonrepair';
 import type { ZonedSection } from '@/types/section-zoning';
 import { SECTION_ROLES } from '@/types/section-zoning';
+import { ROLE_SIMILARITY_MAP } from '@/lib/section-registry';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const ROLES_LIST = SECTION_ROLES.join(', ');
 
-const SYSTEM_PROMPT = `Tu es un directeur de projet web senior. Tu produis le zoning (sections) d'une page web spécifique (about, contact, services, etc.) — pas la homepage.
+const SYSTEM_PROMPT = `Tu es un directeur de projet web senior. Tu produis le zoning (sections) d'une page web spécifique — pas la homepage.
 
-## Rôles de sections autorisés
+## Rôles de sections
+
+### Rôles avec layout existant (préférer quand c'est pertinent)
 
 ${ROLES_LIST}
 
-Choisis les sections adaptées au type de page :
-- À propos / about : hero, value_proposition, testimonial, cta_final
+### Rôles custom (si la page l'exige)
+
+Si aucun rôle existant ne correspond au besoin de la page, **invente un rôle custom** en snake_case descriptif. Exemples :
+- E-commerce : product_grid, product_detail, cart_summary, filters, related_products
+- Blog : blog_list, blog_featured, categories, author_bio
+- Portfolio : project_gallery, case_study, before_after
+- Équipe : team_grid, team_member, org_chart
+- Événements : event_schedule, speakers, registration
+
+Un rôle custom déclenchera un placeholder "Layout inexistant" côté preview — l'utilisateur pourra alors générer le layout adapté. C'est le comportement attendu : **ne force PAS un rôle existant si le contenu ne correspond pas**.
+
+### Exemples par type de page
+
+- À propos : hero, value_proposition, team_grid, testimonial, cta_final
 - Contact : hero, contact_form, cta_final
-- Services / prestations : hero, value_proposition, services_teaser, features, social_proof, testimonial, cta_final
-- Tarifs / pricing : hero, value_proposition, pricing, faq, cta_final
-- etc.
+- Services : hero, value_proposition, services_teaser, features, social_proof, testimonial, cta_final
+- Tarifs : hero, pricing, features, faq, cta_final
+- E-commerce / Shop : hero, product_grid, features, testimonial, faq, cta_final
+- Blog : hero, blog_featured, blog_list, cta_final
 
 ## URLs des CTA
 
@@ -50,15 +66,24 @@ Utilise UNIQUEMENT les slugs du menu (navigation.primary, navigation.footer_only
 }
 </structured_output>
 
-Chaque section DOIT avoir content.title et content.text (ou items pour faq). Adapte les champs au role.`;
+Chaque section DOIT avoir content.title et content.text (ou items pour faq/liste). Adapte les champs content au role — un product_grid aura des items avec title/text/price/image, un blog_list aura des items avec title/excerpt/date, etc.`;
 
-function extractJsonFromResponse(text: string): unknown {
+function extractJsonFromResponse(text: string, stopReason?: string): unknown {
   const match = text.match(/<structured_output>([\s\S]*?)<\/structured_output>/i);
   const raw = match ? match[1].trim() : text;
   const firstBrace = raw.indexOf('{');
   const lastBrace = raw.lastIndexOf('}');
-  if (firstBrace === -1 || lastBrace <= firstBrace) throw new Error('JSON non trouvé dans la réponse');
-  const jsonStr = raw.substring(firstBrace, lastBrace + 1);
+  if (firstBrace === -1 || lastBrace <= firstBrace) {
+    const preview = text.slice(0, 200);
+    throw new Error(`JSON non trouvé dans la réponse (stop: ${stopReason ?? 'unknown'}). Début: ${preview}`);
+  }
+  let jsonStr = raw.substring(firstBrace, lastBrace + 1);
+
+  // If response was truncated (max_tokens), try to close the JSON
+  if (stopReason === 'max_tokens') {
+    jsonStr = closetruncatedJson(jsonStr);
+  }
+
   try {
     return JSON.parse(jsonStr);
   } catch (e1) {
@@ -67,9 +92,29 @@ function extractJsonFromResponse(text: string): unknown {
     } catch (e2) {
       const m1 = e1 instanceof Error ? e1.message : String(e1);
       const m2 = e2 instanceof Error ? e2.message : String(e2);
-      throw new Error(`JSON invalide: ${m1}. Repair: ${m2}`);
+      throw new Error(`JSON invalide (stop: ${stopReason ?? 'unknown'}): ${m1}. Repair: ${m2}`);
     }
   }
+}
+
+/** Attempt to close truncated JSON by balancing brackets */
+function closetruncatedJson(json: string): string {
+  let inString = false;
+  let escape = false;
+  const stack: string[] = [];
+  for (const ch of json) {
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') stack.push('}');
+    else if (ch === '[') stack.push(']');
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+  // If we're mid-string, close it first
+  if (inString) json += '"';
+  // Close all open brackets/braces
+  return json + stack.reverse().join('');
 }
 
 export async function POST(req: Request) {
@@ -150,7 +195,7 @@ Génère le zoning de la page avec slug "${pageSlug}". Utilise UNIQUEMENT les sl
   try {
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
+      max_tokens: 8000,
       temperature: 0.6,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
@@ -161,7 +206,7 @@ Génère le zoning de la page avec slug "${pageSlug}". Utilise UNIQUEMENT les sl
       .map((b) => (b as { type: 'text'; text: string }).text)
       .join('');
 
-    const parsed = extractJsonFromResponse(textContent) as {
+    const parsed = extractJsonFromResponse(textContent, message.stop_reason ?? undefined) as {
       page?: string;
       slug?: string;
       target_visitor?: string;
@@ -171,10 +216,12 @@ Génère le zoning de la page avec slug "${pageSlug}". Utilise UNIQUEMENT les sl
     const sections: ZonedSection[] = (parsed.sections ?? []).map((s, i) => {
       const sec = s as Record<string, unknown>;
       const roleStr = typeof sec.role === 'string' ? sec.role : 'hero';
-      const role =
-        SECTION_ROLES.includes(roleStr as (typeof SECTION_ROLES)[number]) ?
-          (roleStr as ZonedSection['role'])
-        : 'hero';
+      // Try similarity mapping (e.g. "testimonials" → "testimonial"), otherwise keep as-is
+      const mapped = ROLE_SIMILARITY_MAP[roleStr.toLowerCase()];
+      const role: ZonedSection['role'] =
+        SECTION_ROLES.includes(roleStr as (typeof SECTION_ROLES)[number])
+          ? (roleStr as (typeof SECTION_ROLES)[number])
+          : mapped ?? roleStr;
       return {
         order: typeof sec.order === 'number' ? sec.order : i + 1,
         role,
