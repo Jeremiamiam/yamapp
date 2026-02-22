@@ -1,6 +1,6 @@
 import type { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, TeamMember, Contact, ClientDocument, DayTodo, BillingHistory, BillingStatus, Project } from '@/types';
 
-export type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta' | 'admin' | 'production' | 'creative-board';
+export type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta' | 'admin' | 'production' | 'creative-board' | 'wiki';
 export type ClientStatusFilter = 'all' | 'prospect' | 'client';
 export type AppRole = 'admin' | 'member' | null;
 
@@ -57,6 +57,7 @@ export interface AppState {
   navigateToAdmin: () => void;
   navigateToProduction: () => void;
   navigateToCreativeBoard: () => void;
+  navigateToWiki: () => void;
   navigateBack: () => void;
   restoreViewFromStorage: () => void;
   openDocument: (doc: ClientDocument) => void;

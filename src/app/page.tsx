@@ -15,9 +15,10 @@ import { ComptaView } from '@/features/compta/components';
 import { ProductionView } from '@/features/production/components/ProductionView';
 import { DayTodoDrawer } from '@/features/timeline/components/DayTodoDrawer';
 import { CreativeBoardPage } from '@/app/proto/creative-board/page';
+import { WikiView } from '@/features/wiki/components';
 
 // Ordre des vues pour la navigation clavier (sans client-detail qui est une vue modale)
-const VIEW_ORDER = ['timeline', 'production', 'creative-board', 'clients', 'compta'] as const;
+const VIEW_ORDER = ['timeline', 'production', 'creative-board', 'clients', 'compta', 'wiki'] as const;
 type MainView = typeof VIEW_ORDER[number];
 
 export default function Home() {
@@ -29,6 +30,7 @@ export default function Home() {
   const navigateToProduction = useAppStore((state) => state.navigateToProduction);
   const navigateToCompta = useAppStore((state) => state.navigateToCompta);
   const navigateToCreativeBoard = useAppStore((state) => state.navigateToCreativeBoard);
+  const navigateToWiki = useAppStore((state) => state.navigateToWiki);
   const isLoading = useAppStore((state) => state.isLoading);
   const loadingError = useAppStore((state) => state.loadingError);
   const { role, loading } = useUserRole();
@@ -97,7 +99,8 @@ export default function Home() {
     else if (newView === 'creative-board') navigateToCreativeBoard();
     else if (newView === 'clients') navigateToClients();
     else if (newView === 'compta') navigateToCompta();
-  }, [currentView, role, navigateToTimeline, navigateToProduction, navigateToCreativeBoard, navigateToClients, navigateToCompta]);
+    else if (newView === 'wiki') navigateToWiki();
+  }, [currentView, role, navigateToTimeline, navigateToProduction, navigateToCreativeBoard, navigateToClients, navigateToCompta, navigateToWiki]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -169,6 +172,8 @@ export default function Home() {
         );
       case 'compta':
         return <ComptaView />;
+      case 'wiki':
+        return <WikiView />;
       case 'client-detail':
         return <ClientDetail />;
       default:
@@ -181,8 +186,8 @@ export default function Home() {
       <div className="noise-overlay" />
       <Header />
       <div ref={mainContentRef} className="flex-1 flex min-h-0">
-        {/* Sidebar globale (desktop only) - visible sur toutes les vues */}
-        {!isMobile && (
+        {/* Sidebar globale (desktop only) - masquée sur wiki (full width) */}
+        {!isMobile && currentView !== 'wiki' && (
           <GlobalSidebar height={sidebarHeight} />
         )}
 

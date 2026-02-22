@@ -6,7 +6,6 @@ import { useAppStore } from '@/lib/store';
 import { TimelineFilters } from '@/features/timeline/components/TimelineFilters';
 import { createClient } from '@/lib/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useGlobalActions } from '@/components/GlobalProviders';
 import { Deliverable, Call } from '@/types';
 
 // Icons
@@ -66,9 +65,18 @@ const BookOpenIcon = () => (
   </svg>
 );
 
-const SparkleIcon = () => (
+const MagicWandIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+    <path d="M15 4V2"/>
+    <path d="M15 16v-2"/>
+    <path d="M8 9h2"/>
+    <path d="M20 9h2"/>
+    <path d="M17.8 11.8L19 13"/>
+    <path d="M17.8 6.2L19 5"/>
+    <path d="M3 21 12 12"/>
+    <path d="m12.2 6.2-1.2-1.2"/>
+    <path d="M3 12 5.5 9.5"/>
+    <path d="M3 9 5.5 6.5"/>
   </svg>
 );
 
@@ -80,6 +88,16 @@ function displayName(email: string | undefined, fullName: string | undefined): s
     if (beforeAt) return beforeAt.charAt(0).toUpperCase() + beforeAt.slice(1).toLowerCase();
   }
   return 'Compte';
+}
+
+/** Initiales depuis le displayName (ex: "Jeremy" → "JE", "Jean Dupont" → "JD") */
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase().slice(0, 2);
+  }
+  const s = parts[0] || '';
+  return s.length >= 2 ? (s[0] + s[1]).toUpperCase() : s[0]?.toUpperCase() || '?';
 }
 
 // Formatte le temps restant en "dans X min" ou "dans X h"
@@ -103,10 +121,10 @@ function formatTime(date: Date): string {
 export function Header() {
   const router = useRouter();
   const { isAdmin } = useUserRole();
-  const { openDocsYam } = useGlobalActions();
   const [userDisplayName, setUserDisplayName] = useState<string>('');
+  const [currentTeamMember, setCurrentTeamMember] = useState<{ name: string; initials: string; color: string } | null>(null);
   const [now, setNow] = useState(() => new Date());
-  const { currentView, navigateToTimeline, navigateToClients, navigateToCompta, navigateToProduction, navigateToCreativeBoard, deliverables, calls, getClientById, getTeamMemberById } = useAppStore();
+  const { currentView, navigateToTimeline, navigateToClients, navigateToCompta, navigateToProduction, navigateToCreativeBoard, navigateToWiki, deliverables, calls, getClientById, getTeamMemberById } = useAppStore();
   const canAccessCompta = isAdmin;
 
   // Rafraîchir "now" toutes les 30 secondes pour mettre à jour le countdown
@@ -174,16 +192,35 @@ export function Header() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        const name = (user.user_metadata?.full_name as string) || (user.user_metadata?.name as string);
-        setUserDisplayName(displayName(user.email ?? undefined, name));
+    async function loadUserAndTeamMember(user: { id: string; email?: string; user_metadata?: Record<string, unknown> }) {
+      const name = (user.user_metadata?.full_name as string) || (user.user_metadata?.name as string);
+      setUserDisplayName(displayName(user.email ?? undefined, name));
+      const { data: teamRow } = await supabase
+        .from('team')
+        .select('name, initials, color')
+        .eq('auth_user_id', user.id)
+        .maybeSingle();
+      if (teamRow?.initials && teamRow?.color) {
+        setCurrentTeamMember({
+          name: (teamRow.name as string) || displayName(user.email ?? undefined, name),
+          initials: teamRow.initials as string,
+          color: teamRow.color as string,
+        });
+      } else {
+        setCurrentTeamMember(null);
       }
+    }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) loadUserAndTeamMember(user);
+      else setCurrentTeamMember(null);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       const u = session?.user;
-      if (u) setUserDisplayName(displayName(u.email ?? undefined, u.user_metadata?.full_name ?? u.user_metadata?.name));
-      else setUserDisplayName('');
+      if (u) loadUserAndTeamMember(u);
+      else {
+        setUserDisplayName('');
+        setCurrentTeamMember(null);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -196,14 +233,16 @@ export function Header() {
   }
 
   return (
-    <header className="flex-shrink-0 px-3 sm:px-6 md:px-8 py-2 md:py-3 border-b border-[var(--border-subtle)] relative z-10 bg-[var(--bg-primary)]/80 backdrop-blur-sm">
+    <header className="flex-shrink-0 px-3 sm:px-4 md:px-5 py-2 md:py-3 border-b border-[var(--border-subtle)] relative z-10 bg-[var(--bg-primary)]/80 backdrop-blur-sm">
       <div className="flex items-center justify-between gap-3 sm:gap-6">
         {/* Logo à gauche */}
         <div className="flex-shrink-0">
-          <h1 className="text-base md:text-lg font-bold tracking-tight leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
-            <span className="text-[var(--text-primary)] block">dashboard</span>
-            <span className="text-[var(--text-primary)]">yam</span>
-            <span className="text-[var(--accent-lime)]">.</span>
+          <h1 className="flex items-center">
+            <img
+              src="/icons/yamboard_logo.svg"
+              alt="Yamboard"
+              className="h-[48px] w-auto"
+            />
           </h1>
         </div>
         
@@ -319,11 +358,15 @@ export function Header() {
               </button>
             )}
           </div>
-          {/* User + settings — visible sur toutes les tailles */}
+          {/* User chip dynamique (TeamMember) ou fallback auth */}
           {userDisplayName && (
-            <span className="text-xs md:text-sm font-medium text-[var(--text-primary)] truncate max-w-[100px] md:max-w-none" title="Connecté">
-              {userDisplayName}
-            </span>
+            <div
+              className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold text-white"
+              style={{ backgroundColor: currentTeamMember?.color ?? 'var(--accent-cyan)' }}
+              title={currentTeamMember?.name ?? userDisplayName}
+            >
+              {currentTeamMember?.initials ?? initialsFromName(userDisplayName)}
+            </div>
           )}
           <div className="flex items-center gap-0.5 md:gap-1 pl-2 md:pl-3 border-l border-[var(--border-subtle)]">
             <button
@@ -333,14 +376,14 @@ export function Header() {
               title="Creative Board"
               aria-label="Creative Board"
             >
-              <SparkleIcon />
+              <MagicWandIcon />
             </button>
             <button
               type="button"
-              onClick={openDocsYam}
-              className="p-1.5 md:p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/10 transition-colors touch-manipulation min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center"
-              title="Docs YAM (⌘⇧D)"
-              aria-label="Docs YAM"
+              onClick={navigateToWiki}
+              className={`p-1.5 md:p-2 rounded-md transition-colors touch-manipulation min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center ${currentView === 'wiki' ? 'text-[var(--accent-violet)] bg-[var(--accent-violet)]/10' : 'text-[var(--text-muted)] hover:text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/10'}`}
+              title="Wiki / Guide (⌘⇧D)"
+              aria-label="Wiki"
             >
               <BookOpenIcon />
             </button>
