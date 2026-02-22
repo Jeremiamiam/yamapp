@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { useClient } from '@/hooks';
 import {
@@ -83,14 +84,23 @@ export function ClientDetail() {
             {isProspect ? 'Prospect' : 'Client'}
           </span>
           
+          <div className="flex items-center gap-1 ml-auto">
+          <Link
+            href="/proto/client-detail-v2"
+            className="text-[10px] font-medium text-[var(--accent-violet)]/80 hover:text-[var(--accent-violet)] px-2 py-1 rounded border border-[var(--accent-violet)]/30 hover:border-[var(--accent-violet)]/50 transition-colors"
+            title="Voir le proto du nouveau layout"
+          >
+            Voir proto
+          </Link>
           <button
             type="button"
             onClick={() => openModal({ type: 'client', mode: 'edit', client })}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors ml-auto"
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-colors"
             title="Modifier"
           >
             <Pencil />
           </button>
+        </div>
         </div>
       </div>
 
