@@ -21,6 +21,11 @@ export function LayoutGallery({ isOpen, onClose, initialRole, onSelectRole }: La
   const [variantSuffix, setVariantSuffix] = useState('');
   const [isCreatingVariant, setIsCreatingVariant] = useState(false);
 
+  // State for new layout creation (from scratch)
+  const [isAddingLayout, setIsAddingLayout] = useState(false);
+  const [newLayoutRole, setNewLayoutRole] = useState('');
+  const [isCreatingLayout, setIsCreatingLayout] = useState(false);
+
   // Code editor state
   const [editingRole, setEditingRole] = useState<string | null>(null);
 
@@ -92,6 +97,41 @@ export function LayoutGallery({ isOpen, onClose, initialRole, onSelectRole }: La
     setVariantSuffix('');
   }, []);
 
+  const handleAddLayoutClick = useCallback(() => {
+    setIsAddingLayout(true);
+    setNewLayoutRole('');
+  }, []);
+
+  const handleAddLayoutConfirm = useCallback(async () => {
+    const role = newLayoutRole.trim().replace(/\s+/g, '_').toLowerCase();
+    if (!role) return;
+    setIsCreatingLayout(true);
+    try {
+      const res = await fetch('/api/generate-layout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data.error ?? 'Erreur interne');
+      }
+      showToast(`Layout "${role}" créé avec succès`);
+      setIsAddingLayout(false);
+      setNewLayoutRole('');
+      router.refresh();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Erreur lors de la création', 'error');
+    } finally {
+      setIsCreatingLayout(false);
+    }
+  }, [newLayoutRole, showToast, router]);
+
+  const handleAddLayoutCancel = useCallback(() => {
+    setIsAddingLayout(false);
+    setNewLayoutRole('');
+  }, []);
+
   if (!isOpen) return null;
 
   return (
@@ -113,6 +153,13 @@ export function LayoutGallery({ isOpen, onClose, initialRole, onSelectRole }: La
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleAddLayoutClick}
+            className="px-4 py-2 rounded-lg text-sm font-semibold border border-[var(--accent-violet)]/50 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/10 transition-colors"
+          >
+            + Ajouter layout
+          </button>
           {onSelectRole && (
             <button
               type="button"
@@ -159,6 +206,54 @@ export function LayoutGallery({ isOpen, onClose, initialRole, onSelectRole }: La
             router.refresh();
           }}
         />
+      )}
+
+      {/* New layout creation modal */}
+      {isAddingLayout && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm mx-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-secondary)] shadow-2xl p-6">
+            <h3 className="text-sm font-bold text-[var(--text-primary)] mb-1">
+              Ajouter un layout
+            </h3>
+            <p className="text-xs text-[var(--text-muted)] mb-4">
+              Indiquez le rôle (ex: <span className="font-mono text-[var(--text-secondary)]">section_equipe</span>, <span className="font-mono text-[var(--text-secondary)]">about_us</span>). Le layout sera généré par l&apos;IA.
+            </p>
+            <input
+              type="text"
+              value={newLayoutRole}
+              onChange={(e) => setNewLayoutRole(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddLayoutConfirm();
+                if (e.key === 'Escape') handleAddLayoutCancel();
+              }}
+              placeholder="nom_du_role"
+              autoFocus
+              className="w-full px-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-violet)]/50 mb-4 font-mono"
+            />
+            {newLayoutRole.trim() && (
+              <p className="text-[10px] text-[var(--text-muted)] mb-3 font-mono">
+                Rôle créé : {newLayoutRole.trim().replace(/\s+/g, '_').toLowerCase()}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleAddLayoutCancel}
+                className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-subtle)] text-sm text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleAddLayoutConfirm}
+                disabled={!newLayoutRole.trim() || isCreatingLayout}
+                className="flex-1 px-3 py-2 rounded-lg bg-[var(--accent-violet)] text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {isCreatingLayout ? 'Génération…' : 'Créer'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Variant creation inline prompt (modal-within-modal) */}

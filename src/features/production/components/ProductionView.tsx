@@ -6,7 +6,6 @@ import { useModal } from '@/hooks';
 import { Deliverable, DeliverableStatus, Project } from '@/types';
 import { canTransitionStatus } from '@/lib/production-rules';
 import { computeProjectBilling, formatEuro, PROJECT_BILLING_LABELS, PROJECT_BILLING_COLORS } from '@/lib/project-billing';
-import { ProductionRulesTest } from './ProductionRulesTest';
 
 // Colonnes Kanban
 const COLUMNS: { id: DeliverableStatus; label: string; color: string }[] = [
@@ -213,11 +212,10 @@ export function ProductionView() {
     const project = projects.find((p) => p.id === d.projectId);
     return project?.quoteAmount ?? undefined;
   }, [projects]);
-  const { openDeliverableModal, openProjectModal } = useModal();
+  const { openDeliverableModal } = useModal();
   const [draggedItem, setDraggedItem] = useState<Deliverable | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<DeliverableStatus | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [showTests, setShowTests] = useState(false);
   const groupByProject = true;
 
   // Filtrer par membre d'équipe si filtre actif
@@ -353,40 +351,7 @@ export function ProductionView() {
             );
           })()}
         </div>
-        <div className="flex items-center gap-2">
-          {/* Nouveau projet */}
-          <button
-            type="button"
-            onClick={() => openProjectModal()}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-tertiary)] text-[var(--text-muted)] border border-transparent hover:text-[var(--accent-cyan)] hover:border-[var(--accent-cyan)]/30 transition-all cursor-pointer"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Projet
-          </button>
-          {/* Proto: toggle tests */}
-          <button
-            type="button"
-            onClick={() => setShowTests(!showTests)}
-            title="Tests des règles métier"
-            className={`w-5 h-5 rounded text-[9px] font-bold transition-all cursor-pointer ${
-              showTests
-                ? 'bg-[var(--accent-coral)] text-white'
-                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--accent-coral)]'
-            }`}
-          >
-            T
-          </button>
-        </div>
       </div>
-
-      {/* Panel de tests (proto) */}
-      {showTests && (
-        <div className="flex-shrink-0 mb-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-secondary)]/50 overflow-y-auto max-h-[50vh]">
-          <ProductionRulesTest />
-        </div>
-      )}
 
       {/* Kanban board */}
       <div className="flex-1 flex gap-3 md:gap-4 overflow-x-auto pb-20 md:pb-4 snap-x snap-mandatory">

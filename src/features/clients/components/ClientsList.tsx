@@ -115,12 +115,6 @@ export function ClientsList() {
       <div className="max-w-6xl mx-auto mb-4 flex items-center justify-between">
         <h1 className="text-lg font-display font-bold text-[var(--text-primary)]">Clients & Prospects</h1>
         <div className="flex items-center gap-2">
-          <Link
-            href="/proto/client-detail-v2"
-            className="text-[10px] font-medium text-[var(--accent-violet)]/80 hover:text-[var(--accent-violet)] px-2 py-1 rounded border border-[var(--accent-violet)]/30 hover:border-[var(--accent-violet)]/50 transition-colors"
-          >
-            Voir proto
-          </Link>
           <button
             type="button"
             onClick={() => openClientModal('client')}

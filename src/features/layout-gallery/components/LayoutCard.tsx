@@ -16,13 +16,22 @@ export interface LayoutCardProps {
 export function LayoutCard({ role, label, group, isSelected, onClick, onCreateVariant, onEditLayout }: LayoutCardProps) {
   const { layout: LayoutComponent } = getLayoutForRoleWithFallback(role);
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <div className="flex flex-col gap-1.5">
-      {/* Card container */}
-      <button
-        type="button"
+      {/* Card container — div au lieu de button pour éviter button > button (LayoutContactForm, etc.) */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onClick}
-        className={`relative block w-full overflow-hidden rounded-lg border-2 transition-all cursor-pointer focus:outline-none ${
+        onKeyDown={handleKeyDown}
+        className={`relative block w-full overflow-hidden rounded-lg border-2 transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-cyan)] ${
           isSelected
             ? 'border-[var(--accent-cyan)] ring-2 ring-[var(--accent-cyan)]/30'
             : 'border-[var(--border-subtle)] hover:border-[var(--border-medium)]'
@@ -62,7 +71,7 @@ export function LayoutCard({ role, label, group, isSelected, onClick, onCreateVa
             </svg>
           </div>
         )}
-      </button>
+      </div>
 
       {/* Card footer */}
       <div className="flex items-center justify-between gap-1 px-0.5">
