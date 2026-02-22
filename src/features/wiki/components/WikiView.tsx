@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
+import { LayoutGallery } from '@/features/layout-gallery/components/LayoutGallery';
 import {
   FEATURE_SECTIONS,
   CREATIVE_BOARD_AGENTS,
@@ -106,6 +107,13 @@ const TrashIcon = () => (
 );
 
 // ── Icon resolver ──────────────────────────────────────
+const LayoutGridIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+  </svg>
+);
+
 const ICON_MAP: Record<string, React.ReactNode> = {
   'calendar': <CalendarIcon />,
   'calendar-range': <CalendarRangeIcon />,
@@ -117,6 +125,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   'shield': <ShieldIcon />,
   'navigation': <NavigationIcon />,
   'layout': <LayoutIcon />,
+  'layout-grid': <LayoutGridIcon />,
   'sparkle': <SparkleIcon />,
   'link': <LinkIcon />,
 };
@@ -584,6 +593,8 @@ function FeatureCard({ section }: { section: FeatureSection }) {
 
 // ── Main WikiView ──────────────────────────────────────
 export function WikiView() {
+  const [galleryOpen, setGalleryOpen] = useState(false);
+
   const scrollToSection = (id: string) => {
     const el = document.getElementById(`section-${id}`);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -634,6 +645,26 @@ export function WikiView() {
             ))}
           </div>
 
+          {/* Layout Gallery quick access */}
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setGalleryOpen(true)}
+              className="flex items-center gap-3 w-full px-5 py-4 rounded-xl border border-[var(--accent-violet)]/30 bg-[var(--accent-violet)]/5 hover:bg-[var(--accent-violet)]/10 transition-colors group"
+            >
+              <span className="p-2 rounded-lg bg-[var(--accent-violet)]/15 text-[var(--accent-violet)] group-hover:bg-[var(--accent-violet)]/25 transition-colors">
+                <LayoutGridIcon />
+              </span>
+              <div className="text-left">
+                <span className="block text-sm font-semibold text-[var(--text-primary)]">Ouvrir la galerie de layouts</span>
+                <span className="block text-xs text-[var(--text-muted)]">Aperçus visuels de tous les layouts standard et custom</span>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-auto text-[var(--text-muted)] group-hover:text-[var(--accent-violet)] transition-colors">
+                <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+              </svg>
+            </button>
+          </div>
+
           {/* IA Section — full pipeline + agents detail */}
           <div className="mt-8 mb-2">
             <h2 className="text-xl font-bold text-[var(--text-primary)] mb-1">Intelligence Artificielle</h2>
@@ -665,6 +696,14 @@ export function WikiView() {
           <LiensUtilesSidebar />
         </div>
       </div>
+
+      {/* Layout Gallery modal */}
+      {galleryOpen && (
+        <LayoutGallery
+          isOpen
+          onClose={() => setGalleryOpen(false)}
+        />
+      )}
     </div>
   );
 }

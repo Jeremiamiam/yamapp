@@ -164,6 +164,19 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
       'Scroll horizontal sur la timeline',
     ],
   },
+  {
+    id: 'layout-gallery',
+    title: 'Galerie de Layouts',
+    color: 'var(--accent-violet)',
+    icon: 'layout-grid',
+    description: 'Galerie visuelle de tous les layouts disponibles (standard + custom). Permet de créer des variantes, éditer le code via IA ou manuellement, et appliquer un layout à une section.',
+    actions: [
+      'Parcourir tous les layouts avec aperçu en miniature',
+      'Créer une variante d\'un layout existant',
+      'Appliquer un layout à la section en cours d\'édition',
+      'Accès depuis le wiki ou le LayoutPicker du SectionDrawer',
+    ],
+  },
 ];
 
 // ── Creative Board — Agents par phase ──────────────────
