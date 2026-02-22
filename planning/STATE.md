@@ -6,14 +6,14 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 
 **Core value:** Avoir une vue d'ensemble claire de tous les clients et deadlines en un coup d'œil, sans surcharge d'information.
 
-**Current focus:** Phase 9 (Retroplanning IA) — Plans 01 et 02 complétés. Phase 9 complète.
+**Current focus:** Phase 10 (Layout Gallery & Variants) — Plan 01 complété.
 
 ---
 
 ## Current Position
 
-**Phase en cours:** 9 (Retroplanning IA) — Complète (Plans 01 + 02)
-**Current Plan:** Not started
+**Phase en cours:** 10 (Layout Gallery & Variants) — Plan 01 complété
+**Current Plan:** 10-01 complete — next: 10-02 (if any)
 
 **Complété:**
 - Phases 1–4 (Timeline, Clients, Deliverables/Calls, Documents) ✅
@@ -27,18 +27,18 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - **Phase 8 Plan 03:** Dynamic edit form (inferFieldType), merged AI button "IA ◆", strategy context wired to rewrite API ✅
 - **Phase 9 Plan 01:** Retroplanning types, Supabase migration, date utility, AI endpoint, Zustand CRUD ✅
 - **Phase 9 Plan 02:** CSS Grid Gantt, drag-move + resize, RetroplanningSection + ClientDetail integration, wiki updated ✅
+- **Phase 10 Plan 01:** Layout Gallery modal (LayoutCard + LayoutGalleryGrid + LayoutGallery), dual entry points (WikiView + SectionDrawer), variant creation via /api/generate-layout, wiki entry ✅
 
-**Dernière activité:** 2026-02-22 — Phase 9 Plan 02 complété (Gantt UI: CSS Grid, drag-move, resize, ClientDetail integration, wiki)
+**Dernière activité:** 2026-02-22 — Phase 10 Plan 01 complété (Layout Gallery: scaled preview cards, variant creation, WikiView + SectionDrawer entry points)
 
-**Progress:** [█████████░] 86%
+**Progress:** [█████████░] 90%
 
 ---
 
 ## What's Next
 
-**Phase 9 – Retroplanning IA:** COMPLETE ✅
-- [x] Plan 09-01: Types + Supabase migration + AI endpoint + Zustand CRUD ✅
-- [x] Plan 09-02: CSS Grid Gantt, drag-move + resize, ClientDetail integration, wiki ✅
+**Phase 10 – Layout Gallery & Variants:**
+- [x] Plan 10-01: LayoutGallery modal, LayoutCard, LayoutGalleryGrid, dual entry points, wiki ✅
 
 ---
 
@@ -51,10 +51,12 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - Phase 6 : Vue Comptabilité — Plan 01 complété (year filtering, status-based KPIs), reste Plan 02 (histogram)
 - Phase 8 : Web Brief Preview & Zoning — Plans 01, 02 et 03 complétés (phase complète)
 - Phase 9 : Retroplanning IA — Plans 01 et 02 complétés (phase complète)
+- Phase 10 : Layout Gallery & Variants — Plan 01 complété
 
 ### Roadmap Evolution
 
 - Phase 8 added: Web Brief Preview & Zoning
+- Phase 10 added: Layout Gallery & Variants
 
 ### Decisions
 
@@ -97,10 +99,17 @@ Les décisions sont dans PROJECT.md (Key Decisions). Contexte technique dans `pl
 - [Phase 09]: Pointer capture drag-move: setPointerCapture ensures tracking outside bar boundary, hasMoved guards click
 - [Phase 09]: Preview state local to Gantt: previewTask useState flushed to store only on pointerup (no O(n) writes per move)
 
+**Phase 10 Plan 01 decisions:**
+- Scale factor 0.22 with 454% dimensions (1/0.22 = 4.545) gives full-width layout preview within 160px card height
+- Gallery state is local useState (not Zustand) — gallery is ephemeral UI, not persistent state
+- Variant creation uses inline modal-within-modal with auto-dismiss toast, no separate route
+- LayoutPicker gallery icon button only rendered when onOpenGallery prop provided (backward-compatible)
+- Wiki gallery button styled as full-width banner card distinct from standard FeatureCards
+
 ### Blockers
 
 Aucun.
 
 ---
 *State initial: 2026-02-13*
-*Updated: 2026-02-22 — Phase 9 Plan 02 complété (Gantt UI: CSS Grid, drag-move, resize, ClientDetail integration, wiki)*
+*Updated: 2026-02-22 — Phase 10 Plan 01 complété (Layout Gallery: scaled preview cards, variant creation, WikiView + SectionDrawer entry points)*

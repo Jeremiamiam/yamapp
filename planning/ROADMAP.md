@@ -257,8 +257,8 @@ Plans:
 **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 09-01-PLAN.md -- Types + migration Supabase + store CRUD + endpoint IA + utilitaire dates
-- [ ] 09-02-PLAN.md -- Gantt CSS Grid + RetroplanningSection + formulaire edition + integration ClientDetail + wiki
+- [x] 09-01-PLAN.md -- Types + migration Supabase + store CRUD + endpoint IA + utilitaire dates ✅
+- [x] 09-02-PLAN.md -- Gantt CSS Grid + RetroplanningSection + formulaire edition + integration ClientDetail + wiki ✅
 
 ### Phase 10: Layout Gallery & Variants
 
@@ -268,7 +268,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 10-01-PLAN.md -- Gallery UI + scaled preview cards + variant creation + entry points (wiki + LayoutPicker) + wiki docs
+- [x] 10-01-PLAN.md -- Gallery UI + scaled preview cards + variant creation + entry points (wiki + LayoutPicker) + wiki docs ✅
 - [ ] 10-02-PLAN.md -- AI prompt editing + manual code editing + read-layout API + edit-layout API
 
 ---
