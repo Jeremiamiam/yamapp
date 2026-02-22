@@ -24,6 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7.1: Security (Auth + RLS)** - Login, RLS tables, middleware ✅
 - [x] **Phase 7.2: Admin & Permissions** - user_roles, Compta/Settings réservés admins, champs prix masqués members ✅
 - [x] **Phase 10: Layout Gallery & Variants** - Galerie visuelle des layouts, variantes, édition par prompt IA, accès wiki + LayoutPicker ✅
+- [ ] **Phase 11: Refonte page client & documents projet** - Sidebar client, distinction docs client vs projet, import Plaud, sous-drawer projets
 
 ## Phase Details
 
@@ -270,6 +271,26 @@ Plans:
 Plans:
 - [x] 10-01-PLAN.md -- Gallery UI + scaled preview cards + variant creation + entry points (wiki + LayoutPicker) + wiki docs ✅
 - [x] 10-02-PLAN.md -- AI prompt editing + manual code editing + read-layout API + edit-layout API ✅
+
+### Phase 11: Refonte page client : sidebar (contacts, liens, documents client), distinction documents client vs documents projet, import Plaud dans projet avec process complet, ouverture projet en sous-drawer (pas modale) avec produits et documents
+
+**Goal:** Refonte de la page client avec sidebar fixe (contacts, liens, documents client, retro planning), distinction claire entre documents client et documents projet, ouverture projet en sous-drawer (pas modale) avec produits et documents, et import Plaud dans un projet avec process complet (Report → Brief → Creative Board → Web).
+**Depends on:** Phase 10
+**Plans:** 5 plans
+
+**Success Criteria** (what must be TRUE):
+  1. Page client avec sidebar fixe à gauche (contacts, liens, documents client, retro planning)
+  2. Documents client (sans projet) vs documents projet (rattachés à un projet) — migration project_id
+  3. Clic sur un projet ouvre un ProjectDrawer (sous-fenêtre), pas une modale
+  4. ProjectDrawer affiche produits et documents du projet
+  5. Import Plaud dans un projet crée un Report rattaché au projet et permet le process complet (Brief → Board → Web)
+
+Plans:
+- [ ] 11-00-PLAN.md -- Page proto avec mock data + bouton Voir proto (validation layout)
+- [ ] 11-01-PLAN.md -- Migration project_id sur documents + types + DocumentsSection filtrée
+- [ ] 11-02-PLAN.md -- Migrate layout proto → ClientDetail (sidebar fixe + zone principale)
+- [ ] 11-03-PLAN.md -- ProjectDrawer (sous-fenêtre) + remplacement modal par drawer au clic
+- [ ] 11-04-PLAN.md -- Import Plaud dans projet avec process complet
 
 ---
 *Roadmap created: 2026-02-13*

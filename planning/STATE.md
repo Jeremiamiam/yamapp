@@ -6,14 +6,14 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 
 **Core value:** Avoir une vue d'ensemble claire de tous les clients et deadlines en un coup d'œil, sans surcharge d'information.
 
-**Current focus:** Phase 10 (Layout Gallery & Variants) — complète.
+**Current focus:** Phase 11 (Refonte page client & documents projet) — à planifier.
 
 ---
 
 ## Current Position
 
-**Phase en cours:** 10 (Layout Gallery & Variants) — complète ✅
-**Current Plan:** 10-02 complete — phase 10 terminée
+**Phase en cours:** 11 (Refonte page client & documents projet)
+**Current Plan:** TBD — run /gsd:plan-phase 11
 
 **Complété:**
 - Phases 1–4 (Timeline, Clients, Deliverables/Calls, Documents) ✅
@@ -38,9 +38,12 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 
 ## What's Next
 
-**Phase 10 – Layout Gallery & Variants: COMPLÈTE**
-- [x] Plan 10-01: LayoutGallery modal, LayoutCard, LayoutGalleryGrid, dual entry points, wiki ✅
-- [x] Plan 10-02: read-layout API, edit-layout API, LayoutCodeEditor, gallery integration ✅
+**Phase 11 – Refonte page client & documents projet** (planifiée)
+- [ ] 11-00: Page proto + bouton Voir proto (validation layout)
+- [ ] 11-01: Migration project_id documents + DocumentsSection filtrée
+- [ ] 11-02: Migrate layout proto → ClientDetail
+- [ ] 11-03: ProjectDrawer (sous-fenêtre) au clic projet
+- [ ] 11-04: Import Plaud dans projet + process complet
 
 ---
 
@@ -54,11 +57,13 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - Phase 8 : Web Brief Preview & Zoning — Plans 01, 02 et 03 complétés (phase complète)
 - Phase 9 : Retroplanning IA — Plans 01 et 02 complétés (phase complète)
 - Phase 10 : Layout Gallery & Variants — Plans 01 et 02 complétés (phase complète)
+- Phase 11 : Refonte page client — à planifier
 
 ### Roadmap Evolution
 
 - Phase 8 added: Web Brief Preview & Zoning
 - Phase 10 added: Layout Gallery & Variants
+- Phase 11 added: Refonte page client (sidebar, docs client vs projet, import Plaud, sous-drawer projets)
 
 ### Decisions
 
