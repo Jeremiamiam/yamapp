@@ -6,14 +6,14 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 
 **Core value:** Avoir une vue d'ensemble claire de tous les clients et deadlines en un coup d'œil, sans surcharge d'information.
 
-**Current focus:** Phase 8 (Web Brief Preview & Zoning) — Plan 01 complété.
+**Current focus:** Phase 8 (Web Brief Preview & Zoning) — Plan 03 complété. Phase 8 terminée.
 
 ---
 
 ## Current Position
 
-**Phase en cours:** 8 (Web Brief Preview & Zoning)
-**Current Plan:** 08-02 of 3
+**Phase en cours:** 8 (Web Brief Preview & Zoning) — COMPLÉTÉE
+**Current Plan:** 08-03 of 3 (dernier plan)
 
 **Complété:**
 - Phases 1–4 (Timeline, Clients, Deliverables/Calls, Documents) ✅
@@ -23,10 +23,11 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - Phase 7.2 (Admin/Member, user_roles, Compta/Settings réservés admins, prix masqués members) ✅
 - **Phase 6 Plan 01:** Year-based filtering with status-driven KPIs ✅
 - **Phase 8 Plan 01:** UUID section identity, layout fallback, LayoutPlaceholder, ROLE_SIMILARITY_MAP ✅
+- **Phase 8 Plan 03:** Dynamic edit form (inferFieldType), merged AI button "IA ◆", strategy context wired to rewrite API ✅
 
-**Dernière activité:** 2026-02-22 — Phase 8 Plan 01 complété (UUID section identity + layout fallback)
+**Dernière activité:** 2026-02-22 — Phase 8 Plan 03 complété (dynamic edit form + merged AI + strategy context)
 
-**Progress:** [█████████░] ~93%
+**Progress:** [██████████] ~97%
 
 ---
 
@@ -35,7 +36,7 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 **Phase 8 – Web Brief Preview & Zoning:**
 - [x] Plan 08-01: UUID migration + layout fallback system (foundation) ✅
 - [ ] Plan 08-02: Navigation submenus + page delete + section DnD + section add/delete
-- [ ] Plan 08-03: Dynamic edit form + merged AI button + strategy context re-read
+- [x] Plan 08-03: Dynamic edit form + merged AI button + strategy context re-read ✅
 
 ---
 
@@ -46,7 +47,7 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - Phases 1–4, 3.7, 7, 7.1, 7.2 : complètes
 - Phase 5 : Mobile & Polish — à faire
 - Phase 6 : Vue Comptabilité — Plan 01 complété (year filtering, status-based KPIs), reste Plan 02 (histogram)
-- Phase 8 : Web Brief Preview & Zoning — Plan 01 complété
+- Phase 8 : Web Brief Preview & Zoning — Plans 01 et 03 complétés
 
 ### Roadmap Evolution
 
@@ -69,10 +70,18 @@ Les décisions sont dans PROJECT.md (Key Decisions). Contexte technique dans `pl
 - ROLE_SIMILARITY_MAP covers 14 common AI alias patterns (testimonials, about, cta, etc.)
 - Section mutations now use find-by-id instead of sorted array index lookup
 
+**Phase 8 Plan 03 decisions:**
+- inferFieldType threshold: string > 80 chars = textarea, else input
+- Accumulated patch pattern: collect via useRef, flush on Sauvegarder or Enter-on-input
+- Enter key on textarea = newline (not save); Enter on input = save
+- Empty AI prompt = YAM_PROMPT (creative direction); non-empty = custom rewrite
+- Strategy context truncated to 2000 chars each to stay within token limits
+- Single handleAiRewrite replaces handleSectionRewrite + handleSectionYam
+
 ### Blockers
 
 Aucun.
 
 ---
 *State initial: 2026-02-13*
-*Updated: 2026-02-22 — Phase 8 Plan 01 complété (UUID section identity + layout fallback)*
+*Updated: 2026-02-22 — Phase 8 Plan 03 complété (dynamic edit form + merged AI + strategy context)*
