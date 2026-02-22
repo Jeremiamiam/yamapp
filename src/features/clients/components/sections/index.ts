@@ -5,3 +5,5 @@ export { ActivitySection } from './ActivitySection';
 export { DeliverablesSection } from './DeliverablesSection';
 export { ProjectsSection } from './ProjectsSection';
 export { RetroplanningSection } from './RetroplanningSection';
+export { ClientSidebarSection } from './ClientSidebarSection';
+export { ProjectsListSection } from './ProjectsListSection';
