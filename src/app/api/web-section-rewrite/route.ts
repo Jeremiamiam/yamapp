@@ -5,6 +5,8 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const SYSTEM_PROMPT = `Tu es un copywriter web senior. Tu réécris une section de homepage existante en respectant un prompt personnalisé de l'utilisateur et l'arborescence du site.
 
+Tu reçois aussi le contexte stratégique du projet (plateforme de marque, texte copywriter, rapport de briefing). Utilise-le pour aligner le ton, la promesse, et les valeurs.
+
 ## Contraintes
 
 - Tu reçois la section actuelle (role, intent, content) et un prompt personnalisé.
@@ -59,9 +61,12 @@ export async function POST(req: Request) {
     section: { order: number; role: string; intent: string; content: Record<string, unknown> };
     customPrompt: string;
     architecture: unknown;
+    brandPlatform?: unknown;
+    copywriterText?: string;
+    reportContent?: string;
   };
 
-  const { section, customPrompt, architecture } = body;
+  const { section, customPrompt, architecture, brandPlatform, copywriterText, reportContent } = body;
 
   if (!section?.content || !customPrompt?.trim()) {
     return Response.json({ error: 'section et customPrompt requis.' }, { status: 400 });
@@ -72,12 +77,28 @@ export async function POST(req: Request) {
     : '{}';
   const sectionStr = JSON.stringify(section);
 
+  // Build strategy context block (truncated to prevent token overflow)
+  const strategyLines: string[] = [];
+  if (brandPlatform) {
+    strategyLines.push(`Plateforme de marque: ${JSON.stringify(brandPlatform).substring(0, 2000)}`);
+  }
+  if (copywriterText) {
+    strategyLines.push(`Texte copywriter: ${copywriterText.substring(0, 2000)}`);
+  }
+  if (reportContent) {
+    strategyLines.push(`Rapport: ${reportContent.substring(0, 2000)}`);
+  }
+
+  const strategyBlock = strategyLines.length > 0
+    ? `\n## Contexte stratégique\n${strategyLines.join('\n\n')}\n`
+    : '';
+
   const userContent = `Section actuelle :
 ${sectionStr}
 
 Arborescence du site :
 ${archStr}
-
+${strategyBlock}
 Prompt personnalisé de l'utilisateur :
 ${customPrompt.trim()}
 

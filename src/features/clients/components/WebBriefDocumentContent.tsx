@@ -91,8 +91,14 @@ export function WebBriefDocumentContent({
   const webBriefData = parseAndMigrateWebBriefData(selectedDocument.content);
   const arch = webBriefData?.architecture;
 
-  const handleSectionRewrite = useCallback(
-    async (sectionId: string, customPrompt: string) => {
+  /**
+   * Merged AI rewrite handler for homepage sections.
+   * - customPrompt undefined or empty → Yam creative direction
+   * - customPrompt provided → custom rewrite
+   * Always sends strategy context (brandPlatform, copywriterText, reportContent) to the API.
+   */
+  const handleAiRewrite = useCallback(
+    async (sectionId: string, customPrompt?: string) => {
       if (!clientId) return;
       try {
         const data = JSON.parse(selectedDocument.content) as WebBriefData;
@@ -106,13 +112,19 @@ export function WebBriefDocumentContent({
           toast.error('Section introuvable.');
           return;
         }
+        // Empty prompt → apply Yam creative direction
+        const effectivePrompt = customPrompt?.trim() ? customPrompt.trim() : YAM_PROMPT;
+        const ctx = getStrategyContext();
         const res = await fetch('/api/web-section-rewrite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             section: { order: section.order, role: section.role, intent: section.intent, content: section.content },
-            customPrompt,
+            customPrompt: effectivePrompt,
             architecture: data.architecture,
+            brandPlatform: ctx.brandPlatform,
+            copywriterText: ctx.copywriterText,
+            reportContent: ctx.reportContent,
           }),
         });
         const json = (await res.json()) as { content?: Record<string, unknown>; error?: string };
@@ -134,14 +146,7 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de la réécriture.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
-  );
-
-  const handleSectionYam = useCallback(
-    async (sectionId: string) => {
-      await handleSectionRewrite(sectionId, YAM_PROMPT);
-    },
-    [handleSectionRewrite]
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument, getStrategyContext]
   );
 
   const handleGeneratePageZoning = useCallback(
@@ -220,8 +225,12 @@ export function WebBriefDocumentContent({
     [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
   );
 
-  const handlePageSectionRewrite = useCallback(
-    async (pageSlug: string, sectionId: string, customPrompt: string) => {
+  /**
+   * Merged AI rewrite handler for page sections.
+   * Same logic as handleAiRewrite but for sub-pages.
+   */
+  const handlePageAiRewrite = useCallback(
+    async (pageSlug: string, sectionId: string, customPrompt?: string) => {
       if (!clientId) return;
       try {
         const data = JSON.parse(selectedDocument.content) as WebBriefData;
@@ -236,13 +245,19 @@ export function WebBriefDocumentContent({
           toast.error('Section introuvable.');
           return;
         }
+        // Empty prompt → apply Yam creative direction
+        const effectivePrompt = customPrompt?.trim() ? customPrompt.trim() : YAM_PROMPT;
+        const ctx = getStrategyContext();
         const res = await fetch('/api/web-section-rewrite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             section: { order: section.order, role: section.role, intent: section.intent, content: section.content },
-            customPrompt,
+            customPrompt: effectivePrompt,
             architecture: data.architecture,
+            brandPlatform: ctx.brandPlatform,
+            copywriterText: ctx.copywriterText,
+            reportContent: ctx.reportContent,
           }),
         });
         const json = (await res.json()) as { content?: Record<string, unknown>; error?: string };
@@ -264,14 +279,7 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de la réécriture.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
-  );
-
-  const handlePageSectionYam = useCallback(
-    async (pageSlug: string, sectionId: string) => {
-      await handlePageSectionRewrite(pageSlug, sectionId, YAM_PROMPT);
-    },
-    [handlePageSectionRewrite]
+    [clientId, selectedDocument.id, selectedDocument.content, updateDocument, getStrategyContext]
   );
 
   const handleSectionContentChange = useCallback(
@@ -391,11 +399,9 @@ export function WebBriefDocumentContent({
             immersiveMode
             editMode={webBriefEditMode}
             onEditModeChange={setWebBriefEditMode}
-            onSectionRewrite={clientId ? handleSectionRewrite : undefined}
-            onSectionYam={clientId ? handleSectionYam : undefined}
+            onAiRewrite={clientId ? handleAiRewrite : undefined}
             onGeneratePageZoning={clientId ? handleGeneratePageZoning : undefined}
-            onPageSectionRewrite={clientId ? handlePageSectionRewrite : undefined}
-            onPageSectionYam={clientId ? handlePageSectionYam : undefined}
+            onPageAiRewrite={clientId ? handlePageAiRewrite : undefined}
             onSectionContentChange={clientId ? handleSectionContentChange : undefined}
             onPageSectionContentChange={clientId ? handlePageSectionContentChange : undefined}
           />
