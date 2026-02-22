@@ -13,7 +13,7 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 ## Current Position
 
 **Phase en cours:** 9 (Retroplanning IA) — Complète (Plans 01 + 02)
-**Current Plan:** Phase 9 complète — prochaine : Phase 5 ou Phase 6 Plan 02
+**Current Plan:** Not started
 
 **Complété:**
 - Phases 1–4 (Timeline, Clients, Deliverables/Calls, Documents) ✅
