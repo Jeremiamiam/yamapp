@@ -6,14 +6,14 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 
 **Core value:** Avoir une vue d'ensemble claire de tous les clients et deadlines en un coup d'œil, sans surcharge d'information.
 
-**Current focus:** Phase 11 (Refonte page client & documents projet) — à planifier.
+**Current focus:** Phase 12 (Refonte page client V2) — Plan 01 complété.
 
 ---
 
 ## Current Position
 
-**Phase en cours:** 11 (Refonte page client & documents projet)
-**Current Plan:** TBD — run /gsd:plan-phase 11
+**Phase en cours:** 12 (Refonte page client V2)
+**Current Plan:** 02
 
 **Complété:**
 - Phases 1–4 (Timeline, Clients, Deliverables/Calls, Documents) ✅
@@ -30,7 +30,7 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - **Phase 10 Plan 01:** Layout Gallery modal (LayoutCard + LayoutGalleryGrid + LayoutGallery), dual entry points (WikiView + SectionDrawer), variant creation via /api/generate-layout, wiki entry ✅
 - **Phase 10 Plan 02:** read-layout API, edit-layout API, LayoutCodeEditor (Code + AI tabs), generate-layout direct code write, gallery "Éditer" button ✅
 
-**Dernière activité:** 2026-02-22 — Phase 10 Plan 02 complété (code editor + AI editing for gallery layouts)
+**Dernière activité:** 2026-02-22 — Phase 12 Plan 01 complété (migration project_id documents + types + mappers + store)
 
 **Progress:** [██████████] 100%
 
@@ -39,7 +39,7 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 ## What's Next
 
 **Phase 11 – Refonte page client & documents projet** (planifiée)
-- [ ] 11-00: Page proto + bouton Voir proto (validation layout)
+- [x] 11-00: Page proto + bouton Voir proto (validation layout) ✅
 - [ ] 11-01: Migration project_id documents + DocumentsSection filtrée
 - [ ] 11-02: Migrate layout proto → ClientDetail
 - [ ] 11-03: ProjectDrawer (sous-fenêtre) au clic projet
@@ -64,6 +64,7 @@ Voir : `planning/PROJECT.md`, `planning/ROADMAP.md`
 - Phase 8 added: Web Brief Preview & Zoning
 - Phase 10 added: Layout Gallery & Variants
 - Phase 11 added: Refonte page client (sidebar, docs client vs projet, import Plaud, sous-drawer projets)
+- Phase 12 added: Refonte page client V2 — sidebar client fixe + drawer projet + distinction docs client/projet + import PLAUD double accès + retroplanning footer
 
 ### Decisions
 
@@ -120,10 +121,17 @@ Les décisions sont dans PROJECT.md (Key Decisions). Contexte technique dans `pl
 - AI tab auto-switches to Code tab after successful AI edit so user sees result immediately
 - onEditLayout prop on LayoutCard is optional — backward-compatible with all existing usages
 
+**Phase 12 Plan 01 decisions:**
+- No index on project_id — low document volume, FK lookup sufficient
+- No backfill — existing docs remain NULL (backward-compatible: NULL = client doc)
+- addDocument takes projectId as 3rd param (not in docData) — keeps Omit<ClientDocument> shape clean
+- project_id FK uses ON DELETE SET NULL — project deletion detaches documents rather than cascading
+- openReportUploadModal extended with optional projectId — existing callers unbroken
+
 ### Blockers
 
 Aucun.
 
 ---
 *State initial: 2026-02-13*
-*Updated: 2026-02-22 — Phase 10 Plan 02 complété (read-layout API, edit-layout API, LayoutCodeEditor, gallery "Éditer" button)*
+*Updated: 2026-02-22 — Phase 12 Plan 01 complété (migration project_id documents, ClientDocument.projectId, addDocument store action, ModalType report-upload)*

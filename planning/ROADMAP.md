@@ -286,11 +286,35 @@ Plans:
   5. Import Plaud dans un projet crée un Report rattaché au projet et permet le process complet (Brief → Board → Web)
 
 Plans:
-- [ ] 11-00-PLAN.md -- Page proto avec mock data + bouton Voir proto (validation layout)
+- [x] 11-00-PLAN.md -- Page proto avec mock data + bouton Voir proto (validation layout) ✅
 - [ ] 11-01-PLAN.md -- Migration project_id sur documents + types + DocumentsSection filtrée
 - [ ] 11-02-PLAN.md -- Migrate layout proto → ClientDetail (sidebar fixe + zone principale)
 - [ ] 11-03-PLAN.md -- ProjectDrawer (sous-fenêtre) + remplacement modal par drawer au clic
 - [ ] 11-04-PLAN.md -- Import Plaud dans projet avec process complet
+
+### Phase 12: Refonte page client V2 — sidebar client fixe + drawer projet + distinction docs client/projet + import PLAUD double accès + retroplanning footer
+
+**Goal:** Restructurer la page client avec sidebar fixe (contacts, liens, docs client), zone principale (liste projets), ProjectDrawer lateral 3 onglets (Produits master-detail, Docs, Facturation hybride), footer retroplanning, PLAUD double accès (sidebar=doc client, drawer=doc projet), et projet Divers auto pour orphelins.
+**Depends on:** Phase 11
+**Requirements:** CLV2-01, CLV2-02, CLV2-03, CLV2-04, CLV2-05, CLV2-06, CLV2-07, CLV2-08, CLV2-09, CLV2-10
+**Plans:** 4 plans
+
+**Success Criteria** (what must be TRUE):
+  1. Page client avec sidebar fixe a gauche (contacts, liens, documents client)
+  2. Documents client (sans projectId) vs documents projet (avec projectId) — migration Supabase
+  3. Clic sur un projet ouvre un ProjectDrawer lateral (pas une modale)
+  4. ProjectDrawer avec 3 onglets : Produits (master-detail 1/3+2/3), Docs, Facturation
+  5. Import PLAUD depuis sidebar client cree un doc client, depuis drawer cree un doc projet
+  6. Retroplanning en footer full-width permanent
+  7. Produits orphelins regroupes dans un projet Divers automatique
+  8. Breadcrumb hierarchique visible et navigable
+  9. Facturation hybride projet + produits (devis/acompte/avancements/solde)
+
+Plans:
+- [x] 12-01-PLAN.md -- Migration Supabase project_id + types + mappers + store (data layer) ✅
+- [ ] 12-02-PLAN.md -- ClientDetailV2 layout + ClientSidebarSection + ProjectsListSection + footer retro
+- [ ] 12-03-PLAN.md -- ProjectDrawer (3 onglets: Produits master-detail, Docs, Facturation hybride)
+- [ ] 12-04-PLAN.md -- Wiring complet + PLAUD double entry + Divers orphelins + checkpoint
 
 ---
 *Roadmap created: 2026-02-13*
