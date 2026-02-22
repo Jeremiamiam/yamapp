@@ -8,6 +8,7 @@ import {
   DocumentsSection,
   LinksSection,
   DeliverablesSection,
+  RetroplanningSection,
 } from './sections';
 
 const ArrowLeft = () => (
@@ -108,6 +109,11 @@ export function ClientDetail() {
             <section className="lg:col-span-2">
               <DeliverablesSection clientId={client.id} />
             </section>
+          </div>
+
+          {/* Retroplanning — full width below the grid */}
+          <div className="mt-6">
+            <RetroplanningSection clientId={client.id} />
           </div>
         </div>
       </div>

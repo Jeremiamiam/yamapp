@@ -207,6 +207,12 @@ export const WEB_BRIEF_AGENTS: AgentInfo[] = [
   { name: 'SMM Brief', role: 'Stratégie réseaux sociaux : piliers de contenu, stratégie par canal (Instagram, LinkedIn, TikTok\u2026), hashtags.', color: 'var(--accent-violet)', emoji: '\ud83d\udce3' },
 ];
 
+// ── Retroplanning — Agent ───────────────────────────────
+
+export const RETROPLANNING_AGENTS: AgentInfo[] = [
+  { name: 'Architecte Retroplanning', role: "Analyse le brief client et génère un planning inverse avec étapes adaptées au type de projet. Calcule les durées depuis la deadline.", color: 'var(--accent-amber)', emoji: '\ud83d\udcc5' },
+];
+
 // ── PLAUD — Agents transcription ───────────────────────
 
 export const PLAUD_AGENTS: AgentInfo[] = [

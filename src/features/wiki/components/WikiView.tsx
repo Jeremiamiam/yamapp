@@ -8,6 +8,7 @@ import {
   CREATIVE_BOARD_AGENTS,
   WEB_BRIEF_AGENTS,
   PLAUD_AGENTS,
+  RETROPLANNING_AGENTS,
   PIPELINE_STEPS,
   SECTION_ROLES,
   CREATIVE_STYLES,
@@ -73,6 +74,11 @@ const NavigationIcon = () => (
     <polygon points="3 11 22 2 13 21 11 13 3 11"/>
   </svg>
 );
+const CalendarRangeIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="17"/><line x1="12" y1="14" x2="12" y2="17"/><line x1="16" y1="14" x2="16" y2="17"/>
+  </svg>
+);
 const LinkIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
@@ -102,6 +108,7 @@ const TrashIcon = () => (
 // ── Icon resolver ──────────────────────────────────────
 const ICON_MAP: Record<string, React.ReactNode> = {
   'calendar': <CalendarIcon />,
+  'calendar-range': <CalendarRangeIcon />,
   'kanban': <KanbanIcon />,
   'users': <UsersIcon />,
   'file-text': <FileTextIcon />,
@@ -497,6 +504,58 @@ function LiensUtilesSidebar() {
   );
 }
 
+// ── Retroplanning agents section ───────────────────────
+function RetroplanningAgentsSection() {
+  return (
+    <div id="section-retroplanning-agents" className="col-span-full">
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)]">
+        <div className="h-1 rounded-t-xl" style={{ backgroundColor: 'var(--accent-amber)' }} />
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="p-2 rounded-lg" style={{ backgroundColor: 'var(--accent-amber)', opacity: 0.15 }}>
+              <span style={{ color: 'var(--accent-amber)' }}><CalendarRangeIcon /></span>
+            </span>
+            <div>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">Retroplanning &mdash; Agent IA</h3>
+              <p className="text-xs text-[var(--text-muted)]">G&eacute;n&egrave;re un Gantt depuis le brief, en remontant depuis la deadline</p>
+            </div>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)] mb-5">
+            Un seul agent analyse le brief du client (web-brief, brief, rapport ou strat&eacute;gie cr&eacute;ative)
+            et g&eacute;n&egrave;re 4 &agrave; 10 &eacute;tapes projet adapt&eacute;es au type de mission.
+            Les dates sont calcul&eacute;es en remontant depuis la deadline (&laquo;&nbsp;backward scheduling&nbsp;&raquo;).
+          </p>
+
+          <div className="grid gap-2">
+            {RETROPLANNING_AGENTS.map((agent) => (
+              <div key={agent.name} className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-[30px] h-[30px] rounded-full flex items-center justify-center text-sm" style={{ backgroundColor: agent.color + '22' }}>
+                  {agent.emoji}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">{agent.name}</span>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">{agent.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-[var(--border-subtle)]">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Ce que le Gantt permet</p>
+            <div className="flex flex-wrap gap-1.5">
+              {['drag-move', 'resize droite', 'formulaire d\'édition', 'couleur par étape', 'indicator aujourd\'hui', 'deadline marker'].map((tag) => (
+                <span key={tag} className="text-[10px] px-2 py-1 rounded-md bg-[var(--bg-secondary)] text-[var(--text-muted)]">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Feature card ───────────────────────────────────────
 function FeatureCard({ section }: { section: FeatureSection }) {
   return (
@@ -536,6 +595,7 @@ export function WikiView() {
     { id: 'agents-ia', label: 'Creative Board IA', color: 'var(--accent-lime)' },
     { id: 'web-brief', label: 'Web Brief IA', color: 'var(--accent-magenta)' },
     { id: 'plaud', label: 'PLAUD', color: 'var(--accent-cyan)' },
+    { id: 'retroplanning-agents', label: 'Retroplanning IA', color: 'var(--accent-amber)' },
   ];
 
   return (
@@ -587,6 +647,7 @@ export function WikiView() {
             <AgentFlowSection />
             <WebBriefAgentsSection />
             <PlaudAgentsSection />
+            <RetroplanningAgentsSection />
           </div>
 
           {/* Mobile only: liens utiles inline (below cards) */}
