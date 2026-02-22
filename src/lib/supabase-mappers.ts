@@ -57,6 +57,7 @@ interface DocumentRow {
   type: string;
   title: string;
   content: string;
+  project_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -187,6 +188,7 @@ export function mapDocumentRow(row: DocumentRow): ClientDocument {
     type: row.type as ClientDocument['type'],
     title: row.title,
     content: row.content,
+    projectId: row.project_id ?? undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };
@@ -299,6 +301,7 @@ export function toSupabaseDocument(data: Partial<ClientDocument> & { type: Clien
     type: data.type,
     title: data.title,
     content: data.content ?? '',
+    project_id: data.projectId ?? null,
   };
 }
 

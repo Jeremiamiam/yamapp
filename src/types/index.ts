@@ -41,6 +41,7 @@ export interface ClientDocument {
   type: DocumentType;
   title: string;
   content: string;
+  projectId?: string; // undefined = doc client, string = doc projet
   createdAt: Date;
   updatedAt: Date;
 }
