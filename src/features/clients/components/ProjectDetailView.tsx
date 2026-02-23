@@ -196,9 +196,7 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
     [project, deliverables]
   );
 
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(
-    projectDeliverables[0]?.id ?? null
-  );
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   const selectedProduct = projectDeliverables.find((d) => d.id === selectedProductId) ?? null;
 
@@ -1474,9 +1472,7 @@ interface OrphanProductsViewProps {
 }
 
 export function OrphanProductsView({ client, deliverables, onBack }: OrphanProductsViewProps) {
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(
-    deliverables[0]?.id ?? null
-  );
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const selectedProduct = deliverables.find((d) => d.id === selectedProductId) ?? null;
 
   return (

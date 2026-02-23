@@ -43,14 +43,12 @@ export function ProjectDrawer({ project, client, deliverables, onClose }: Projec
     [deliverables, project.id]
   );
 
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(
-    projectDeliverables[0]?.id ?? null
-  );
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   // Reset state when project changes (Pitfall 3: stale state between projects)
   useEffect(() => {
     setActiveTab('produits');
-    setSelectedProductId(projectDeliverables[0]?.id ?? null);
+    setSelectedProductId(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id]);
 

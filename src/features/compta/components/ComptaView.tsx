@@ -239,9 +239,9 @@ export function ComptaView() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-8">
-      <div className="max-w-7xl mx-auto space-y-10">
-        <div className="flex items-center justify-between">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 lg:space-y-10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <p className="text-sm text-[var(--text-muted)] uppercase tracking-wider">
             Bilan annuel
           </p>
@@ -249,49 +249,49 @@ export function ComptaView() {
         </div>
 
         {/* 5 KPIs: Clients + 4 financial metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 shadow-lg">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 sm:p-6 shadow-lg">
             <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">
               Clients
             </p>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">{totalClients}</p>
-            <p className="text-sm text-[var(--text-muted)] mt-1">actifs {comptaYear}</p>
+            <p className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">{totalClients}</p>
+            <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">actifs {comptaYear}</p>
           </div>
-          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 shadow-lg">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 sm:p-6 shadow-lg">
             <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">
               Rentrées validées
             </p>
-            <p className="text-2xl font-bold text-[#22c55e]">{formatEur(totalFacturé)}</p>
-            <p className="text-sm text-[var(--text-muted)] mt-1">produits terminés {comptaYear}</p>
+            <p className="text-xl sm:text-2xl font-bold text-[#22c55e]">{formatEur(totalFacturé)}</p>
+            <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">produits terminés {comptaYear}</p>
           </div>
-          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 shadow-lg">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 sm:p-6 shadow-lg">
             <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">
               Sous-traitance
             </p>
-            <p className="text-2xl font-bold text-[#ef4444]">{formatEur(totalDépensé)}</p>
-            <p className="text-sm text-[var(--text-muted)] mt-1">freelances + impression</p>
+            <p className="text-xl sm:text-2xl font-bold text-[#ef4444]">{formatEur(totalDépensé)}</p>
+            <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">freelances + impression</p>
           </div>
-          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6 shadow-lg">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 sm:p-6 shadow-lg">
             <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">
               Marge nette
             </p>
-            <p className="text-2xl font-bold text-[#3b82f6]">{formatEur(margeNette)}</p>
-            <p className="text-sm text-[var(--text-muted)] mt-1">rentrées - sous-traitance</p>
+            <p className="text-xl sm:text-2xl font-bold text-[#3b82f6]">{formatEur(margeNette)}</p>
+            <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">rentrées - sous-traitance</p>
           </div>
-          <div className="rounded-xl border-2 border-[var(--accent-violet)]/40 bg-[var(--accent-violet)]/5 p-6 shadow-lg">
+          <div className="rounded-xl border-2 border-[var(--accent-violet)]/40 bg-[var(--accent-violet)]/5 p-4 sm:p-6 shadow-lg col-span-2 md:col-span-2 lg:col-span-1">
             <p className="text-xs font-medium text-[var(--accent-violet)] uppercase tracking-wider mb-2">
               Rentrée potentielle
             </p>
-            <p className="text-2xl font-bold text-[var(--accent-violet)]">{formatEur(totalMargePotentielle)}</p>
-            <p className="text-sm text-[var(--text-muted)] mt-1">rentrée potentielle {comptaYear}</p>
+            <p className="text-xl sm:text-2xl font-bold text-[var(--accent-violet)]">{formatEur(totalMargePotentielle)}</p>
+            <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">rentrée potentielle {comptaYear}</p>
           </div>
         </div>
 
         {/* Filters + Sort */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-[var(--text-muted)]">Afficher:</span>
-            <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-[var(--text-muted)] w-full sm:w-auto">Afficher:</span>
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setFilterMode('all')}
                 className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
@@ -334,9 +334,122 @@ export function ComptaView() {
           </button>
         </div>
 
-        {/* Table: 4 columns aligned with KPIs */}
+        {/* Table desktop (lg+) / Cards mobile */}
         <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile: card layout */}
+          <div className="lg:hidden divide-y divide-[var(--border-subtle)]">
+            {tableRows.length === 0 && (
+              <div className="py-12 px-4 text-center text-[var(--text-muted)]">
+                Aucune donnée pour {comptaYear}
+              </div>
+            )}
+            {tableRows.map((row) => {
+              const isExpanded = expandedClientId === row.clientId;
+              return (
+                <div key={row.clientId} className="p-4">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedClientId(isExpanded ? null : row.clientId)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ChevronDown open={isExpanded} />
+                        <span className="font-medium text-[var(--text-primary)] truncate">
+                          {row.clientName}
+                          {row.isProspect && row.rentreesValidees === 0 && (
+                            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full border border-amber-500/50 text-amber-600">
+                              P
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <span className="text-sm font-bold text-[var(--text-primary)] shrink-0">
+                        {formatEur(row.totalGlobal)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      {filterMode !== 'with-potential' && (
+                        <>
+                          <div className="flex justify-between sm:block">
+                            <span className="text-[var(--text-muted)] sm:block sm:mb-0.5">Rentrées</span>
+                            <span className="text-[#22c55e] font-medium">{row.rentreesValidees > 0 ? formatEur(row.rentreesValidees) : '—'}</span>
+                          </div>
+                          <div className="flex justify-between sm:block">
+                            <span className="text-[var(--text-muted)] sm:block sm:mb-0.5">ST</span>
+                            <span className="text-[#ef4444]">{row.sousTraitance > 0 ? formatEur(row.sousTraitance) : '—'}</span>
+                          </div>
+                          <div className="flex justify-between sm:block">
+                            <span className="text-[var(--text-muted)] sm:block sm:mb-0.5">Marge</span>
+                            <span className="text-[#3b82f6] font-medium">{row.margeNette !== 0 ? formatEur(row.margeNette) : '—'}</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between sm:block col-span-2 sm:col-span-1">
+                        <span className="text-[var(--text-muted)] sm:block sm:mb-0.5">Pot.</span>
+                        <span className="text-[var(--accent-violet)] font-medium">{row.margePotentielleYam > 0 ? formatEur(row.margePotentielleYam) : '—'}</span>
+                      </div>
+                    </div>
+                  </button>
+                  {isExpanded && (
+                    <div className="mt-4 pt-4 border-t border-[var(--border-subtle)] space-y-4">
+                      {row.billedDeliverables.length > 0 && filterMode !== 'with-potential' && (
+                        <div>
+                          <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">
+                            Rentrées ({row.billedDeliverables.length})
+                          </p>
+                          <ul className="space-y-1.5">
+                            {row.billedDeliverables.map((d) => (
+                              <li
+                                key={d.id}
+                                onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
+                                className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-sm cursor-pointer active:bg-[var(--bg-tertiary)]"
+                              >
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <span className="text-[var(--text-primary)] truncate">{d.name}</span>
+                                  <BillingStatusChip status={d.billingStatus} />
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 text-xs">
+                                  <span className="text-[#22c55e]">{formatEur(d.prixFacturé ?? 0)}</span>
+                                  {(d.coutSousTraitance ?? 0) > 0 && (
+                                    <span className="text-[#ef4444]">− {formatEur(d.coutSousTraitance ?? 0)}</span>
+                                  )}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {row.margePotentielleDeliverables.length > 0 && filterMode !== 'with-validated' && (
+                        <div>
+                          <p className="text-[10px] font-medium text-[var(--accent-violet)] uppercase tracking-wider mb-2">
+                            Rentrée potentielle ({row.margePotentielleDeliverables.length})
+                          </p>
+                          <ul className="space-y-1.5">
+                            {row.margePotentielleDeliverables.map((d) => (
+                              <li
+                                key={d.id}
+                                onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
+                                className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--accent-violet)]/20 text-sm cursor-pointer active:bg-[var(--bg-tertiary)]"
+                              >
+                                <span className="text-[var(--text-primary)] truncate flex-1">{d.name}</span>
+                                <span className="text-[var(--accent-violet)] font-medium shrink-0 text-xs">
+                                  {formatEur(d.margePotentielle ?? 0)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm table-fixed">
               <colgroup>
                 <col style={{ width: '40px' }} />
