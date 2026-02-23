@@ -257,14 +257,28 @@ function ProductDetailForm({ product }: { product: Deliverable }) {
             ))}
           </select>
         </Field>
-        <Field label="Deadline">
-          <input
-            key={`due-${product.id}`}
-            type="date"
-            defaultValue={toDateInput(product.dueDate)}
-            onChange={(e) => saveImmediate({ dueDate: e.target.value ? new Date(e.target.value) : undefined })}
-            className="w-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors"
-          />
+        <Field label="Planification">
+          <div className="space-y-2">
+            <input
+              key={`due-${product.id}`}
+              type="date"
+              defaultValue={toDateInput(product.dueDate)}
+              onChange={(e) => saveImmediate({
+                dueDate: e.target.value ? new Date(e.target.value + 'T12:00:00.000Z') : undefined,
+                inBacklog: !e.target.value,
+              })}
+              className="w-full text-xs bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-2.5 py-1.5 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none transition-colors"
+            />
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={product.inBacklog ?? false}
+                onChange={(e) => saveImmediate({ inBacklog: e.target.checked, dueDate: e.target.checked ? undefined : product.dueDate })}
+                className="rounded border-[var(--border-subtle)]"
+              />
+              <span className="text-[10px] text-[var(--text-muted)]">À planifier (backlog)</span>
+            </label>
+          </div>
         </Field>
       </div>
 

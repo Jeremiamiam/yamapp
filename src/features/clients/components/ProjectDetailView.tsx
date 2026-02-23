@@ -559,6 +559,7 @@ function ProductsMasterDetail({
 
 function ProductDetailReadOnly({ product, onEdit }: { product: Deliverable; onEdit: () => void }) {
   const team = useAppStore((state) => state.team);
+  const updateDeliverable = useAppStore((state) => state.updateDeliverable);
   const assignee = team.find((m) => m.id === product.assigneeId);
 
   const hasBilling = (product.quoteAmount ?? 0) > 0 || (product.depositAmount ?? 0) > 0
@@ -567,6 +568,10 @@ function ProductDetailReadOnly({ product, onEdit }: { product: Deliverable; onEd
   const totalInvoiced = (product.depositAmount ?? 0)
     + (product.progressAmounts ?? []).reduce((s, a) => s + a, 0)
     + (product.balanceAmount ?? 0);
+
+  const dueDateObj = product.dueDate ? new Date(product.dueDate) : null;
+  const isPlanned = !!dueDateObj;
+  const isInBacklog = product.inBacklog === true;
 
   return (
       <div className="p-3 sm:p-5 space-y-4 sm:space-y-5">
@@ -584,6 +589,58 @@ function ProductDetailReadOnly({ product, onEdit }: { product: Deliverable; onEd
           <PencilIcon />
           Modifier
         </button>
+      </div>
+
+      {/* Planification : CTA cliquable sans mode édition */}
+      <div className="rounded-lg border px-4 py-3 bg-[var(--bg-secondary)]/50">
+        <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">Planification</p>
+        {isPlanned ? (
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-medium text-[var(--accent-lime)]">Sur la Timeline</span>
+              <p className="text-sm text-[var(--text-primary)] mt-0.5">
+                {dueDateObj!.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                {' · '}
+                {dueDateObj!.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => updateDeliverable(product.id, { dueDate: undefined, inBacklog: true })}
+              className="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--accent-coral)] transition-colors shrink-0"
+            >
+              Retirer
+            </button>
+          </div>
+        ) : isInBacklog ? (
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-medium text-[var(--accent-violet)]">En attente de planification</span>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">Dans le backlog → glissez sur la Timeline pour planifier</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => updateDeliverable(product.id, { inBacklog: false })}
+              className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors shrink-0"
+            >
+              Retirer du backlog
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => updateDeliverable(product.id, { inBacklog: true })}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-dashed border-[var(--accent-violet)]/40 bg-[var(--accent-violet)]/5 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/10 transition-colors font-medium text-sm cursor-pointer"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            À planifier
+          </button>
+        )}
       </div>
 
       {/* Badges row: statut + potentiel + assignee */}
@@ -866,6 +923,67 @@ function ProductDetailInline({ product, onClose }: { product: Deliverable; onClo
           )}
         </div>
       </MiniField>
+
+      {/* Planification : dueDate + à planifier (backlog) */}
+      <div className="space-y-3">
+        <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Planification</p>
+        {(merged.dueDate || draftRef.current.dueDate !== undefined) ? (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--accent-lime)]/40 bg-[var(--accent-lime)]/10 px-4 py-3">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-medium text-[var(--accent-lime)]">Planifié</span>
+              <span className="text-xs text-[var(--text-primary)]">
+                {(merged.dueDate ? new Date(merged.dueDate) : new Date()).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => { draft({ dueDate: undefined, inBacklog: true }); setIsDirty(true); }}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+            >
+              Retirer
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-tertiary)]/30 px-4 py-3">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-medium text-[var(--text-primary)]">À planifier</span>
+              <span className="text-[10px] text-[var(--text-muted)]">Afficher dans le backlog → glissez sur la Timeline</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => { draft({ inBacklog: !(draftRef.current.inBacklog !== undefined ? draftRef.current.inBacklog : product.inBacklog) }); setIsDirty(true); }}
+              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${
+                (draftRef.current.inBacklog !== undefined ? draftRef.current.inBacklog : product.inBacklog)
+                  ? 'bg-[var(--accent-violet)]'
+                  : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  (draftRef.current.inBacklog !== undefined ? draftRef.current.inBacklog : product.inBacklog)
+                    ? 'translate-x-5'
+                    : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        )}
+        {!(merged.dueDate || draftRef.current.dueDate !== undefined) && (
+          <div className="flex flex-col sm:flex-row gap-2">
+            <label className="text-xs text-[var(--text-muted)]">Ou fixer une date :</label>
+            <input
+              type="date"
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v) draft({ dueDate: new Date(v + 'T12:00:00.000Z'), inBacklog: false });
+                else draft({ dueDate: undefined });
+                setIsDirty(true);
+              }}
+              className="text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-[var(--text-primary)] focus:border-[var(--accent-cyan)] focus:outline-none w-full sm:w-40"
+            />
+          </div>
+        )}
+      </div>
 
       {/* Notes */}
       <MiniField label="Notes">
