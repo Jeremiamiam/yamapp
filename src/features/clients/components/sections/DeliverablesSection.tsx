@@ -88,7 +88,7 @@ export function DeliverablesSection({ clientId }: DeliverablesSectionProps) {
 
   return (
     <div className="bg-[var(--bg-card)] rounded-xl sm:rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
-      <div className="px-4 sm:px-5 py-4 border-b border-[var(--border-subtle)] flex items-center gap-2">
+      <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-[var(--border-subtle)] flex flex-wrap items-center gap-2">
         <Package />
         <h2 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
           Produits
@@ -96,7 +96,7 @@ export function DeliverablesSection({ clientId }: DeliverablesSectionProps) {
         <span className="text-xs text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded-full">
           {deliverables.length}
         </span>
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => openProjectModal(clientId)}
             className="p-1.5 rounded-lg bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 transition-colors"
@@ -203,8 +203,8 @@ function ProductRow({ deliverable: d, clientId, onOpen, getTeamMemberById, index
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
       className={`
-        px-5 py-3 hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer
-        ${indent ? 'pl-10 border-l-2 border-[var(--accent-cyan)]/30' : ''}
+        px-3 sm:px-5 py-2.5 sm:py-3 hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer
+        ${indent ? 'pl-6 sm:pl-10 border-l-2 border-[var(--accent-cyan)]/30' : ''}
         ${!isLast ? 'border-b border-[var(--border-subtle)]' : ''}
       `}
     >

@@ -212,7 +212,7 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
     <div className="h-full flex flex-col">
 
       {/* ── Header projet ────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 flex items-center gap-3 px-5 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]/30">
+      <div className="flex-shrink-0 flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]/30">
         <button
           type="button"
           onClick={onBack}
@@ -221,82 +221,83 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
           <span className="group-hover:-translate-x-0.5 transition-transform">
             <ArrowLeft />
           </span>
-          <span className="text-xs font-medium">Projets</span>
+          <span className="text-xs font-medium hidden sm:inline">Projets</span>
         </button>
 
-        <h2 className="text-base font-semibold text-[var(--text-primary)] truncate flex-1">
+        <h2 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] truncate flex-1 min-w-0">
           {project.name}
         </h2>
 
-        {project.quoteAmount != null && project.quoteAmount > 0 && (
-          <span className="text-xs text-[var(--text-muted)] flex-shrink-0">
-            {formatEuro(project.quoteAmount)}
-          </span>
-        )}
-
-        {billing.status !== 'none' && (
-          <span
-            className={`flex-shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded
-                       ${PROJECT_BILLING_COLORS[billing.status].bg}
-                       ${PROJECT_BILLING_COLORS[billing.status].text}`}
-          >
-            {PROJECT_BILLING_LABELS[billing.status]}
-          </span>
-        )}
-
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => openProjectModal(client.id, project)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                       bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)]
-                       hover:bg-[var(--accent-cyan)]/20 transition-colors cursor-pointer"
-            title="Modifier le projet"
-          >
-            <PencilIcon />
-            Modifier
-          </button>
-          <button
-            type="button"
-            onClick={async () => {
-              if (window.confirm(`Supprimer le projet "${project.name}" ? Les produits seront détachés du projet.`)) {
-                await deleteProject(project.id);
-                onBack();
-              }
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
-                       bg-[var(--accent-coral)]/10 text-[var(--accent-coral)]
-                       hover:bg-[var(--accent-coral)]/20 transition-colors cursor-pointer"
-            title="Supprimer le projet"
-          >
-            <TrashIcon />
-            Supprimer
-          </button>
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+          {project.quoteAmount != null && project.quoteAmount > 0 && (
+            <span className="text-xs text-[var(--text-muted)]">
+              {formatEuro(project.quoteAmount)}
+            </span>
+          )}
+          {billing.status !== 'none' && (
+            <span
+              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded
+                         ${PROJECT_BILLING_COLORS[billing.status].bg}
+                         ${PROJECT_BILLING_COLORS[billing.status].text}`}
+            >
+              {PROJECT_BILLING_LABELS[billing.status]}
+            </span>
+          )}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => openProjectModal(client.id, project)}
+              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium
+                         bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)]
+                         hover:bg-[var(--accent-cyan)]/20 transition-colors cursor-pointer"
+              title="Modifier le projet"
+            >
+              <PencilIcon />
+              <span className="hidden sm:inline">Modifier</span>
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (window.confirm(`Supprimer le projet "${project.name}" ? Les produits seront détachés du projet.`)) {
+                  await deleteProject(project.id);
+                  onBack();
+                }
+              }}
+              className="flex items-center justify-center p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium
+                         bg-[var(--accent-coral)]/10 text-[var(--accent-coral)]
+                         hover:bg-[var(--accent-coral)]/20 transition-colors cursor-pointer"
+              title="Supprimer le projet"
+            >
+              <TrashIcon />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ── Onglets ──────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 flex border-b border-[var(--border-subtle)] px-5">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider border-b-2
-                       transition-colors cursor-pointer -mb-px
-                       ${activeTab === tab.key
-                         ? 'border-[var(--accent-cyan)] text-[var(--accent-cyan)]'
-                         : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                       }`}
-          >
-            {tab.label}
-            {tab.count != null && tab.count > 0 && (
-              <span className="ml-1.5 text-[9px] font-bold opacity-60">
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
+      <div className="flex-shrink-0 flex border-b border-[var(--border-subtle)] overflow-x-auto">
+        <div className="flex min-w-0 px-3 sm:px-5">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex-shrink-0 px-3 sm:px-4 py-3 text-xs font-semibold uppercase tracking-wider border-b-2
+                         transition-colors cursor-pointer -mb-px whitespace-nowrap
+                         ${activeTab === tab.key
+                           ? 'border-[var(--accent-cyan)] text-[var(--accent-cyan)]'
+                           : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                         }`}
+            >
+              {tab.label}
+              {tab.count != null && tab.count > 0 && (
+                <span className="ml-1 sm:ml-1.5 text-[9px] font-bold opacity-60">
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Contenu des onglets ───────────────────────────────────────── */}
@@ -305,7 +306,7 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
         {activeTab === 'produits' && (
           <div className="h-full flex flex-col">
             {/* Barre d'action produits */}
-            <div className="flex-shrink-0 flex items-center justify-between px-5 py-2 border-b border-[var(--border-subtle)]">
+            <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-5 py-2 border-b border-[var(--border-subtle)]">
               <span className="text-xs text-[var(--text-muted)]">
                 {projectDeliverables.length} produit{projectDeliverables.length !== 1 ? 's' : ''}
               </span>
@@ -333,7 +334,7 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
         {activeTab === 'documents' && (
           <div className="h-full overflow-y-auto">
             {/* Actions : Ajouter document + Import PLAUD */}
-            <div className="px-5 py-3 border-b border-[var(--border-subtle)] flex flex-col sm:flex-row gap-2">
+            <div className="px-3 sm:px-5 py-3 border-b border-[var(--border-subtle)] flex flex-col sm:flex-row gap-2">
               <button
                 type="button"
                 onClick={() => openDocumentModal(client.id, undefined, project.id)}
@@ -411,7 +412,7 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
         )}
 
         {activeTab === 'facturation' && (
-          <div className="h-full overflow-y-auto p-5">
+          <div className="h-full overflow-y-auto p-3 sm:p-5">
             <BillingCardContent
               project={project}
               billing={billing}
@@ -436,7 +437,7 @@ function ProductsMasterDetail({
   products: Deliverable[];
   selectedProduct: Deliverable | null;
   selectedProductId: string | null;
-  onSelectProduct: (id: string) => void;
+  onSelectProduct: (id: string | null) => void;
   clientId: string;
 }) {
   const openModal = useAppStore((state) => state.openModal);
@@ -445,7 +446,7 @@ function ProductsMasterDetail({
 
   if (products.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 gap-3">
+      <div className="flex flex-col items-center justify-center py-12 gap-3 px-4">
         <p className="text-sm text-[var(--text-muted)]">Aucun produit</p>
         <button
           type="button"
@@ -458,11 +459,20 @@ function ProductsMasterDetail({
     );
   }
 
+  /* Mobile : vue détail pleine largeur avec retour vers liste */
+  const showDetailOnMobile = selectedProductId != null;
+
   return (
-    <div className="flex h-full">
-      {/* Liste produits — 1/3 */}
-      <div className="w-1/3 border-r border-[var(--border-subtle)] overflow-y-auto flex-shrink-0">
-        <div className="p-2 space-y-0.5">
+    <div className="flex h-full flex-col md:flex-row">
+      {/* Liste produits — 1/3 desktop, pleine largeur mobile (cachée quand détail affiché) */}
+      <div
+        className={`
+          flex-shrink-0 overflow-y-auto
+          md:w-1/3 md:border-r md:border-[var(--border-subtle)]
+          ${showDetailOnMobile ? 'hidden md:block' : 'block'}
+        `}
+      >
+        <div className="p-2 sm:p-3 space-y-0.5">
           {products.map((d) => {
             const isSelected = d.id === selectedProductId;
             const assignee = team.find((m) => m.id === d.assigneeId);
@@ -471,7 +481,7 @@ function ProductsMasterDetail({
                 key={d.id}
                 type="button"
                 onClick={() => { onSelectProduct(d.id); setIsEditing(false); }}
-                className={`w-full text-left px-4 py-3 rounded-lg transition-colors cursor-pointer
+                className={`w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors cursor-pointer
                            ${isSelected
                              ? 'bg-[var(--accent-cyan)]/10 border border-[var(--accent-cyan)]/30'
                              : 'hover:bg-[var(--bg-secondary)] border border-transparent'
@@ -483,7 +493,7 @@ function ProductsMasterDetail({
                   </p>
                   {assignee && (
                     <span
-                      className="flex-shrink-0 w-6 h-6 rounded-full text-[8px] font-bold flex items-center justify-center"
+                      className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full text-[8px] font-bold flex items-center justify-center"
                       style={{ backgroundColor: assignee.color, color: '#000' }}
                       title={assignee.name}
                     >
@@ -491,7 +501,7 @@ function ProductsMasterDetail({
                     </span>
                   )}
                 </div>
-                <span className={`inline-block mt-1.5 text-xs px-2 py-0.5 rounded font-medium ${STATUS_COLOR[d.status]}`}>
+                <span className={`inline-block mt-1 sm:mt-1.5 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded font-medium ${STATUS_COLOR[d.status]}`}>
                   {STATUS_LABEL[d.status]}
                 </span>
               </button>
@@ -500,7 +510,7 @@ function ProductsMasterDetail({
           <button
             type="button"
             onClick={() => openModal({ type: 'deliverable', mode: 'create', clientId })}
-            className="w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium text-[var(--accent-cyan)]
+            className="w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium text-[var(--accent-cyan)]
                        hover:bg-[var(--accent-cyan)]/10 transition-colors cursor-pointer border border-dashed border-[var(--border-subtle)]"
           >
             + Ajouter
@@ -508,17 +518,38 @@ function ProductsMasterDetail({
         </div>
       </div>
 
-      {/* Détail produit — 2/3 */}
-      <div className="w-2/3 overflow-y-auto">
+      {/* Détail produit — 2/3 desktop, pleine largeur mobile */}
+      <div
+        className={`
+          flex-1 min-h-0 overflow-y-auto
+          ${!showDetailOnMobile ? 'hidden md:block' : 'block'}
+        `}
+      >
         {selectedProduct ? (
-          isEditing ? (
-            <ProductDetailInline product={selectedProduct} onClose={() => setIsEditing(false)} />
-          ) : (
-            <ProductDetailReadOnly product={selectedProduct} onEdit={() => setIsEditing(true)} />
-          )
+          <>
+            {/* Bouton retour mobile — visible uniquement < md quand détail affiché */}
+            <div className="md:hidden flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]/30">
+              <button
+                type="button"
+                onClick={() => onSelectProduct(null)}
+                className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                <ArrowLeft />
+                Liste des produits
+              </button>
+            </div>
+            <div className="md:border-l-0">
+              {isEditing ? (
+                <ProductDetailInline product={selectedProduct} onClose={() => setIsEditing(false)} />
+              ) : (
+                <ProductDetailReadOnly product={selectedProduct} onEdit={() => setIsEditing(true)} />
+              )}
+            </div>
+          </>
         ) : (
-          <div className="flex items-center justify-center h-full py-8">
-            <p className="text-sm text-[var(--text-muted)]">Sélectionnez un produit</p>
+          <div className="flex flex-col items-center justify-center h-full py-8 px-4">
+            <p className="text-sm text-[var(--text-muted)] text-center">Sélectionnez un produit</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1 opacity-70">Ou ajoutez-en un nouveau</p>
           </div>
         )}
       </div>
@@ -540,7 +571,7 @@ function ProductDetailReadOnly({ product, onEdit }: { product: Deliverable; onEd
     + (product.balanceAmount ?? 0);
 
   return (
-    <div className="p-5 space-y-5">
+      <div className="p-3 sm:p-5 space-y-4 sm:space-y-5">
       {/* Header: nom + bouton edit */}
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-base font-semibold text-[var(--text-primary)]">{product.name}</h3>
@@ -749,7 +780,7 @@ function ProductDetailInline({ product, onClose }: { product: Deliverable; onClo
   }, [product, updateDeliverable]);
 
   return (
-    <div className="p-5 space-y-5">
+    <div className="p-3 sm:p-5 space-y-4 sm:space-y-5">
       {/* Header: Enregistrer + Fermer */}
       <div className="flex items-center justify-end gap-2">
         <button
@@ -784,7 +815,7 @@ function ProductDetailInline({ product, onClose }: { product: Deliverable; onClo
       />
 
       {/* Statut + Potentiel */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <MiniField label="Statut">
           <select
             key={`status-${product.id}`}
@@ -857,7 +888,7 @@ function ProductDetailInline({ product, onClose }: { product: Deliverable; onClo
         </p>
 
         {/* Prix facturé */}
-        <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
+        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto] gap-2 sm:gap-3 sm:items-center">
           <label className="text-sm text-[var(--text-muted)]">Prix facturé</label>
           <div className="relative">
             <input
@@ -872,7 +903,7 @@ function ProductDetailInline({ product, onClose }: { product: Deliverable; onClo
         </div>
 
         {/* Coût sous-traitance */}
-        <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
+        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto] gap-2 sm:gap-3 sm:items-center">
           <label className="text-sm text-[var(--text-muted)]">Sous-traitance</label>
           <div className="relative">
             <input
@@ -887,7 +918,7 @@ function ProductDetailInline({ product, onClose }: { product: Deliverable; onClo
         </div>
 
         {/* Prestataire */}
-        <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
+        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto] gap-2 sm:gap-3 sm:items-center">
           <label className="text-sm text-[var(--text-muted)]">Prestataire</label>
           <input
             key={`ext-${product.id}`}
@@ -1101,7 +1132,7 @@ function DraftBillingFieldRow({
   const amount = product[amountKey] as number | undefined;
   const date = product[dateKey] as string | undefined;
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
+    <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 sm:gap-3 sm:items-center">
       <label className="text-sm text-[var(--text-muted)]">{label}</label>
       <input
         key={`${String(amountKey)}-${product.id}`}
@@ -1177,9 +1208,9 @@ function BillingCardContent({
           )}
 
           {/* Editable project billing fields */}
-          <div className="rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] p-4 space-y-3">
+          <div className="rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] p-3 sm:p-4 space-y-3">
             {/* Potentiel — montant pipeline */}
-            <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
+            <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto] gap-2 sm:gap-3 sm:items-center">
               <label className="text-sm text-[var(--accent-violet)]">Potentiel</label>
               <input
                 key={`potentiel-${project.id}`}
@@ -1385,7 +1416,7 @@ function BillingFieldRow({
   const amount = product[amountKey] as number | undefined;
   const date = product[dateKey] as string | undefined;
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
+    <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 sm:gap-3 sm:items-center">
       <label className="text-sm text-[var(--text-muted)]">{label}</label>
       <input
         key={`${String(amountKey)}-${product.id}`}
@@ -1451,7 +1482,7 @@ export function OrphanProductsView({ client, deliverables, onBack }: OrphanProdu
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 flex items-center gap-3 px-5 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]/30">
+      <div className="flex-shrink-0 flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]/30">
         <button
           type="button"
           onClick={onBack}
@@ -1460,14 +1491,14 @@ export function OrphanProductsView({ client, deliverables, onBack }: OrphanProdu
           <span className="group-hover:-translate-x-0.5 transition-transform">
             <ArrowLeft />
           </span>
-          <span className="text-xs font-medium">Projets</span>
+          <span className="text-xs font-medium hidden sm:inline">Projets</span>
         </button>
 
-        <h2 className="text-base font-semibold text-[var(--text-primary)] truncate flex-1">
+        <h2 className="text-sm sm:text-base font-semibold text-[var(--text-primary)] truncate flex-1 min-w-0">
           Divers
         </h2>
 
-        <span className="text-xs text-[var(--text-muted)] flex-shrink-0">
+        <span className="text-[10px] sm:text-xs text-[var(--text-muted)] flex-shrink-0">
           {deliverables.length} produit{deliverables.length !== 1 ? 's' : ''} sans projet
         </span>
       </div>

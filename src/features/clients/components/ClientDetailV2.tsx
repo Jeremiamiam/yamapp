@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useClient } from '@/hooks';
 import { ClientSidebarSection } from './sections/ClientSidebarSection';
@@ -29,6 +29,14 @@ const Pencil = () => (
   </svg>
 );
 
+const Menu = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="12" x2="21" y2="12"/>
+    <line x1="3" y1="6" x2="21" y2="6"/>
+    <line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+);
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ClientDetailV2() {
@@ -44,6 +52,9 @@ export function ClientDetailV2() {
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [retroExpanded, setRetroExpanded] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   // Ouvrir le projet / Divers si on arrive via navigateToClient(clientId, projectId) — ex: clic projet ou produit depuis Production
   useEffect(() => {
@@ -103,19 +114,30 @@ export function ClientDetailV2() {
     <div className="h-full flex flex-col bg-[var(--bg-primary)]">
 
       {/* ── Header: bouton retour + nom client + badge statut ────────────── */}
-      <header className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]/50">
-        <button
-          type="button"
-          onClick={navigateBack}
-          className="flex items-center gap-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors group flex-shrink-0"
-        >
-          <span className="group-hover:-translate-x-0.5 transition-transform">
-            <ArrowLeft />
-          </span>
-          <span className="text-xs font-medium">Retour</span>
-        </button>
+      <header className="flex-shrink-0 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-secondary)]/50">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={navigateBack}
+            className="flex items-center gap-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors group"
+          >
+            <span className="group-hover:-translate-x-0.5 transition-transform">
+              <ArrowLeft />
+            </span>
+            <span className="text-xs font-medium hidden sm:inline">Retour</span>
+          </button>
+          {/* Bouton sidebar mobile — visible seulement < lg */}
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+            title="Contacts, liens, documents"
+          >
+            <Menu />
+          </button>
+        </div>
 
-        <h1 className="text-lg font-semibold text-[var(--text-primary)] truncate flex-1">
+        <h1 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] truncate flex-1 min-w-0">
           {client.name}
         </h1>
 
@@ -141,11 +163,47 @@ export function ClientDetailV2() {
         </button>
       </header>
 
-      {/* ── Corps: sidebar fixe + zone principale ────────────────────────── */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
+      {/* ── Sidebar drawer mobile (overlay) ───────────────────────────────── */}
+      {sidebarOpen && (
+        <>
+          <div
+            className="lg:hidden fixed inset-0 bg-black/50 z-40"
+            onClick={closeSidebar}
+            aria-hidden
+          />
+          <aside
+            className="lg:hidden fixed top-0 left-0 bottom-0 w-[min(280px,85vw)] max-w-[280px] z-50 bg-[var(--bg-secondary)] border-r border-[var(--border-subtle)] overflow-y-auto animate-drawer-slide-in shadow-xl"
+            aria-label="Contacts, liens et documents"
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)]">
+              <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                Fiche client
+              </span>
+              <button
+                type="button"
+                onClick={closeSidebar}
+                className="p-2 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                aria-label="Fermer"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <ClientSidebarSection
+              client={client}
+              onRetroClick={() => { setRetroExpanded((prev) => !prev); closeSidebar(); }}
+              retroOpen={retroExpanded}
+            />
+          </aside>
+        </>
+      )}
 
-        {/* Sidebar client fixe */}
-        <aside className="flex-shrink-0 w-60 xl:w-64 border-r border-[var(--border-subtle)] overflow-y-auto">
+      {/* ── Corps: sidebar fixe (desktop) + zone principale ────────────────── */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        {/* Sidebar client — visible seulement lg+ */}
+        <aside className="hidden lg:flex flex-shrink-0 w-60 xl:w-64 border-r border-[var(--border-subtle)] overflow-y-auto">
           <ClientSidebarSection
             client={client}
             onRetroClick={() => setRetroExpanded((prev) => !prev)}
@@ -154,7 +212,7 @@ export function ClientDetailV2() {
         </aside>
 
         {/* Zone principale */}
-        <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <main className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
           {selectedProject ? (
             <ProjectDetailView
               project={selectedProject}

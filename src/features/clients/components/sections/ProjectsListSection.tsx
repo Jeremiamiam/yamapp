@@ -72,30 +72,30 @@ export function ProjectsListSection({
   const showDiversGroup = orphanDeliverables.length > 0 && !hasDiversProject;
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-3 sm:p-4 md:p-6">
       {/* Section header */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         <span className="text-[var(--text-muted)]"><Folder /></span>
-        <h2 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider flex-1">
+        <h2 className="text-xs sm:text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider flex-1 min-w-0">
           Projets
         </h2>
-        <span className="text-xs text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded-full">
+        <span className="text-[10px] sm:text-xs text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded-full">
           {projects.length}
         </span>
         <button
           type="button"
           onClick={() => openProjectModal(client.id)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 transition-colors flex-shrink-0"
           title="Nouveau projet"
         >
           <Plus />
-          <span>Nouveau projet</span>
+          <span className="hidden sm:inline">Nouveau projet</span>
         </button>
       </div>
 
       {/* Empty state */}
       {projects.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+        <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4 text-center">
           <div className="text-[var(--text-muted)] mb-3 opacity-40">
             <Folder />
           </div>
@@ -116,7 +116,7 @@ export function ProjectsListSection({
 
       {/* Projects grid */}
       {(projects.length > 0 || showDiversGroup) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
           {projects.map((project) => {
             const projectDeliverables = deliverables.filter((d) => d.projectId === project.id);
             const billing = computeProjectBilling(project, deliverables);
@@ -130,7 +130,7 @@ export function ProjectsListSection({
                 type="button"
                 onClick={() => onSelectProject(project.id)}
                 className={`
-                  text-left p-4 rounded-xl border transition-all
+                  text-left p-3 sm:p-4 rounded-xl border transition-all
                   bg-[var(--bg-card)]
                   ${isSelected
                     ? 'border-[var(--accent-cyan)] ring-1 ring-[var(--accent-cyan)]/40 shadow-[0_0_0_1px_var(--accent-cyan)]/20'
@@ -183,7 +183,7 @@ export function ProjectsListSection({
               type="button"
               onClick={() => onSelectProject('__divers__')}
               className={`
-                text-left p-4 rounded-xl border border-dashed transition-all
+                text-left p-3 sm:p-4 rounded-xl border border-dashed transition-all
                 bg-[var(--bg-card)]/50
                 ${selectedProjectId === '__divers__'
                   ? 'border-[var(--accent-amber)] ring-1 ring-[var(--accent-amber)]/40'
