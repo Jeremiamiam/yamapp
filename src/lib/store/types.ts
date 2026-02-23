@@ -2,7 +2,7 @@ import type { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, Tea
 
 export type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta' | 'admin' | 'production' | 'creative-board' | 'wiki';
 export type ClientStatusFilter = 'all' | 'prospect' | 'client';
-export type AppRole = 'admin' | 'member' | null;
+export type AppRole = 'admin' | 'member' | 'pending' | null;
 
 export interface TimelineFilters {
   clientStatus: ClientStatusFilter;
@@ -35,6 +35,8 @@ export interface AppState {
   // User
   currentUserRole: AppRole;
   setUserRole: (role: AppRole) => void;
+  simulateAsMember: boolean;
+  setSimulateAsMember: (value: boolean) => void;
 
   loadData: () => Promise<void>;
 
@@ -42,6 +44,8 @@ export interface AppState {
   currentView: ViewType;
   previousView: ViewType | null;
   selectedClientId: string | null;
+  selectedProjectId: string | null;
+  setSelectedProjectId: (projectId: string | null) => void;
   selectedDocument: ClientDocument | null;
   activeModal: ModalType;
   filters: TimelineFilters;
@@ -50,7 +54,7 @@ export interface AppState {
   setComptaYear: (year: number) => void;
 
   // Navigation Actions
-  navigateToClient: (clientId: string) => void;
+  navigateToClient: (clientId: string, projectId?: string) => void;
   navigateToTimeline: () => void;
   navigateToClients: () => void;
   navigateToCompta: () => void;

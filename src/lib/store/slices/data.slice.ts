@@ -24,6 +24,20 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([promise, timeout]);
 }
 
+/** Ordre d'affichage des membres à côté du logo : JH (admin) puis CE, MP, CG, puis les autres */
+const TEAM_DISPLAY_ORDER = ['JH', 'CE', 'MP', 'CG'];
+
+function sortTeamByDisplayOrder(team: TeamMember[]): TeamMember[] {
+  return [...team].sort((a, b) => {
+    const idxA = TEAM_DISPLAY_ORDER.indexOf(a.initials);
+    const idxB = TEAM_DISPLAY_ORDER.indexOf(b.initials);
+    if (idxA >= 0 && idxB >= 0) return idxA - idxB;
+    if (idxA >= 0) return -1;
+    if (idxB >= 0) return 1;
+    return (a.initials || '').localeCompare(b.initials || '');
+  });
+}
+
 type DataSliceKeys =
   | 'clients' | 'deliverables' | 'calls' | 'team' | 'projects' | 'dayTodos'
   | 'billingHistory' | 'comptaMonthly' | 'isLoading' | 'loadingError'
@@ -117,7 +131,7 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
           }));
 
           set({
-            team: p.team || [],
+            team: sortTeamByDisplayOrder(p.team || []),
             clients: rehydrated.clients,
             deliverables: rehydrated.deliverables,
             calls: rehydrated.calls,
@@ -154,14 +168,15 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
           .maybeSingle();
 
         if (roleRow?.role) {
-          userRole = roleRow.role as 'admin' | 'member';
+          userRole = roleRow.role as 'admin' | 'member' | 'pending';
         } else {
           const { data: teamRow } = await supabase
             .from('team')
             .select('app_role')
             .eq('auth_user_id', user.id)
             .maybeSingle();
-          userRole = teamRow?.app_role === 'admin' ? 'admin' : 'member';
+          const ar = teamRow?.app_role;
+          userRole = ar === 'admin' ? 'admin' : ar === 'pending' ? 'pending' : 'member';
         }
       }
 
@@ -203,7 +218,7 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
       const todosData = todosRes.data ?? [];
       const projectsData = projectsRes.data ?? [];
 
-      const team = teamRows.map(mapTeamRow);
+      const team = sortTeamByDisplayOrder(teamRows.map(mapTeamRow));
       const clients: Client[] = clientsData.map((row) => {
         const base = mapClientRow(row);
         return {

@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
-import { useModal } from '@/hooks';
 import { Deliverable, DeliverableStatus, Project } from '@/types';
 import { canTransitionStatus } from '@/lib/production-rules';
 import { computeProjectBilling, formatEuro, PROJECT_BILLING_LABELS, PROJECT_BILLING_COLORS } from '@/lib/project-billing';
@@ -50,6 +49,20 @@ function ProductionCard({
   isLast = true,
   inProject = false,
 }: ProductionCardProps) {
+  const [didDrag, setDidDrag] = useState(false);
+
+  const handleClick = () => {
+    if (!didDrag) onClick();
+  };
+
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    setDidDrag(true);
+    onDragStart(e, deliverable);
+  };
+
+  const handleDragEnd = () => {
+    requestAnimationFrame(() => setDidDrag(false));
+  };
 
   if (isCompact) {
     const compactRounded = isFirst && isLast 
@@ -61,8 +74,9 @@ function ProductionCard({
     return (
       <div
         draggable
-        onDragStart={(e) => onDragStart(e, deliverable)}
-        onClick={onClick}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onClick={handleClick}
         className={`flex items-center gap-2 px-2 py-1 bg-[var(--bg-tertiary)]/50 hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors text-[10px] group ${compactRounded} ${
           !isFirst ? '-mt-px' : ''
         }`}
@@ -98,8 +112,9 @@ function ProductionCard({
   return (
     <div
       draggable
-      onDragStart={(e) => onDragStart(e, deliverable)}
-      onClick={onClick}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onClick={handleClick}
       className={`py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] hover:border-[var(--accent-cyan)]/50 cursor-pointer transition-all hover:shadow-md group ${roundedClass} ${
         !isFirst ? '-mt-px' : ''
       } ${inProject ? 'pl-4 pr-2.5' : 'px-2.5'}`}
@@ -212,7 +227,7 @@ export function ProductionView() {
     const project = projects.find((p) => p.id === d.projectId);
     return project?.quoteAmount ?? undefined;
   }, [projects]);
-  const { openDeliverableModal } = useModal();
+  const navigateToClient = useAppStore((s) => s.navigateToClient);
   const [draggedItem, setDraggedItem] = useState<Deliverable | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<DeliverableStatus | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -485,7 +500,7 @@ export function ProductionView() {
                               project={group.project}
                               deliverables={deliverables.filter(d => d.projectId === group.project.id)}
                               clientName={group.clientName}
-                              onClick={() => openProjectModal(undefined, group.project, 'billing')}
+                              onClick={() => navigateToClient(group.project.clientId, group.project.id)}
                             />
                           )}
                           {group.items.map((d, idx) => {
@@ -498,7 +513,7 @@ export function ProductionView() {
                                 clientName={isInProject ? '' : group.clientName}
                                 assigneeColor={assignee?.color}
                                 assigneeInitials={assignee?.initials}
-                                onClick={() => openDeliverableModal(d.clientId, d)}
+                                onClick={() => d.clientId && navigateToClient(d.clientId, d.projectId ?? '__divers__')}
                                 onDragStart={handleDragStart}
                                 isCompact={isCompleted}
                                 isGrouped={group.items.length > 1}
@@ -538,7 +553,7 @@ export function ProductionView() {
                             clientName={group.clientName}
                             assigneeColor={assignee?.color}
                             assigneeInitials={assignee?.initials}
-                            onClick={() => openDeliverableModal(d.clientId, d)}
+                            onClick={() => d.clientId && navigateToClient(d.clientId, d.projectId ?? '__divers__')}
                             onDragStart={handleDragStart}
                             isCompact={isCompleted}
                             isGrouped={group.items.length > 1}

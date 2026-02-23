@@ -10,6 +10,15 @@ interface GlobalProvidersProps {
 
 export function GlobalProviders({ children }: GlobalProvidersProps) {
   const navigateToWiki = useAppStore((state) => state.navigateToWiki);
+  const setSimulateAsMember = useAppStore((state) => state.setSimulateAsMember);
+
+  // Rehydrate simulateAsMember from localStorage on mount
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem('yam-simulate-as-member');
+      if (v === 'true') setSimulateAsMember(true);
+    } catch {}
+  }, [setSimulateAsMember]);
 
   // Raccourci Cmd+Shift+D pour ouvrir le Wiki
   useEffect(() => {

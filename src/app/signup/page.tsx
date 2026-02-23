@@ -36,7 +36,7 @@ export default function SignupPage() {
           Créer un compte
         </h1>
         <p className="text-sm text-[var(--text-secondary)] mb-8">
-          Premier utilisateur = administrateur du dashboard.
+          Premier compte = administrateur. Les suivants seront en attente d&apos;autorisation.
         </p>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>

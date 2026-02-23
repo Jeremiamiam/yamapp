@@ -16,6 +16,8 @@ import { ProductionView } from '@/features/production/components/ProductionView'
 import { DayTodoDrawer } from '@/features/timeline/components/DayTodoDrawer';
 import { CreativeBoardPage } from '@/app/proto/creative-board/page';
 import { WikiView } from '@/features/wiki/components';
+import { SettingsView } from '@/features/settings/components/SettingsView';
+import { PendingApprovalPage } from '@/components/auth/PendingApprovalPage';
 
 // Ordre des vues pour la navigation clavier (sans client-detail qui est une vue modale)
 const VIEW_ORDER = ['timeline', 'production', 'creative-board', 'clients', 'compta', 'wiki'] as const;
@@ -33,7 +35,7 @@ export default function Home() {
   const navigateToWiki = useAppStore((state) => state.navigateToWiki);
   const isLoading = useAppStore((state) => state.isLoading);
   const loadingError = useAppStore((state) => state.loadingError);
-  const { role, loading } = useUserRole();
+  const { role, loading, simulateAsMember } = useUserRole();
   const isMobile = useIsMobile();
   const [backlogDrawerOpen, setBacklogDrawerOpen] = useState(false);
   const [todoDrawerOpen, setTodoDrawerOpen] = useState(false);
@@ -132,6 +134,11 @@ export default function Home() {
     );
   }
 
+  // Utilisateur en attente d'autorisation → page dédiée
+  if (!loading && role === 'pending') {
+    return <PendingApprovalPage />;
+  }
+
   if (loadingError) {
     return (
       <div className="h-screen flex flex-col items-center justify-center gradient-mesh relative p-6">
@@ -174,6 +181,8 @@ export default function Home() {
         return <ComptaView />;
       case 'wiki':
         return <WikiView />;
+      case 'admin':
+        return <SettingsView />;
       case 'client-detail':
         return <ClientDetail />;
       default:
@@ -184,6 +193,11 @@ export default function Home() {
   return (
     <div className="min-h-[100dvh] h-screen flex flex-col gradient-mesh relative">
       <div className="noise-overlay" />
+      {simulateAsMember && (
+        <div className="flex-shrink-0 px-4 py-2 bg-[var(--accent-violet)]/20 border-b border-[var(--accent-violet)]/30 text-center text-sm text-[var(--text-primary)]">
+          Mode simulation : vous voyez l&apos;app comme un membre (sans Compta)
+        </div>
+      )}
       <Header />
       <div ref={mainContentRef} className="flex-1 flex min-h-0">
         {/* Sidebar globale (desktop only) - masquée sur wiki (full width) */}

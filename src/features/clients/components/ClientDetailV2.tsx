@@ -33,6 +33,8 @@ const Pencil = () => (
 
 export function ClientDetailV2() {
   const selectedClientId = useAppStore((state) => state.selectedClientId);
+  const selectedProjectIdFromStore = useAppStore((state) => state.selectedProjectId);
+  const setSelectedProjectIdStore = useAppStore((state) => state.setSelectedProjectId);
   const navigateBack = useAppStore((state) => state.navigateBack);
   const openModal = useAppStore((state) => state.openModal);
   const projects = useAppStore((state) => state.projects);
@@ -42,6 +44,21 @@ export function ClientDetailV2() {
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [retroExpanded, setRetroExpanded] = useState(false);
+
+  // Ouvrir le projet / Divers si on arrive via navigateToClient(clientId, projectId) — ex: clic projet ou produit depuis Production
+  useEffect(() => {
+    if (client && selectedProjectIdFromStore) {
+      if (selectedProjectIdFromStore === '__divers__') {
+        setSelectedProjectId('__divers__');
+      } else {
+        const belongsToClient = projects.some(
+          (p) => p.clientId === client.id && p.id === selectedProjectIdFromStore
+        );
+        if (belongsToClient) setSelectedProjectId(selectedProjectIdFromStore);
+      }
+      setSelectedProjectIdStore(null);
+    }
+  }, [client?.id, selectedProjectIdFromStore, projects, setSelectedProjectIdStore]);
 
   // Escape key: close project selection first, then navigate back
   useEffect(() => {
@@ -58,7 +75,7 @@ export function ClientDetailV2() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigateBack, selectedProjectId]);
 
-  // Clear selection when project was deleted (e.g. from ProjectModal)
+  // Clear selection when project was deleted
   useEffect(() => {
     if (!client || !selectedProjectId || selectedProjectId === '__divers__') return;
     const exists = projects.some(

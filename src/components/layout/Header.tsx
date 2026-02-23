@@ -120,11 +120,11 @@ function formatTime(date: Date): string {
 
 export function Header() {
   const router = useRouter();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, role } = useUserRole();
   const [userDisplayName, setUserDisplayName] = useState<string>('');
   const [currentTeamMember, setCurrentTeamMember] = useState<{ name: string; initials: string; color: string } | null>(null);
   const [now, setNow] = useState(() => new Date());
-  const { currentView, navigateToTimeline, navigateToClients, navigateToCompta, navigateToProduction, navigateToCreativeBoard, navigateToWiki, deliverables, calls, getClientById, getTeamMemberById } = useAppStore();
+  const { currentView, navigateToTimeline, navigateToClients, navigateToCompta, navigateToProduction, navigateToCreativeBoard, navigateToWiki, navigateToAdmin, deliverables, calls, getClientById, getTeamMemberById } = useAppStore();
   const canAccessCompta = isAdmin;
 
   // Rafraîchir "now" toutes les 30 secondes pour mettre à jour le countdown
@@ -387,11 +387,11 @@ export function Header() {
             >
               <BookOpenIcon />
             </button>
-            {isAdmin && (
+            {role === 'admin' && (
               <button
                 type="button"
-                onClick={() => router.push('/settings')}
-                className="p-1.5 md:p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors touch-manipulation min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center"
+                onClick={navigateToAdmin}
+                className={`p-1.5 md:p-2 rounded-md transition-colors touch-manipulation min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center ${currentView === 'admin' ? 'text-[var(--accent-violet)] bg-[var(--accent-violet)]/10' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}
                 title="Paramètres et gestion des rôles"
                 aria-label="Paramètres"
               >

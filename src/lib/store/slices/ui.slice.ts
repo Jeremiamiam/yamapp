@@ -29,6 +29,7 @@ type UiSliceKeys =
   | 'currentView' | 'previousView' | 'selectedClientId' | 'selectedDocument'
   | 'activeModal' | 'filters' | 'timelineRange' | 'comptaYear' | 'compactWeeks'
   | 'setComptaYear' | 'setCompactWeeks'
+  | 'selectedProjectId' | 'setSelectedProjectId'
   | 'navigateToClient' | 'navigateToTimeline' | 'navigateToClients' | 'navigateToCompta'
   | 'navigateToAdmin' | 'navigateToProduction' | 'navigateToCreativeBoard' | 'navigateToWiki' | 'navigateBack' | 'restoreViewFromStorage'
   | 'openDocument' | 'closeDocument'
@@ -39,6 +40,9 @@ export const createUiSlice: StateCreator<AppState, [], [], Pick<AppState, UiSlic
   currentView: 'timeline',
   previousView: null,
   selectedClientId: null,
+  selectedProjectId: null,
+  setSelectedProjectId: (projectId) => set({ selectedProjectId: projectId }),
+
   selectedDocument: null,
   activeModal: null as ModalType,
   filters: {
@@ -58,40 +62,45 @@ export const createUiSlice: StateCreator<AppState, [], [], Pick<AppState, UiSlic
     set({ compactWeeks: value });
   },
 
-  navigateToClient: (clientId) => {
+  navigateToClient: (clientId, projectId) => {
     const current = get().currentView;
     persistView('client-detail', clientId);
-    set({ currentView: 'client-detail', previousView: current, selectedClientId: clientId });
+    set({
+      currentView: 'client-detail',
+      previousView: current,
+      selectedClientId: clientId,
+      selectedProjectId: projectId ?? null,
+    });
   },
 
   navigateToTimeline: () => {
     const current = get().currentView;
     persistView('timeline');
-    set({ currentView: 'timeline', previousView: current, selectedClientId: null });
+    set({ currentView: 'timeline', previousView: current, selectedClientId: null, selectedProjectId: null });
   },
 
   navigateToClients: () => {
     const current = get().currentView;
     persistView('clients');
-    set({ currentView: 'clients', previousView: current, selectedClientId: null });
+    set({ currentView: 'clients', previousView: current, selectedClientId: null, selectedProjectId: null });
   },
 
   navigateToCompta: () => {
     const current = get().currentView;
     persistView('compta');
-    set({ currentView: 'compta', previousView: current, selectedClientId: null });
+    set({ currentView: 'compta', previousView: current, selectedClientId: null, selectedProjectId: null });
   },
 
   navigateToAdmin: () => {
     const current = get().currentView;
     persistView('admin');
-    set({ currentView: 'admin', previousView: current, selectedClientId: null });
+    set({ currentView: 'admin', previousView: current, selectedClientId: null, selectedProjectId: null });
   },
 
   navigateToProduction: () => {
     const current = get().currentView;
     persistView('production');
-    set({ currentView: 'production', previousView: current, selectedClientId: null });
+    set({ currentView: 'production', previousView: current, selectedClientId: null, selectedProjectId: null });
   },
 
   navigateToCreativeBoard: () => {
@@ -104,14 +113,14 @@ export const createUiSlice: StateCreator<AppState, [], [], Pick<AppState, UiSlic
   navigateToWiki: () => {
     const current = get().currentView;
     persistView('wiki');
-    set({ currentView: 'wiki', previousView: current, selectedClientId: null });
+    set({ currentView: 'wiki', previousView: current, selectedClientId: null, selectedProjectId: null });
   },
 
   navigateBack: () => {
     const { previousView } = get();
     const targetView = previousView === 'client-detail' ? 'clients' : (previousView || 'timeline');
     persistView(targetView);
-    set({ currentView: targetView, previousView: null, selectedClientId: null });
+    set({ currentView: targetView, previousView: null, selectedClientId: null, selectedProjectId: null });
   },
 
   restoreViewFromStorage: () => {
