@@ -41,6 +41,7 @@ export function createProjectActions(set: SetState, get: GetState) {
         id,
         clientId: data.clientId,
         name: data.name,
+        inBacklog: data.inBacklog,
         quoteAmount: data.quoteAmount,
         quoteDate: data.quoteDate,
         depositAmount: data.depositAmount,
@@ -60,6 +61,7 @@ export function createProjectActions(set: SetState, get: GetState) {
           id,
           client_id: data.clientId,
           name: data.name,
+          in_backlog: data.inBacklog ?? false,
           quote_amount: data.quoteAmount ?? null,
           quote_date: data.quoteDate ?? null,
           deposit_amount: data.depositAmount ?? null,
@@ -102,6 +104,7 @@ export function createProjectActions(set: SetState, get: GetState) {
         if (data.balanceAmount !== undefined) dbData.balance_amount = data.balanceAmount ?? null;
         if (data.balanceDate !== undefined) dbData.balance_date = data.balanceDate ?? null;
         if (data.potentiel !== undefined) dbData.potentiel = data.potentiel ?? null;
+        if (data.inBacklog !== undefined) dbData.in_backlog = data.inBacklog;
 
         const { error } = await supabase.from('projects').update(dbData).eq('id', id);
         if (error) throw error;

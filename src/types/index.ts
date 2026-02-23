@@ -94,6 +94,8 @@ export interface Project {
   id: string;
   clientId: string;
   name: string;
+  /** Si true, le projet apparaît dans le backlog "À planifier" */
+  inBacklog?: boolean;
   quoteAmount?: number | null;
   quoteDate?: string;
   depositAmount?: number;

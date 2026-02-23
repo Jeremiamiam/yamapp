@@ -66,6 +66,7 @@ interface ProjectRow {
   id: string;
   client_id: string;
   name: string;
+  in_backlog?: boolean | null;
   quote_amount?: number | null;
   quote_date?: string | null;
   deposit_amount?: number | null;
@@ -199,6 +200,7 @@ export function mapProjectRow(row: ProjectRow): Project {
     id: row.id,
     clientId: row.client_id,
     name: row.name,
+    inBacklog: row.in_backlog === true,
     quoteAmount: row.quote_amount != null ? Number(row.quote_amount) : undefined,
     quoteDate: row.quote_date ?? undefined,
     depositAmount: row.deposit_amount != null ? Number(row.deposit_amount) : undefined,

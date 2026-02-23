@@ -176,6 +176,7 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
   const openDocument = useAppStore((state) => state.openDocument);
   const openModal = useAppStore((state) => state.openModal);
   const deleteProject = useAppStore((state) => state.deleteProject);
+  const updateProject = useAppStore((state) => state.updateProject);
   const deleteDocument = useAppStore((state) => state.deleteDocument);
   const { openReportUploadModal, openProjectModal, openDocumentModal } = useModal();
 
@@ -242,6 +243,24 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
             </span>
           )}
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => updateProject(project.id, { inBacklog: !project.inBacklog })}
+              className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer
+                         ${project.inBacklog
+                           ? 'bg-[var(--accent-violet)]/20 text-[var(--accent-violet)]'
+                           : 'bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/20'
+                         }`}
+              title={project.inBacklog ? 'Retirer du backlog' : 'Mettre dans le backlog'}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <span className="hidden sm:inline">{project.inBacklog ? 'Dans backlog' : 'À planifier'}</span>
+            </button>
             <button
               type="button"
               onClick={() => openProjectModal(client.id, project)}

@@ -46,7 +46,7 @@ type TimelineProps = {
 export function Timeline({ className, hideSidebar = false }: TimelineProps) {
   const isMobile = useIsMobile();
   const { filteredDeliverables, filteredCalls } = useFilteredTimeline();
-  const { timelineRange, navigateToClient, getClientById, getTeamMemberById, updateDeliverable, updateCall, dayTodos, updateDayTodo, deleteDayTodo, filters, getBacklogDeliverables, getBacklogCalls } = useAppStore(
+  const { timelineRange, navigateToClient, getClientById, getTeamMemberById, updateDeliverable, updateCall, dayTodos, updateDayTodo, deleteDayTodo, filters, getBacklogDeliverables, getBacklogCalls, getBacklogProjects } = useAppStore(
     useShallow((s) => ({
       timelineRange: s.timelineRange,
       navigateToClient: s.navigateToClient,
@@ -60,13 +60,15 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
       filters: s.filters,
       getBacklogDeliverables: s.getBacklogDeliverables,
       getBacklogCalls: s.getBacklogCalls,
+      getBacklogProjects: s.getBacklogProjects,
     }))
   );
 
   // Calculate backlog items for dynamic height
   const backlogDeliverables = getBacklogDeliverables();
   const backlogCalls = getBacklogCalls();
-  const backlogItemsCount = backlogDeliverables.length + backlogCalls.length;
+  const backlogProjects = getBacklogProjects();
+  const backlogItemsCount = backlogDeliverables.length + backlogCalls.length + backlogProjects.length;
   const scheduledTodos = useMemo(
     () => dayTodos.filter(t => {
       if (t.done || !t.scheduledAt) return false;

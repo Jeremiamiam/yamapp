@@ -59,7 +59,7 @@ export function BacklogDrawer({ isOpen, onClose }: BacklogDrawerProps) {
 
         {/* Content - BacklogSidebar */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 pb-8">
-          <BacklogSidebar />
+          <BacklogSidebar onBeforeNavigate={onClose} />
         </div>
       </div>
     </>

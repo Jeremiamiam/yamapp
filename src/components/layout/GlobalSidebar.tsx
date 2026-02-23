@@ -15,11 +15,13 @@ interface GlobalSidebarProps {
 export function GlobalSidebar({ height = 800 }: GlobalSidebarProps) {
   const getBacklogDeliverables = useAppStore((s) => s.getBacklogDeliverables);
   const getBacklogCalls = useAppStore((s) => s.getBacklogCalls);
+  const getBacklogProjects = useAppStore((s) => s.getBacklogProjects);
 
   // Calculer le nombre d'items dans le backlog
   const backlogDeliverables = getBacklogDeliverables();
   const backlogCalls = getBacklogCalls();
-  const backlogItemsCount = backlogDeliverables.length + backlogCalls.length;
+  const backlogProjects = getBacklogProjects();
+  const backlogItemsCount = backlogDeliverables.length + backlogCalls.length + backlogProjects.length;
 
   // Calculs de hauteur pour la répartition DayZone / Backlog
   const ESTIMATED_CARD_HEIGHT = 72;

@@ -43,7 +43,7 @@ type DataSliceKeys =
   | 'billingHistory' | 'comptaMonthly' | 'isLoading' | 'loadingError'
   | 'loadData'
   | 'getClientById' | 'getTeamMemberById' | 'getDeliverablesByClientId' | 'getCallsByClientId'
-  | 'getBacklogDeliverables' | 'getBacklogCalls' | 'getIncompleteDayTodos'
+  | 'getBacklogDeliverables' | 'getBacklogCalls' | 'getBacklogProjects' | 'getIncompleteDayTodos'
   | 'getFilteredDeliverables' | 'getFilteredCalls';
 
 export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, DataSliceKeys>> = (set, get) => ({
@@ -262,6 +262,7 @@ export const createDataSlice: StateCreator<AppState, [], [], Pick<AppState, Data
   getCallsByClientId: (clientId) => get().calls.filter(c => c.clientId === clientId),
   getBacklogDeliverables: () => get().deliverables.filter(d => d.inBacklog === true),
   getBacklogCalls: () => get().calls.filter(c => c.scheduledAt == null),
+  getBacklogProjects: () => get().projects.filter(p => p.inBacklog === true),
   getIncompleteDayTodos: () => get().dayTodos.filter(t => !t.done),
 
   getFilteredDeliverables: () => {

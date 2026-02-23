@@ -131,6 +131,7 @@ export interface AppState {
   getCallsByClientId: (clientId: string) => Call[];
   getBacklogDeliverables: () => Deliverable[];
   getBacklogCalls: () => Call[];
+  getBacklogProjects: () => Project[];
   getIncompleteDayTodos: () => DayTodo[];
   addDayTodo: (text: string, assigneeId?: string) => Promise<void>;
   updateDayTodo: (id: string, data: Partial<Pick<DayTodo, 'text' | 'done' | 'scheduledAt' | 'assigneeId'>>) => Promise<void>;
