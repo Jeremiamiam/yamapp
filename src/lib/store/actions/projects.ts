@@ -79,7 +79,8 @@ export function createProjectActions(set: SetState, get: GetState) {
         invalidateDataCache();
         return newProject;
       } catch (err) {
-        console.error('Erreur ajout projet:', err);
+        const e = err as Record<string, unknown>;
+        console.error('Erreur ajout projet:', e?.message ?? e?.code ?? JSON.stringify(err));
         return undefined;
       }
     },
@@ -105,6 +106,7 @@ export function createProjectActions(set: SetState, get: GetState) {
         if (data.balanceDate !== undefined) dbData.balance_date = data.balanceDate ?? null;
         if (data.potentiel !== undefined) dbData.potentiel = data.potentiel ?? null;
         if (data.inBacklog !== undefined) dbData.in_backlog = data.inBacklog;
+        if (data.scheduledAt !== undefined) dbData.scheduled_at = data.scheduledAt ? data.scheduledAt.toISOString() : null;
 
         const { error } = await supabase.from('projects').update(dbData).eq('id', id);
         if (error) throw error;
@@ -123,7 +125,8 @@ export function createProjectActions(set: SetState, get: GetState) {
           ),
         }));
       } catch (err) {
-        console.error('Erreur mise à jour projet:', err);
+        const e = err as Record<string, unknown>;
+        console.error('Erreur mise à jour projet:', e?.message ?? e?.code ?? JSON.stringify(err));
       }
     },
 
@@ -141,7 +144,8 @@ export function createProjectActions(set: SetState, get: GetState) {
           ),
         }));
       } catch (err) {
-        console.error('Erreur suppression projet:', err);
+        const e = err as Record<string, unknown>;
+        console.error('Erreur suppression projet:', e?.message ?? e?.code ?? JSON.stringify(err));
       }
     },
 
@@ -161,7 +165,8 @@ export function createProjectActions(set: SetState, get: GetState) {
         }));
         invalidateDataCache();
       } catch (err) {
-        console.error('Erreur assignation projet:', err);
+        const e = err as Record<string, unknown>;
+        console.error('Erreur assignation projet:', e?.message ?? e?.code ?? JSON.stringify(err));
       }
     },
 

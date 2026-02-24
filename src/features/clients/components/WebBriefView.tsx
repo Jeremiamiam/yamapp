@@ -66,6 +66,7 @@ export function WebBriefView({
   onEditModeChange,
   immersiveMode = false,
   brandName,
+  onSectionValidated,
 }: {
   data: WebBriefData;
   onAiRewrite?: (sectionId: string, customPrompt?: string) => Promise<void>;
@@ -87,6 +88,7 @@ export function WebBriefView({
   onEditModeChange?: (v: boolean) => void;
   immersiveMode?: boolean;
   brandName?: string;
+  onSectionValidated?: () => void;
 }) {
   const { architecture, homepage, pages } = data;
   const [activeTab, setActiveTab] = useState<string>('__homepage__');
@@ -390,6 +392,7 @@ export function WebBriefView({
               onGenerateLayout={onGenerateLayout}
               editingSectionId={editingSectionId}
               onCloseEdit={() => setEditingSectionId(null)}
+              onValidate={onSectionValidated}
               onContentChange={
                 onSectionContentChange || onPageSectionContentChange
                   ? handleDrawerContentChange

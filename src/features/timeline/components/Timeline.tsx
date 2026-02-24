@@ -46,7 +46,7 @@ type TimelineProps = {
 export function Timeline({ className, hideSidebar = false }: TimelineProps) {
   const isMobile = useIsMobile();
   const { filteredDeliverables, filteredCalls } = useFilteredTimeline();
-  const { timelineRange, navigateToClient, getClientById, getTeamMemberById, updateDeliverable, updateCall, dayTodos, updateDayTodo, deleteDayTodo, filters, getBacklogDeliverables, getBacklogCalls, getBacklogProjects } = useAppStore(
+  const { timelineRange, navigateToClient, getClientById, getTeamMemberById, updateDeliverable, updateCall, updateProject, deliverables, projects, dayTodos, updateDayTodo, deleteDayTodo, filters, getBacklogDeliverables, getBacklogCalls, getBacklogProjects } = useAppStore(
     useShallow((s) => ({
       timelineRange: s.timelineRange,
       navigateToClient: s.navigateToClient,
@@ -54,6 +54,9 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
       getTeamMemberById: s.getTeamMemberById,
       updateDeliverable: s.updateDeliverable,
       updateCall: s.updateCall,
+      updateProject: s.updateProject,
+      deliverables: s.deliverables,
+      projects: s.projects,
       dayTodos: s.dayTodos,
       updateDayTodo: s.updateDayTodo,
       deleteDayTodo: s.deleteDayTodo,
@@ -85,7 +88,7 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
   type DragItem = TimelineCardItem & { hour?: number; minutes?: number };
-  const [dragState, setDragState] = useState<{ item: DragItem; type: 'deliverable' | 'call' | 'todo'; x: number; y: number } | null>(null);
+  const [dragState, setDragState] = useState<{ item: DragItem; type: 'deliverable' | 'call' | 'todo' | 'project'; x: number; y: number } | null>(null);
   const [backlogDragPos, setBacklogDragPos] = useState<{ x: number; y: number } | null>(null);
   const [lastDroppedId, setLastDroppedId] = useState<string | null>(null);
   const skipClickAfterDragRef = useRef<string | null>(null);
@@ -258,7 +261,7 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
   );
 
   const handleCardMove = useCallback(
-    (itemId: string, type: 'deliverable' | 'call' | 'todo', newDate: Date) => {
+    (itemId: string, type: 'deliverable' | 'call' | 'todo' | 'project', newDate: Date) => {
       setDragState(null);
       setJustLanded(itemId);
       const snapped = snapTo30Min(newDate);
@@ -268,9 +271,11 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
         updateCall(itemId, { scheduledAt: snapped });
       } else if (type === 'todo') {
         updateDayTodo(itemId, { scheduledAt: snapped });
+      } else if (type === 'project') {
+        updateProject(itemId, { scheduledAt: snapped });
       }
     },
-    [updateDeliverable, updateCall, updateDayTodo, setJustLanded]
+    [updateDeliverable, updateCall, updateDayTodo, updateProject, setJustLanded]
   );
 
   /** Viewport Y (px) of the drop slot line — alignée sur le DÉBUT du créneau (comme la colonne des heures). */
@@ -288,7 +293,7 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
     [getDropTarget, hourHeight]
   );
 
-  const onDragStart = useCallback((item: DragItem, type: 'deliverable' | 'call' | 'todo', x: number, y: number) => {
+  const onDragStart = useCallback((item: DragItem, type: 'deliverable' | 'call' | 'todo' | 'project', x: number, y: number) => {
     setDragState({ item, type, x, y });
   }, []);
   const onDragMove = useCallback((x: number, y: number) => {
@@ -305,7 +310,7 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
       if (!raw) return;
       e.preventDefault();
       setBacklogDragPos(null);
-      let payload: { type: 'deliverable' | 'call'; id: string };
+      let payload: { type: 'deliverable' | 'call' | 'project'; id: string };
       try {
         payload = JSON.parse(raw);
       } catch {
@@ -320,13 +325,15 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
             return d;
           })();
       setJustLanded(payload.id);
-      if (payload.type === 'deliverable') {
+      if (payload.type === 'project') {
+        updateProject(payload.id, { scheduledAt: dateToUse, inBacklog: false });
+      } else if (payload.type === 'deliverable') {
         updateDeliverable(payload.id, { dueDate: dateToUse, inBacklog: false });
       } else {
         updateCall(payload.id, { scheduledAt: dateToUse });
       }
     },
-    [getDropTarget, updateDeliverable, updateCall, setJustLanded]
+    [getDropTarget, updateDeliverable, updateCall, updateProject, setJustLanded]
   );
 
   /** Drop d'une todo : planifier dans la timeline */
@@ -445,12 +452,34 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
       } as TimelineCardItem & { hour: number; minutes: number });
     });
 
+    // Projets planifiés (une card unique par projet)
+    projects.forEach(p => {
+      if (!p.scheduledAt) return;
+      if (p.scheduledAt < timelineRange.start || p.scheduledAt > timelineRange.end) return;
+      const dateKey = p.scheduledAt.toDateString();
+      const client = getClientById(p.clientId);
+      const hour = p.scheduledAt.getHours();
+      const minutes = p.scheduledAt.getMinutes();
+      if (!map.has(dateKey)) map.set(dateKey, []);
+      map.get(dateKey)!.push({
+        id: p.id,
+        type: 'project',
+        clientId: p.clientId,
+        clientName: client?.name ?? 'Sans client',
+        clientStatus: client?.status ?? 'prospect',
+        label: p.name,
+        time: `${hour}h${minutes > 0 ? minutes.toString().padStart(2, '0') : ''}`,
+        hour,
+        minutes,
+      });
+    });
+
     map.forEach(items => {
       items.sort((a, b) => (a.hour * 60 + a.minutes) - (b.hour * 60 + b.minutes));
     });
 
     return map;
-  }, [filteredDeliverables, filteredCalls, scheduledTodos, getClientById, getTeamMemberById]);
+  }, [filteredDeliverables, filteredCalls, scheduledTodos, projects, timelineRange, getClientById, getTeamMemberById]);
 
   const hours = useMemo(() => {
     const result: number[] = [];
@@ -788,16 +817,19 @@ export function Timeline({ className, hideSidebar = false }: TimelineProps) {
                         ? GRID_PADDING_TOP + itemIndex * 56 // 56px par card
                         : GRID_PADDING_TOP + ((item.hour - START_HOUR) + item.minutes / 60) * hourHeight + 4;
                       const handleCardClick = () => {
-                        // Ouvrir directement la modale du produit/appel
+                        // Naviguer vers la page produit ou ouvrir modale appel
                         if (item.type === 'deliverable') {
                           const deliverable = filteredDeliverables.find(x => x.id === item.id);
-                          if (deliverable) openDeliverableModal(deliverable.clientId, deliverable);
+                          if (deliverable) {
+                            sessionStorage.setItem('timeline-select-product-id', deliverable.id);
+                            navigateToClient(deliverable.clientId ?? '', deliverable.projectId ?? '__divers__');
+                          }
                         } else if (item.type === 'call') {
                           const call = filteredCalls.find(x => x.id === item.id);
                           if (call) openCallModal(call.clientId, call);
+                        } else if (item.type === 'project') {
+                          navigateToClient(item.clientId, item.id);
                         } else if (item.type === 'todo') {
-                          // Pour les todos, on pourrait ouvrir une modale todo si elle existe
-                          // Pour l'instant, on ne fait rien ou on navigue vers le client
                           if (item.clientId) navigateToClient(item.clientId);
                         }
                       };

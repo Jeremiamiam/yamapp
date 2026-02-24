@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { jsonrepair } from 'jsonrepair';
+import { getPrompt } from '@/lib/agent-prompts';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -101,6 +102,7 @@ export async function POST(req: Request) {
   const archStr = typeof siteArchitecture === 'string' ? siteArchitecture : JSON.stringify(siteArchitecture);
   const reportTrimmed = typeof reportContent === 'string' ? reportContent.slice(0, 4000) : '';
 
+  const systemPrompt = await getPrompt('homepage', SYSTEM_PROMPT);
   const userContent = `Plateforme de marque :
 ${platformStr}
 
@@ -123,7 +125,7 @@ Génère le brief de la homepage. Utilise UNIQUEMENT les slugs du menu pour les 
           model: 'claude-sonnet-4-6',
           max_tokens: 4000,
           temperature: 0.6,
-          system: SYSTEM_PROMPT,
+          system: systemPrompt,
           messages: [{ role: 'user', content: userContent }],
         });
 

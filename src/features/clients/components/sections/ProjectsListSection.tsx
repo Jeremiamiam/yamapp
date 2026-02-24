@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useModal } from '@/hooks';
 import { computeProjectBilling, PROJECT_BILLING_LABELS, PROJECT_BILLING_COLORS } from '@/lib/project-billing';
@@ -38,6 +39,25 @@ const Archive = () => (
   </svg>
 );
 
+const ChevronDown = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>
+);
+
+const ChevronUp = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="18 15 12 9 6 15"/>
+  </svg>
+);
+
+const GripVertical = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/>
+    <circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>
+  </svg>
+);
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface ProjectsListSectionProps {
@@ -56,7 +76,12 @@ export function ProjectsListSection({
   selectedProjectId,
 }: ProjectsListSectionProps) {
   const deliverables = useAppStore((state) => state.deliverables);
+  const assignDeliverableToProject = useAppStore((s) => s.assignDeliverableToProject);
   const { openProjectModal } = useModal();
+
+  const [diversOpen, setDiversOpen] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [overProjectId, setOverProjectId] = useState<string | null>(null);
 
   // Orphan deliverables: belong to this client but have no projectId
   const orphanDeliverables = deliverables.filter(
@@ -70,6 +95,8 @@ export function ProjectsListSection({
 
   // Show virtual Divers group only if there are orphan deliverables AND no real Divers project
   const showDiversGroup = orphanDeliverables.length > 0 && !hasDiversProject;
+
+  const isDragging = draggingId !== null;
 
   return (
     <div className="p-3 sm:p-4 md:p-6">
@@ -123,27 +150,49 @@ export function ProjectsListSection({
             const isSelected = selectedProjectId === project.id;
             const billingLabel = PROJECT_BILLING_LABELS[billing.status];
             const billingColor = PROJECT_BILLING_COLORS[billing.status];
+            const isDropTarget = overProjectId === project.id;
+            const isOtherCard = isDragging && !isDropTarget;
 
             return (
-              <button
+              <div
                 key={project.id}
-                type="button"
-                onClick={() => onSelectProject(project.id)}
                 className={`
-                  text-left p-3 sm:p-4 rounded-xl border transition-all
+                  relative text-left p-3 sm:p-4 rounded-xl border transition-all cursor-pointer
                   bg-[var(--bg-card)]
-                  ${isSelected
-                    ? 'border-[var(--accent-cyan)] ring-1 ring-[var(--accent-cyan)]/40 shadow-[0_0_0_1px_var(--accent-cyan)]/20'
-                    : 'border-[var(--border-subtle)] hover:border-[var(--accent-cyan)]/40 hover:bg-[var(--bg-secondary)]'
+                  ${isDropTarget
+                    ? 'border-[var(--accent-cyan)] ring-2 ring-[var(--accent-cyan)]/40 bg-[var(--accent-cyan)]/5'
+                    : isSelected
+                      ? 'border-[var(--accent-cyan)] ring-1 ring-[var(--accent-cyan)]/40 shadow-[0_0_0_1px_var(--accent-cyan)]/20'
+                      : 'border-[var(--border-subtle)] hover:border-[var(--accent-cyan)]/40 hover:bg-[var(--bg-secondary)]'
                   }
+                  ${isOtherCard ? 'opacity-60' : ''}
                 `}
+                onClick={() => !isDragging && onSelectProject(project.id)}
+                onDragOver={isDragging ? (e) => { e.preventDefault(); setOverProjectId(project.id); } : undefined}
+                onDragLeave={isDragging ? () => setOverProjectId(null) : undefined}
+                onDrop={isDragging ? (e) => {
+                  e.preventDefault();
+                  const id = e.dataTransfer.getData('text/plain');
+                  if (id) assignDeliverableToProject(id, project.id);
+                  setDraggingId(null);
+                  setOverProjectId(null);
+                } : undefined}
               >
+                {/* Drop hint overlay */}
+                {isDropTarget && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-xl pointer-events-none">
+                    <span className="text-[10px] font-bold text-[var(--accent-cyan)] bg-[var(--accent-cyan)]/10 px-2 py-1 rounded-full border border-[var(--accent-cyan)]/30">
+                      ↓ Déposer ici
+                    </span>
+                  </div>
+                )}
+
                 {/* Project name */}
                 <div className="flex items-start justify-between gap-2 mb-3">
-                  <h3 className={`text-sm font-semibold truncate flex-1 ${isSelected ? 'text-[var(--accent-cyan)]' : 'text-[var(--text-primary)]'}`}>
+                  <h3 className={`text-sm font-semibold truncate flex-1 ${isSelected || isDropTarget ? 'text-[var(--accent-cyan)]' : 'text-[var(--text-primary)]'}`}>
                     {project.name}
                   </h3>
-                  {isSelected && (
+                  {isSelected && !isDropTarget && (
                     <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-[var(--accent-cyan)] mt-1.5" />
                   )}
                 </div>
@@ -173,37 +222,94 @@ export function ProjectsListSection({
                     />
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
 
           {/* Divers group: orphan deliverables not attached to any project */}
           {showDiversGroup && (
-            <button
-              type="button"
-              onClick={() => onSelectProject('__divers__')}
+            <div
               className={`
                 text-left p-3 sm:p-4 rounded-xl border border-dashed transition-all
                 bg-[var(--bg-card)]/50
                 ${selectedProjectId === '__divers__'
                   ? 'border-[var(--accent-amber)] ring-1 ring-[var(--accent-amber)]/40'
-                  : 'border-[var(--border-subtle)] hover:border-[var(--accent-amber)]/40 hover:bg-[var(--bg-secondary)] opacity-70 hover:opacity-100'
+                  : 'border-[var(--border-subtle)] hover:border-[var(--accent-amber)]/40'
                 }
+                ${isDragging ? 'opacity-40' : ''}
               `}
             >
+              {/* Header row */}
               <div className="flex items-start justify-between gap-2 mb-3">
-                <h3 className={`text-sm font-semibold truncate flex-1 ${selectedProjectId === '__divers__' ? 'text-[var(--accent-amber)]' : 'text-[var(--text-muted)]'}`}>
-                  Divers
-                </h3>
-                <span className="text-[var(--text-muted)] flex-shrink-0 mt-0.5">
-                  <Archive />
-                </span>
+                <button
+                  type="button"
+                  onClick={() => onSelectProject('__divers__')}
+                  className="flex-1 text-left min-w-0"
+                >
+                  <h3 className={`text-sm font-semibold truncate ${selectedProjectId === '__divers__' ? 'text-[var(--accent-amber)]' : 'text-[var(--text-muted)]'}`}>
+                    Divers
+                  </h3>
+                </button>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-[var(--text-muted)] mt-0.5">
+                    <Archive />
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setDiversOpen((v) => !v); }}
+                    className="text-[var(--text-muted)] hover:text-[var(--accent-amber)] transition-colors p-0.5 rounded"
+                    title={diversOpen ? 'Réduire' : 'Voir les produits'}
+                  >
+                    {diversOpen ? <ChevronUp /> : <ChevronDown />}
+                  </button>
+                </div>
               </div>
+
+              {/* Product count */}
               <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
                 <Package />
                 {orphanDeliverables.length} produit{orphanDeliverables.length !== 1 ? 's' : ''} sans projet
               </div>
-            </button>
+
+              {/* Expanded orphan list */}
+              {diversOpen && (
+                <div className="mt-3 pt-3 border-t border-dashed border-[var(--border-subtle)] space-y-1">
+                  {orphanDeliverables.map((d) => (
+                    <div
+                      key={d.id}
+                      draggable
+                      onDragStart={(e) => {
+                        setDraggingId(d.id);
+                        e.dataTransfer.setData('text/plain', d.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      onDragEnd={() => { setDraggingId(null); setOverProjectId(null); }}
+                      className={`
+                        flex items-center gap-2 px-2 py-1.5 rounded-lg
+                        cursor-grab active:cursor-grabbing
+                        hover:bg-[var(--bg-secondary)] transition-colors
+                        ${draggingId === d.id ? 'opacity-40' : ''}
+                      `}
+                    >
+                      <span className="text-[var(--text-muted)] flex-shrink-0">
+                        <GripVertical />
+                      </span>
+                      <span className="text-[11px] text-[var(--text-primary)] flex-1 truncate">
+                        {d.name}
+                      </span>
+                      {d.type && (
+                        <span className="text-[9px] font-medium text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded flex-shrink-0">
+                          {d.type}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  <p className="text-[9px] text-[var(--text-muted)] opacity-60 pt-1 text-center">
+                    Glisser vers un projet pour assigner
+                  </p>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

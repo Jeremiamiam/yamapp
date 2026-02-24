@@ -15,6 +15,7 @@ import type {
   BillingHistory,
   BillingStatus,
   Project,
+  DocumentVersion,
 } from '@/types';
 
 // Types pour les rows Supabase (snake_case)
@@ -67,13 +68,16 @@ interface ProjectRow {
   client_id: string;
   name: string;
   in_backlog?: boolean | null;
+  scheduled_at?: string | null;
   quote_amount?: number | null;
   quote_date?: string | null;
   deposit_amount?: number | null;
   deposit_date?: string | null;
   progress_amounts?: number[] | null;
   progress_dates?: string[] | null;
+  balance_amount?: number | null;
   balance_date?: string | null;
+  potentiel?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -142,6 +146,15 @@ interface DayTodoRow {
   assignee_id?: string;
 }
 
+interface DocumentVersionRow {
+  id: string;
+  document_id: string;
+  version_number: number;
+  label?: string | null;
+  content: string;
+  created_at: string;
+}
+
 // --- Supabase → App ---
 
 export function mapTeamRow(row: TeamRow): TeamMember {
@@ -201,13 +214,16 @@ export function mapProjectRow(row: ProjectRow): Project {
     clientId: row.client_id,
     name: row.name,
     inBacklog: row.in_backlog === true,
+    scheduledAt: row.scheduled_at ? new Date(row.scheduled_at) : undefined,
     quoteAmount: row.quote_amount != null ? Number(row.quote_amount) : undefined,
     quoteDate: row.quote_date ?? undefined,
     depositAmount: row.deposit_amount != null ? Number(row.deposit_amount) : undefined,
     depositDate: row.deposit_date ?? undefined,
     progressAmounts: Array.isArray(row.progress_amounts) ? row.progress_amounts.map(Number) : [],
     progressDates: Array.isArray(row.progress_dates) ? row.progress_dates : [],
+    balanceAmount: row.balance_amount != null ? Number(row.balance_amount) : undefined,
     balanceDate: row.balance_date ?? undefined,
+    potentiel: row.potentiel != null ? Number(row.potentiel) : undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };
@@ -261,6 +277,17 @@ export function mapCallRow(row: CallRow): Call {
   };
 }
 
+export function mapDocumentVersionRow(row: DocumentVersionRow): DocumentVersion {
+  return {
+    id: row.id,
+    documentId: row.document_id,
+    versionNumber: row.version_number,
+    label: row.label ?? undefined,
+    content: row.content,
+    createdAt: new Date(row.created_at),
+  };
+}
+
 export function mapDayTodoRow(row: DayTodoRow): DayTodo {
   return {
     id: row.id,
@@ -310,6 +337,7 @@ export function toSupabaseDocument(data: Partial<ClientDocument> & { type: Clien
 export function toSupabaseDeliverable(data: Partial<Deliverable>) {
   return {
     client_id: data.clientId ?? null,
+    project_id: data.projectId ?? null,
     name: data.name,
     due_date: data.dueDate ? data.dueDate.toISOString() : null,
     in_backlog: data.inBacklog === true,

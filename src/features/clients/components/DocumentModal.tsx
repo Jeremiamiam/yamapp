@@ -19,6 +19,7 @@ import { PlaudLogo } from '@/components/ui';
 import { ReportView } from './ReportView';
 import { SocialBriefView } from './SocialBriefView';
 import { WebBriefDocumentContent } from './WebBriefDocumentContent';
+import { DocumentVersionPanel } from './DocumentVersionPanel';
 import type { WebBriefData } from '@/types/web-brief';
 import type { SocialBriefData } from '@/types/social-brief';
 
@@ -1019,6 +1020,14 @@ function DocumentModalContent({
   const addDocument = useAppStore((s) => s.addDocument);
   const openDocument = useAppStore((s) => s.openDocument);
   const navigateToCreativeBoard = useAppStore((s) => s.navigateToCreativeBoard);
+
+  const handleRestoreVersion = useCallback(
+    async (content: string) => {
+      if (!clientId) return;
+      await updateDocument(clientId, selectedDocument.id, { content });
+    },
+    [clientId, selectedDocument.id, updateDocument]
+  );
   const docStyle = getDocTypeStyle(selectedDocument.type);
   const showTemplated = structured !== null;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -1073,11 +1082,15 @@ function DocumentModalContent({
       const briefContent = data.brief ?? '';
       let createdDoc: import('@/types').ClientDocument | null = null;
       if (clientId) {
-        createdDoc = await addDocument(clientId, {
-          type: 'brief',
-          title: `Brief - ${reportData?.title ?? 'Plaud'}`,
-          content: briefContent,
-        });
+        createdDoc = await addDocument(
+          clientId,
+          {
+            type: 'brief',
+            title: `Brief - ${reportData?.title ?? 'Plaud'}`,
+            content: briefContent,
+          },
+          selectedDocument.projectId
+        );
       }
       onClose();
       if (createdDoc) {
@@ -1091,7 +1104,7 @@ function DocumentModalContent({
     } finally {
       setGeneratingBrief(false);
     }
-  }, [onClose, clientId, reportData?.title, addDocument, openDocument]);
+  }, [onClose, clientId, reportData?.title, selectedDocument.projectId, addDocument, openDocument]);
 
   const consumeStreamResponse = useCallback(
     async <T,>(res: Response, resultKey: 'architecture' | 'homepage'): Promise<{ data?: T; error?: string }> => {
@@ -1176,11 +1189,15 @@ function DocumentModalContent({
           homepage: homeData,
           generatedAt: new Date().toISOString(),
         };
-        const createdDoc = await addDocument(clientId, {
-          type: 'web-brief',
-          title: `Structure site - ${new Date().toLocaleDateString('fr-FR')}`,
-          content: JSON.stringify(webBrief),
-        });
+        const createdDoc = await addDocument(
+          clientId,
+          {
+            type: 'web-brief',
+            title: `Structure site - ${new Date().toLocaleDateString('fr-FR')}`,
+            content: JSON.stringify(webBrief),
+          },
+          selectedDocument.projectId
+        );
         onClose();
         openDocument(createdDoc);
         toast.success('Structure du site générée');
@@ -1199,7 +1216,7 @@ function DocumentModalContent({
         setGeneratingWeb(false);
       }
     },
-    [clientId, selectedDocument.content, addDocument, openDocument, onClose, consumeStreamResponse]
+    [clientId, selectedDocument.content, selectedDocument.projectId, addDocument, openDocument, onClose, consumeStreamResponse]
   );
 
   const runSmmGeneration = useCallback(
@@ -1264,11 +1281,15 @@ function DocumentModalContent({
           showError('Réponse incomplète');
           return;
         }
-        const createdDoc = await addDocument(clientId, {
-          type: 'social-brief',
-          title: `Brief Social - ${new Date().toLocaleDateString('fr-FR')}`,
-          content: JSON.stringify(socialBrief),
-        });
+        const createdDoc = await addDocument(
+          clientId,
+          {
+            type: 'social-brief',
+            title: `Brief Social - ${new Date().toLocaleDateString('fr-FR')}`,
+            content: JSON.stringify(socialBrief),
+          },
+          selectedDocument.projectId
+        );
         onClose();
         openDocument(createdDoc);
         toast.success('Brief social généré');
@@ -1279,7 +1300,7 @@ function DocumentModalContent({
         setGeneratingSmm(false);
       }
     },
-    [clientId, addDocument, openDocument, onClose]
+    [clientId, selectedDocument.projectId, addDocument, openDocument, onClose]
   );
 
   const handleGenerateBrief = useCallback(() => {
@@ -1368,6 +1389,13 @@ function DocumentModalContent({
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {clientId && (
+              <DocumentVersionPanel
+                docId={selectedDocument.id}
+                currentContent={selectedDocument.content}
+                onRestore={handleRestoreVersion}
+              />
+            )}
             <button
               type="button"
               onClick={() => downloadDocumentAsMarkdown(selectedDocument)}
@@ -1523,6 +1551,7 @@ function DocumentModalContent({
                     try {
                       sessionStorage.setItem('creative-board-brief-prefill', briefForBoard);
                       if (clientId) sessionStorage.setItem('creative-board-client-id', clientId);
+                      if (selectedDocument.projectId) sessionStorage.setItem('creative-board-project-id', selectedDocument.projectId);
                     } catch { /* navigation privée — on continue sans prefill */ }
                     navigateToCreativeBoard();
                     onClose();

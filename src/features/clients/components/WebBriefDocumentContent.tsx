@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useReducer } from 'react';
+import { useState, useEffect, useCallback, useReducer, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { toast } from '@/lib/toast';
 import { downloadDocumentAsMarkdown } from '@/lib/document-to-markdown';
@@ -8,6 +8,7 @@ import { extractStrategyContext } from '@/lib/extract-strategy-context';
 import { ensureSectionIds } from '@/lib/section-id';
 import { WebBriefView } from './WebBriefView';
 import { AddPageModal } from './AddPageModal';
+import { DocumentVersionPanel } from './DocumentVersionPanel';
 import type { ClientDocument } from '@/types';
 import type { WebBriefData, PageOutput, AddedPage, HomepageSection } from '@/types/web-brief';
 import type { ZonedSection } from '@/types/section-zoning';
@@ -73,6 +74,7 @@ export function WebBriefDocumentContent({
   const [webBriefEditMode, setWebBriefEditMode] = useState(false);
   const [showAddPageModal, setShowAddPageModal] = useState(false);
   const [, forceRerender] = useReducer((x: number) => x + 1, 0);
+  const [versionSaveTrigger, setVersionSaveTrigger] = useState(0);
 
   const clientName = clientId ? getClientById(clientId)?.name : undefined;
 
@@ -115,7 +117,11 @@ export function WebBriefDocumentContent({
     return () => document.removeEventListener('keydown', handler, true);
   }, [webBriefEditMode]);
 
-  const webBriefData = parseAndMigrateWebBriefData(selectedDocument.content);
+  // Memoïsé pour que les handlers useCallback se stabilisent sur la même référence
+  const webBriefData = useMemo(
+    () => parseAndMigrateWebBriefData(selectedDocument.content),
+    [selectedDocument.content]
+  );
   const arch = webBriefData?.architecture;
 
   /**
@@ -126,9 +132,9 @@ export function WebBriefDocumentContent({
    */
   const handleAiRewrite = useCallback(
     async (sectionId: string, customPrompt?: string) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
         if (!data?.homepage?.sections?.length) {
           toast.error('Aucune section à modifier.');
           return;
@@ -173,14 +179,14 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de la réécriture.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument, getStrategyContext]
+    [clientId, selectedDocument.id, webBriefData, updateDocument, getStrategyContext]
   );
 
   const handleGeneratePageZoning = useCallback(
     async (pageSlug: string, agentBrief?: string) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
         const ctx = getStrategyContext();
         const res = await fetch('/api/page-zoning', {
           method: 'POST',
@@ -223,14 +229,14 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de la génération.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument, getStrategyContext]
+    [clientId, selectedDocument.id, webBriefData, updateDocument, getStrategyContext]
   );
 
   const handleAddPage = useCallback(
     async (payload: AddedPage) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
         const nav = data.architecture.navigation ?? {};
         const added = nav.added_pages ?? [];
         const updatedData: WebBriefData = {
@@ -249,7 +255,7 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'ajout.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+    [clientId, selectedDocument.id, webBriefData, updateDocument]
   );
 
   /**
@@ -258,9 +264,9 @@ export function WebBriefDocumentContent({
    */
   const handlePageAiRewrite = useCallback(
     async (pageSlug: string, sectionId: string, customPrompt?: string) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
         const pageData = data.pages?.[pageSlug];
         if (!pageData?.sections?.length) {
           toast.error('Aucune section à modifier.');
@@ -306,14 +312,14 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de la réécriture.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument, getStrategyContext]
+    [clientId, selectedDocument.id, webBriefData, updateDocument, getStrategyContext]
   );
 
   const handleSectionContentChange = useCallback(
     (sectionId: string, patch: Record<string, unknown>) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
         const sections = [...(data.homepage.sections ?? [])].sort((a, b) => a.order - b.order);
         const section = sections.find((s) => s.id === sectionId);
         if (!section) return;
@@ -330,14 +336,14 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de la mise à jour de la section.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+    [clientId, selectedDocument.id, webBriefData, updateDocument]
   );
 
   const handlePageSectionContentChange = useCallback(
     (pageSlug: string, sectionId: string, patch: Record<string, unknown>) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
         const pageData = data.pages?.[pageSlug];
         if (!pageData?.sections?.length) return;
         const sections = [...pageData.sections].sort((a, b) => a.order - b.order);
@@ -356,15 +362,15 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de la mise à jour de la section.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+    [clientId, selectedDocument.id, webBriefData, updateDocument]
   );
 
   /** Supprimer une page et nettoyer toutes les références dans la navigation. */
   const handleDeletePage = useCallback(
     (slug: string) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
         const nav = data.architecture.navigation ?? {};
         // Remove from primary nav (and from their children arrays)
         const updatedPrimary = (nav.primary ?? [])
@@ -400,15 +406,15 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression de la page.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+    [clientId, selectedDocument.id, webBriefData, updateDocument]
   );
 
   /** Réordonner les sections d'une page. */
   const handleReorderSections = useCallback(
     (pageSlug: string | null, reorderedSections: (HomepageSection | ZonedSection)[]) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
         if (pageSlug === null) {
           const updatedData: WebBriefData = {
             ...data,
@@ -428,15 +434,15 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors du réordonnancement des sections.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+    [clientId, selectedDocument.id, webBriefData, updateDocument]
   );
 
   /** Ajouter une nouvelle section par défaut à la fin d'une page. */
   const handleAddSection = useCallback(
     (pageSlug: string | null) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
         const newSection: HomepageSection = {
           id: generateSectionId(),
           role: 'hero',
@@ -471,7 +477,7 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'ajout de la section.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+    [clientId, selectedDocument.id, webBriefData, updateDocument]
   );
 
   /** Générer un layout IA pour un rôle custom. */
@@ -502,9 +508,9 @@ export function WebBriefDocumentContent({
   /** Changer le rôle (layout) d'une section. */
   const handleSectionRoleChange = useCallback(
     (pageSlug: string | null, sectionId: string, newRole: string) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
 
         if (pageSlug === null) {
           const sections = [...(data.homepage.sections ?? [])];
@@ -533,15 +539,15 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors du changement de layout.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+    [clientId, selectedDocument.id, webBriefData, updateDocument]
   );
 
   /** Déplacer une page comme sous-page d'un parent (ou remonter au top-level). */
   const handleSetPageParent = useCallback(
     (slug: string, parentSlug: string | null) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
         const nav = data.architecture.navigation ?? {};
 
         // Find the page label by searching everywhere
@@ -614,15 +620,15 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors du déplacement de la page.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+    [clientId, selectedDocument.id, webBriefData, updateDocument]
   );
 
   /** Renommer une page dans la navigation. */
   const handleRenamePage = useCallback(
     (slug: string, newName: string) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
         const nav = data.architecture.navigation ?? {};
 
         // Rename in primary nav (and in their children arrays)
@@ -666,15 +672,15 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors du renommage.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+    [clientId, selectedDocument.id, webBriefData, updateDocument]
   );
 
   /** Modifier le CTA de la navbar. */
   const handleCtaChange = useCallback(
     (label: string, visible: boolean) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
         const updatedData: WebBriefData = {
           ...data,
           architecture: {
@@ -687,15 +693,15 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de la mise à jour du CTA.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+    [clientId, selectedDocument.id, webBriefData, updateDocument]
   );
 
   /** Supprimer une section et recalculer les ordres. */
   const handleDeleteSection = useCallback(
     (pageSlug: string | null, sectionId: string) => {
-      if (!clientId) return;
+      if (!clientId || !webBriefData) return;
       try {
-        const data = JSON.parse(selectedDocument.content) as WebBriefData;
+        const data = webBriefData;
 
         if (pageSlug === null) {
           const sections = [...(data.homepage.sections ?? [])];
@@ -723,7 +729,15 @@ export function WebBriefDocumentContent({
         toast.error(err instanceof Error ? err.message : 'Erreur lors de la suppression de la section.');
       }
     },
-    [clientId, selectedDocument.id, selectedDocument.content, updateDocument]
+    [clientId, selectedDocument.id, webBriefData, updateDocument]
+  );
+
+  const handleRestoreVersion = useCallback(
+    async (content: string) => {
+      if (!clientId) return;
+      await updateDocument(clientId, selectedDocument.id, { content });
+    },
+    [clientId, selectedDocument.id, updateDocument]
   );
 
   return (
@@ -742,6 +756,14 @@ export function WebBriefDocumentContent({
           )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          {clientId && (
+            <DocumentVersionPanel
+              docId={selectedDocument.id}
+              currentContent={selectedDocument.content}
+              onRestore={handleRestoreVersion}
+              saveTrigger={versionSaveTrigger}
+            />
+          )}
           <button
             type="button"
             onClick={() => downloadDocumentAsMarkdown(selectedDocument)}
@@ -799,6 +821,7 @@ export function WebBriefDocumentContent({
             onRenamePage={clientId ? handleRenamePage : undefined}
             onCtaChange={clientId ? handleCtaChange : undefined}
             onGenerateLayout={handleGenerateLayout}
+            onSectionValidated={clientId ? () => setVersionSaveTrigger((n) => n + 1) : undefined}
           />
         ) : (
           <p className="text-[var(--text-secondary)] text-sm p-4">Contenu invalide.</p>

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { jsonrepair } from 'jsonrepair';
 import type { ZonedSection } from '@/types/section-zoning';
+import { getPrompt } from '@/lib/agent-prompts';
 import { SECTION_ROLES } from '@/types/section-zoning';
 import { ROLE_SIMILARITY_MAP } from '@/lib/section-registry';
 
@@ -192,12 +193,14 @@ ${agentBriefTrimmed ? `Instructions spécifiques pour cette page :\n${agentBrief
 
 Génère le zoning de la page avec slug "${pageSlug}". Utilise UNIQUEMENT les slugs du menu pour les URLs. Chaque section : paragraphe "text" obligatoire (ou items pour faq). Respecte le ton et la structure de l'existant si fourni.`;
 
+  const systemPrompt = await getPrompt('page-zoning', SYSTEM_PROMPT);
+
   try {
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 8000,
       temperature: 0.6,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: 'user', content: userContent }],
     });
 

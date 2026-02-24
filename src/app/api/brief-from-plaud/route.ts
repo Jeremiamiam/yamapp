@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { jsonrepair } from 'jsonrepair';
 import type { CreativeBriefTemplate } from '@/types/document-templates';
+import { getPrompt } from '@/lib/agent-prompts';
 import { runBriefResearch } from '@/lib/brief-research';
 import { computeGenerationCost } from '@/lib/api-cost';
 
@@ -85,10 +86,11 @@ export async function POST(req: Request) {
       // Ne pas bloquer si la recherche échoue ou timeout
     }
 
+    const systemPrompt = await getPrompt('brief-from-plaud', SYSTEM_PROMPT);
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: 'user', content: USER_PROMPT(rawTranscript.trim(), researchContext) }],
     });
 

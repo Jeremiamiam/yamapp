@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useModal } from '@/hooks';
 import { Deliverable, DeliverableStatus, Project } from '@/types';
 import { canTransitionStatus } from '@/lib/production-rules';
 import { computeProjectBilling, formatEuro, PROJECT_BILLING_LABELS, PROJECT_BILLING_COLORS } from '@/lib/project-billing';
@@ -24,9 +25,6 @@ const LOCK_ICON = (
 
 interface ProductionCardProps {
   deliverable: Deliverable;
-  clientName: string;
-  assigneeColor?: string;
-  assigneeInitials?: string;
   onClick: () => void;
   onDragStart: (e: React.DragEvent, deliverable: Deliverable) => void;
   isCompact?: boolean;
@@ -36,11 +34,8 @@ interface ProductionCardProps {
   inProject?: boolean;
 }
 
-function ProductionCard({ 
-  deliverable, 
-  clientName, 
-  assigneeColor, 
-  assigneeInitials, 
+function ProductionCard({
+  deliverable,
   onClick,
   onDragStart,
   isCompact = false,
@@ -79,15 +74,8 @@ function ProductionCard({
         onClick={handleClick}
         className={`flex items-center gap-2 px-2 py-1 bg-[var(--bg-tertiary)]/50 hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors text-[10px] group ${compactRounded} ${
           !isFirst ? '-mt-px' : ''
-        }`}
+        } ${inProject ? 'pl-4' : ''}`}
       >
-        {isFirst ? (
-          <span className="truncate text-[var(--text-muted)]/60 max-w-[60px] flex-shrink-0 font-semibold">
-            {clientName}
-          </span>
-        ) : (
-          <span className="w-[60px] flex-shrink-0" />
-        )}
         <span className="truncate flex-1 text-[var(--text-muted)] group-hover:text-[var(--text-primary)]">
           {deliverable.name}
         </span>
@@ -119,39 +107,14 @@ function ProductionCard({
         !isFirst ? '-mt-px' : ''
       } ${inProject ? 'pl-4 pr-2.5' : 'px-2.5'}`}
     >
-      {/* Client — affiché seulement si premier du groupe et pas dans un projet */}
-      {isFirst && !inProject && clientName && (
-        <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider truncate mb-0.5">
-          {clientName}
-        </div>
-      )}
-      
-      {/* Ligne produit : nom + prix + assigné */}
       <div className="flex items-center gap-2">
         <span className="text-[13px] font-medium text-[var(--text-primary)] truncate flex-1 group-hover:text-[var(--accent-cyan)]">
           {deliverable.name}
         </span>
-        
         {deliverable.prixFacturé != null && deliverable.prixFacturé > 0 && (
           <span className="text-[11px] font-semibold text-[#22c55e] flex-shrink-0">
             {deliverable.prixFacturé.toLocaleString('fr-FR')} €
           </span>
-        )}
-        
-        {assigneeColor && (
-          inProject ? (
-            <div
-              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: assigneeColor }}
-            />
-          ) : assigneeInitials ? (
-            <div
-              className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
-              style={{ backgroundColor: assigneeColor }}
-            >
-              {assigneeInitials}
-            </div>
-          ) : null
         )}
       </div>
     </div>
@@ -161,11 +124,12 @@ function ProductionCard({
 interface ProjectBandeauProps {
   project: Project;
   deliverables: Deliverable[];
-  clientName: string;
   onClick: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: (e: React.MouseEvent) => void;
 }
 
-function ProjectBandeau({ project, deliverables, clientName, onClick }: ProjectBandeauProps) {
+function ProjectBandeau({ project, deliverables, onClick, isCollapsed = false, onToggleCollapse }: ProjectBandeauProps) {
   const billing = computeProjectBilling(project, deliverables);
   const colors = PROJECT_BILLING_COLORS[billing.status];
   const hasQuote = project.quoteAmount && project.quoteAmount > 0;
@@ -175,15 +139,11 @@ function ProjectBandeau({ project, deliverables, clientName, onClick }: ProjectB
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded-t-xl bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] border-b-0 text-left cursor-pointer hover:bg-[var(--bg-tertiary)]/80 transition-colors overflow-hidden"
+      className={`w-full bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] text-left cursor-pointer hover:bg-[var(--bg-tertiary)]/80 transition-colors overflow-hidden ${
+        isCollapsed ? 'rounded-xl' : 'rounded-t-xl border-b-0'
+      }`}
     >
-      <div className="px-3 pt-2.5 pb-2 space-y-1.5">
-        {/* Ligne 1 : Client (en premier, le plus important) */}
-        <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider truncate">
-          {clientName}
-        </div>
-
-        {/* Ligne 2 : Icône dossier + nom projet + badge + montants */}
+      <div className="px-3 pt-2 pb-2 space-y-1">
         <div className="flex items-center gap-1.5">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--accent-cyan)] flex-shrink-0">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -203,11 +163,27 @@ function ProjectBandeau({ project, deliverables, clientName, onClick }: ProjectB
               {formatEuro(project.quoteAmount!)}
             </span>
           )}
+          {onToggleCollapse && (
+            <span
+              role="button"
+              onClick={(e) => { e.stopPropagation(); onToggleCollapse(e); }}
+              className="flex-shrink-0 ml-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+              title={isCollapsed ? 'Déplier' : 'Replier'}
+            >
+              <svg
+                width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                className={`transition-transform duration-200 ${isCollapsed ? '-rotate-90' : 'rotate-0'}`}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Barre de progression fine en bas du bandeau */}
-      {hasQuote && (
+      {/* Barre de progression — masquée si replié */}
+      {hasQuote && !isCollapsed && (
         <div className="h-[2px] w-full bg-[var(--bg-secondary)]">
           <div
             className="h-full bg-[var(--accent-cyan)] transition-all"
@@ -219,8 +195,19 @@ function ProjectBandeau({ project, deliverables, clientName, onClick }: ProjectB
   );
 }
 
+function ClientHeader({ name, isFirst }: { name: string; isFirst: boolean }) {
+  return (
+    <div className={`flex items-center gap-2 px-0.5 pb-1.5 ${isFirst ? '' : 'pt-4'}`}>
+      <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wider truncate">
+        {name}
+      </span>
+      <div className="flex-1 h-px bg-[var(--border-subtle)]" />
+    </div>
+  );
+}
+
 export function ProductionView() {
-  const { deliverables, projects, getClientById, getTeamMemberById, updateDeliverable, filters } = useAppStore();
+  const { deliverables, projects, getClientById, updateDeliverable, filters } = useAppStore();
 
   const getProjectQuoteForDeliverable = useCallback((d: Deliverable) => {
     if (!d.projectId) return undefined;
@@ -228,10 +215,31 @@ export function ProductionView() {
     return project?.quoteAmount ?? undefined;
   }, [projects]);
   const navigateToClient = useAppStore((s) => s.navigateToClient);
+  const { openDeliverableModal } = useModal();
   const [draggedItem, setDraggedItem] = useState<Deliverable | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<DeliverableStatus | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const groupByProject = true;
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set());
+
+  const allProjectIds = useMemo(() => new Set(projects.map(p => p.id)), [projects]);
+  const allCollapsed = allProjectIds.size > 0 && [...allProjectIds].every(id => collapsedProjects.has(id));
+
+  const toggleAllCollapsed = useCallback(() => {
+    if (allCollapsed) {
+      setCollapsedProjects(new Set());
+    } else {
+      setCollapsedProjects(new Set(allProjectIds));
+    }
+  }, [allCollapsed, allProjectIds]);
+
+  const toggleProject = useCallback((projectId: string) => {
+    setCollapsedProjects(prev => {
+      const next = new Set(prev);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      return next;
+    });
+  }, []);
 
   // Filtrer par membre d'équipe si filtre actif
   const filteredDeliverables = useMemo(() => {
@@ -366,6 +374,24 @@ export function ProductionView() {
             );
           })()}
         </div>
+        {/* Bouton global replier/déplier projets */}
+        {allProjectIds.size > 0 && (
+          <button
+            type="button"
+            onClick={toggleAllCollapsed}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer border border-[var(--border-subtle)]"
+            title={allCollapsed ? 'Déplier tous les projets' : 'Replier tous les projets'}
+          >
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              className={`transition-transform duration-200 ${allCollapsed ? '-rotate-90' : 'rotate-0'}`}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+            {allCollapsed ? 'Déplier' : 'Replier'}
+          </button>
+        )}
       </div>
 
       {/* Kanban board */}
@@ -459,109 +485,87 @@ export function ProductionView() {
                     Aucun produit
                   </div>
                 ) : (() => {
-                  if (groupByProject) {
-                    // --- Groupement par projet ---
-                    type PGroup = { type: 'project'; project: Project; clientName: string; items: Deliverable[] };
-                    type OGroup = { type: 'orphan'; clientId: string; clientName: string; items: Deliverable[] };
-                    const projectGroups: (PGroup | OGroup)[] = [];
-                    const projectMap = new Map<string, PGroup>();
-                    const orphanMap = new Map<string, OGroup>();
+                  // --- Groupement par client (projets + orphelins ensemble) ---
+                  type ProjGroup = { project: Project; items: Deliverable[] };
+                  type ClientGroup = { clientId: string; clientName: string; projectGroups: ProjGroup[]; orphanItems: Deliverable[] };
+                  const clientGroupMap = new Map<string, ClientGroup>();
+                  const clientGroupList: ClientGroup[] = [];
 
-                    items.forEach(d => {
-                      if (d.projectId) {
-                        const proj = projects.find(p => p.id === d.projectId);
-                        if (proj) {
-                          if (!projectMap.has(proj.id)) {
-                            const client = getClientById(proj.clientId);
-                            const grp: PGroup = { type: 'project', project: proj, clientName: client?.name || 'Sans client', items: [] };
-                            projectMap.set(proj.id, grp);
-                            projectGroups.push(grp);
-                          }
-                          projectMap.get(proj.id)!.items.push(d);
-                          return;
+                  items.forEach(d => {
+                    const cid = d.clientId || '__none__';
+                    if (!clientGroupMap.has(cid)) {
+                      const client = d.clientId ? getClientById(d.clientId) : null;
+                      const cg: ClientGroup = { clientId: cid, clientName: client?.name || 'Sans client', projectGroups: [], orphanItems: [] };
+                      clientGroupMap.set(cid, cg);
+                      clientGroupList.push(cg);
+                    }
+                    const cg = clientGroupMap.get(cid)!;
+                    if (d.projectId) {
+                      const proj = projects.find(p => p.id === d.projectId);
+                      if (proj) {
+                        let pg = cg.projectGroups.find(pg => pg.project.id === d.projectId);
+                        if (!pg) {
+                          pg = { project: proj, items: [] };
+                          cg.projectGroups.push(pg);
                         }
+                        pg.items.push(d);
+                        return;
                       }
-                      const cid = d.clientId || '__none__';
-                      if (!orphanMap.has(cid)) {
-                        const client = d.clientId ? getClientById(d.clientId) : null;
-                        const grp: OGroup = { type: 'orphan', clientId: cid, clientName: client?.name || 'Sans client', items: [] };
-                        orphanMap.set(cid, grp);
-                        projectGroups.push(grp);
-                      }
-                      orphanMap.get(cid)!.items.push(d);
-                    });
+                    }
+                    cg.orphanItems.push(d);
+                  });
 
-                    return projectGroups.map(group => {
-                      const key = group.type === 'project' ? `proj-${group.project.id}` : `client-${group.clientId}`;
-                      return (
-                        <div key={key}>
-                          {group.type === 'project' && (
+                  return clientGroupList.map((cg, cgIdx) => (
+                    <div key={cg.clientId}>
+                      <ClientHeader name={cg.clientName} isFirst={cgIdx === 0} />
+                      {cg.projectGroups.map(pg => {
+                        const isCollapsed = collapsedProjects.has(pg.project.id);
+                        return (
+                          <div key={pg.project.id} className="mb-1.5">
                             <ProjectBandeau
-                              project={group.project}
-                              deliverables={deliverables.filter(d => d.projectId === group.project.id)}
-                              clientName={group.clientName}
-                              onClick={() => navigateToClient(group.project.clientId, group.project.id)}
+                              project={pg.project}
+                              deliverables={deliverables.filter(d => d.projectId === pg.project.id)}
+                              onClick={() => navigateToClient(pg.project.clientId, pg.project.id)}
+                              isCollapsed={isCollapsed}
+                              onToggleCollapse={() => toggleProject(pg.project.id)}
                             />
-                          )}
-                          {group.items.map((d, idx) => {
-                            const assignee = d.assigneeId ? getTeamMemberById(d.assigneeId) : null;
-                            const isInProject = group.type === 'project';
-                            return (
+                            {!isCollapsed && pg.items.map((d, idx) => (
                               <ProductionCard
                                 key={d.id}
                                 deliverable={d}
-                                clientName={isInProject ? '' : group.clientName}
-                                assigneeColor={assignee?.color}
-                                assigneeInitials={assignee?.initials}
-                                onClick={() => d.clientId && navigateToClient(d.clientId, d.projectId ?? '__divers__')}
+                                onClick={() => navigateToClient(pg.project.clientId, pg.project.id)}
                                 onDragStart={handleDragStart}
                                 isCompact={isCompleted}
-                                isGrouped={group.items.length > 1}
-                                isFirst={isInProject ? false : idx === 0}
-                                isLast={idx === group.items.length - 1}
-                                inProject={isInProject}
+                                isGrouped={pg.items.length > 1}
+                                isFirst={false}
+                                isLast={idx === pg.items.length - 1}
+                                inProject={true}
                               />
-                            );
-                          })}
-                        </div>
-                      );
-                    });
-                  }
-
-                  // --- Groupement par client (défaut) ---
-                  const groups: { clientId: string; clientName: string; items: Deliverable[] }[] = [];
-                  const seen = new Map<string, number>();
-                  items.forEach(d => {
-                    const cid = d.clientId || '__none__';
-                    if (seen.has(cid)) {
-                      groups[seen.get(cid)!].items.push(d);
-                    } else {
-                      seen.set(cid, groups.length);
-                      const client = d.clientId ? getClientById(d.clientId) : null;
-                      groups.push({ clientId: cid, clientName: client?.name || 'Sans client', items: [d] });
-                    }
-                  });
-
-                  return groups.map(group => (
-                    <div key={group.clientId}>
-                      {group.items.map((d, idx) => {
-                        const assignee = d.assigneeId ? getTeamMemberById(d.assigneeId) : null;
-                        return (
-                          <ProductionCard
-                            key={d.id}
-                            deliverable={d}
-                            clientName={group.clientName}
-                            assigneeColor={assignee?.color}
-                            assigneeInitials={assignee?.initials}
-                            onClick={() => d.clientId && navigateToClient(d.clientId, d.projectId ?? '__divers__')}
-                            onDragStart={handleDragStart}
-                            isCompact={isCompleted}
-                            isGrouped={group.items.length > 1}
-                            isFirst={idx === 0}
-                            isLast={idx === group.items.length - 1}
-                          />
+                            ))}
+                          </div>
                         );
                       })}
+                      {cg.orphanItems.length > 0 && (
+                        <div className={cg.projectGroups.length > 0 ? 'mt-1.5' : ''}>
+                          {cg.orphanItems.map((d, idx) => (
+                            <ProductionCard
+                              key={d.id}
+                              deliverable={d}
+                              onClick={() => {
+                                const cid = d.clientId || (d.projectId ? projects.find(p => p.id === d.projectId)?.clientId : undefined);
+                                if (cid) navigateToClient(cid, d.projectId ?? '__divers__');
+                                else openDeliverableModal(undefined, d);
+                              }}
+                              onDragStart={handleDragStart}
+                              isCompact={isCompleted}
+                              isGrouped={cg.orphanItems.length > 1}
+                              isFirst={idx === 0}
+                              isLast={idx === cg.orphanItems.length - 1}
+                              inProject={false}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ));
                 })()}

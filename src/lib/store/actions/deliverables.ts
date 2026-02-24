@@ -36,11 +36,37 @@ export const createDeliverablesActions: StateCreator<AppState, [], [], Pick<AppS
     }));
     try {
       const supabase = createClient();
-      const payload = toSupabaseDeliverable(data);
+      // Ne mapper que les champs explicitement présents dans data (évite d'envoyer null pour les champs absents)
+      const partialData: Partial<Deliverable> = {};
+      for (const key of Object.keys(data) as (keyof typeof data)[]) {
+        if (data[key] !== undefined || key in data) {
+          (partialData as Record<string, unknown>)[key] = data[key];
+        }
+      }
+      const payload = toSupabaseDeliverable(partialData);
       const dbPayload: Record<string, unknown> = {};
       // Colonnes NOT NULL en base : ne jamais envoyer null (sinon violation de contrainte)
       const notNullColumns = new Set(['billing_status', 'status', 'name', 'type', 'in_backlog', 'is_potentiel', 'st_hors_facture']);
+      // Ne garder que les colonnes correspondant aux clés explicitement passées dans data
+      const dataKeys = new Set(Object.keys(data));
+      const keyMap: Record<string, string> = {
+        clientId: 'client_id', name: 'name', dueDate: 'due_date', inBacklog: 'in_backlog',
+        type: 'type', status: 'status', assigneeId: 'assignee_id', category: 'category',
+        deliveredAt: 'delivered_at', externalContractor: 'external_contractor', notes: 'notes',
+        prixFacturé: 'prix_facture', coutSousTraitance: 'cout_sous_traitance', isPotentiel: 'is_potentiel',
+        billingStatus: 'billing_status', quoteAmount: 'quote_amount', quoteDate: 'quote_date',
+        depositAmount: 'deposit_amount', depositDate: 'deposit_date',
+        progressAmounts: 'progress_amount', progressDates: 'progress_dates',
+        balanceAmount: 'balance_amount', balanceDate: 'balance_date',
+        totalInvoiced: 'total_invoiced', stHorsFacture: 'st_hors_facture', projectId: 'project_id',
+      };
+      const allowedDbKeys = new Set<string>();
+      for (const k of dataKeys) {
+        const dbKey = keyMap[k];
+        if (dbKey) allowedDbKeys.add(dbKey);
+      }
       Object.entries(payload).forEach(([k, v]) => {
+        if (!allowedDbKeys.has(k)) return;
         if (v === undefined) return;
         if (v === null && notNullColumns.has(k)) return;
         dbPayload[k] = v;

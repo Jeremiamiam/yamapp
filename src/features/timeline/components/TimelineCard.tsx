@@ -22,6 +22,12 @@ const PackageIcon = () => (
   </svg>
 );
 
+const FolderIcon = () => (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
 const CheckIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -36,7 +42,7 @@ const ClockIcon = () => (
 
 export interface TimelineCardItem {
   id: string;
-  type: 'deliverable' | 'call' | 'todo';
+  type: 'deliverable' | 'call' | 'todo' | 'project';
   clientId: string;
   clientName: string;
   clientStatus: 'client' | 'prospect';
@@ -50,9 +56,9 @@ export interface TimelineCardItem {
 }
 
 type GetDropTargetFn = (clientX: number, clientY: number) => { date: Date; hour: number; minutes: number } | null;
-type OnMoveFn = (itemId: string, type: 'deliverable' | 'call' | 'todo', newDate: Date) => void;
+type OnMoveFn = (itemId: string, type: 'deliverable' | 'call' | 'todo' | 'project', newDate: Date) => void;
 type DragItem = TimelineCardItem & { hour?: number; minutes?: number };
-type OnDragStartFn = (item: DragItem, type: 'deliverable' | 'call' | 'todo', x: number, y: number) => void;
+type OnDragStartFn = (item: DragItem, type: 'deliverable' | 'call' | 'todo' | 'project', x: number, y: number) => void;
 
 interface TimelineCardProps {
   item: TimelineCardItem;
@@ -97,6 +103,7 @@ function TimelineCardInner({
   onDeleteTodo,
 }: TimelineCardProps) {
   const isCall = item.type === 'call';
+  const isProject = item.type === 'project';
   const isCompleted = item.status === 'completed';
   const isInProgress = item.status === 'in-progress';
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -447,7 +454,11 @@ function TimelineCardInner({
       {/* Contenu principal : produit / call uniquement (client déjà dans la barre) */}
       <div className="px-3 py-2.5">
         <div className="flex items-center gap-2 min-w-0">
-          {isCall ? (
+          {isProject ? (
+            <span className="text-[var(--accent-cyan)] opacity-90 flex-shrink-0">
+              <FolderIcon />
+            </span>
+          ) : isCall ? (
              item.isPresentation ? (
                <span className="text-[var(--accent-violet)] opacity-90 flex-shrink-0">
                  <PresentationIcon />

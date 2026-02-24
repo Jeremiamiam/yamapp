@@ -106,6 +106,10 @@ Sans `rawTranscript`, le bouton « Brief Créatif → » affiche un textarea fal
 - **rawTranscript** : depuis le document Report (si présent)
 - Ou : paste manuel dans un textarea (DocumentModal, Report sans rawTranscript)
 
+### 3.1.1 Contexte projet
+
+Quand le Brief est généré depuis un Report rattaché à un projet (`document.projectId`), le nouveau Brief hérite du même `projectId` et apparaît dans les documents du projet. Idem pour les Web Brief et Social Brief générés depuis un document projet. Implémenté dans `DocumentModal` (runBriefGeneration, runWebGeneration, runSmmGeneration).
+
 ### 3.2 API
 
 | | |
@@ -184,11 +188,11 @@ AMBITION
 
 **Phase 1** :
 - strategist (si activé) → bigidea (si activé)
-- Fin : `awaiting_selection` avec 3 idées parsées via `parseBigIdeas`
-- Parsing : `### IDÉE 1 — [Titre]\n[Corps]`, etc.
+- Fin : `ideas` + `awaiting_selection` avec toutes les idées parsées via `parseBigIdeas` (affichées en grille de cards)
+- L'utilisateur choisit une idée pour continuer
 
 **Phase 2** (après sélection par l'utilisateur) :
-- architect → copywriter → devil → `report`
+- architect → copywriter → devil → yam → `report`
 - Le rapport final est assemblé en Markdown et émis via `report`
 
 ### 4.4 Structure du rapport final
@@ -386,7 +390,8 @@ Types `BoardEvent` streamés par `POST /api/creative-board` :
 | agent_start | Début d'un agent |
 | agent_chunk | Chunk de texte streamé |
 | agent_done | Fin d'un agent |
-| awaiting_selection | 3 idées proposées, attente choix utilisateur |
+| ideas | Toutes les idées en grille cards |
+| awaiting_selection | Idées proposées, attente choix utilisateur pour Phase 2 |
 | report | Rapport final (Markdown assemblé) |
 | error | Erreur |
 

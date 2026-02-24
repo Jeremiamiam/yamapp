@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { AppState } from '../types';
-import type { Client, ClientStatus, ClientLink, Contact, ClientDocument } from '@/types';
+import type { Client, ClientStatus, ClientLink, Contact, ClientDocument, DocumentVersion } from '@/types';
 import { handleError, AppError, getErrorMessage } from '@/lib/error-handler';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -8,13 +8,15 @@ import {
   toSupabaseContact,
   toSupabaseClientLink,
   toSupabaseDocument,
+  mapDocumentVersionRow,
 } from '@/lib/supabase-mappers';
 
 type ClientsActionsKeys =
   | 'addContact' | 'updateContact' | 'deleteContact'
   | 'addClient' | 'updateClient' | 'deleteClient'
   | 'addClientLink' | 'deleteClientLink'
-  | 'addDocument' | 'updateDocument' | 'deleteDocument';
+  | 'addDocument' | 'updateDocument' | 'deleteDocument'
+  | 'saveDocumentVersion' | 'updateDocumentVersion' | 'loadDocumentVersions';
 
 export const createClientsActions: StateCreator<AppState, [], [], Pick<AppState, ClientsActionsKeys>> = (set, get) => ({
   addContact: async (clientId, contactData) => {
@@ -262,5 +264,57 @@ export const createClientsActions: StateCreator<AppState, [], [], Pick<AppState,
     } catch (e) {
       handleError(new AppError(getErrorMessage(e), 'DOC_DELETE_FAILED', "Impossible de supprimer le document"));
     }
+  },
+
+  saveDocumentVersion: async (docId, currentContent, label?) => {
+    const supabase = createClient();
+    // Récupère le numéro de version max existant pour ce document
+    const { data: existing } = await supabase
+      .from('document_versions')
+      .select('version_number')
+      .eq('document_id', docId)
+      .order('version_number', { ascending: false })
+      .limit(1);
+    const nextVersion = existing && existing.length > 0 ? (existing[0] as { version_number: number }).version_number + 1 : 1;
+    const id = `docv-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const now = new Date();
+    const { error } = await supabase.from('document_versions').insert({
+      id,
+      document_id: docId,
+      version_number: nextVersion,
+      label: label ?? null,
+      content: currentContent,
+      created_at: now.toISOString(),
+    });
+    if (error) throw new AppError(error.message, 'VERSION_SAVE_FAILED', 'Impossible de sauvegarder la version');
+    const version: DocumentVersion = {
+      id,
+      documentId: docId,
+      versionNumber: nextVersion,
+      label: label ?? undefined,
+      content: currentContent,
+      createdAt: now,
+    };
+    return version;
+  },
+
+  updateDocumentVersion: async (versionId, content) => {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('document_versions')
+      .update({ content })
+      .eq('id', versionId);
+    if (error) throw new AppError(error.message, 'VERSION_UPDATE_FAILED', 'Impossible de mettre à jour la version');
+  },
+
+  loadDocumentVersions: async (docId) => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('document_versions')
+      .select('*')
+      .eq('document_id', docId)
+      .order('version_number', { ascending: false });
+    if (error) throw new AppError(error.message, 'VERSION_LOAD_FAILED', 'Impossible de charger les versions');
+    return (data ?? []).map(mapDocumentVersionRow);
   },
 });

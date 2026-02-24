@@ -44,11 +44,12 @@ type TimelineEntryInput =
   | { kind: 'orchestrator'; text: string }
   | { kind: 'handoff'; to: AgentId; reason: string }
   | { kind: 'agent'; agent: AgentId; text: string; done: boolean }
+  | { kind: 'idea_count_picker' }
   | { kind: 'selection'; title: string }
   | { kind: 'report'; text: string };
 
 type TimelineEntry = TimelineEntryInput & { id: number };
-type BoardPhase = 'idle' | 'phase1' | 'selecting' | 'phase2' | 'done';
+type BoardPhase = 'idle' | 'phase1' | 'counting' | 'selecting' | 'phase2' | 'done';
 
 // ─── Markdown components ────────────────────────────────────────────────────────
 
@@ -210,15 +211,45 @@ function TypingDots() {
   );
 }
 
+const AGENT_LOADING_MSG: Record<AgentId, string> = {
+  strategist: 'Recherche web · analyse du marché · positionnement…',
+  bigidea:    'Génération des directions créatives…',
+  architect:  'Construction de la plateforme de marque…',
+  copywriter: 'Rédaction du territoire de ton et des taglines…',
+  devil:      'Audit du travail en cours…',
+  yam:        'Relecture finale et touche créative…',
+};
+
 function AgentPane({ agent, text, done }: { agent: AgentId; text: string; done: boolean }) {
   const cfg = AGENT_CONFIG[agent];
+  const isStreaming = !!text && !done;
+
   return (
     <div
       className="rounded-xl px-6 py-5 min-h-48 border text-sm leading-relaxed"
       style={{ background: cfg.rawDim, borderColor: `${cfg.rawColor}25` }}
     >
       {!text && <span className="text-[var(--text-muted)]">En attente…</span>}
-      {text && !done && <span className="whitespace-pre-wrap">{text}</span>}
+
+      {isStreaming && (
+        <div className="flex flex-col items-center justify-center gap-5 min-h-36 py-6">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl" style={{ color: cfg.rawColor }}>{cfg.icon}</span>
+            <span className="text-sm font-semibold" style={{ color: cfg.rawColor }}>{cfg.label}</span>
+          </div>
+          <div className="w-full max-w-xs space-y-2.5 animate-pulse">
+            {[90, 75, 85, 55].map((w, i) => (
+              <div
+                key={i}
+                className="h-2 rounded-full"
+                style={{ width: `${w}%`, backgroundColor: cfg.rawColor, opacity: 0.15 - i * 0.025 }}
+              />
+            ))}
+          </div>
+          <p className="text-xs text-[var(--text-muted)]">{AGENT_LOADING_MSG[agent]}</p>
+        </div>
+      )}
+
       {text && done && (
         <div className="agent-markdown">
           <ReactMarkdown components={agentMarkdownComponents}>{text}</ReactMarkdown>
@@ -240,7 +271,78 @@ function SelectionBadge({ title }: { title: string }) {
   );
 }
 
-function IdeaCards({
+// ─── IdeaCountPicker ───────────────────────────────────────────────────────────
+
+function IdeaCountPicker({ onSelect }: { onSelect: (count: number) => void }) {
+  const [customValue, setCustomValue] = useState('');
+  const [showCustom, setShowCustom] = useState(false);
+
+  return (
+    <div className="rounded-2xl border border-[var(--accent-amber)]/30 bg-[var(--bg-card)] p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <span className="text-lg" style={{ color: 'var(--accent-amber)' }}>⬡</span>
+        <p className="text-sm font-semibold text-[var(--text-primary)]">
+          Combien de directions créatives ?
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-3">
+        {[1, 3, 5, 10].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onSelect(n)}
+            className="flex flex-col items-center gap-1 px-5 py-3 rounded-xl border border-[var(--accent-amber)]/30 bg-[var(--bg-tertiary)] hover:border-[var(--accent-amber)] hover:bg-[var(--accent-amber)]/10 transition-all cursor-pointer group"
+          >
+            <span className="text-2xl font-bold text-[var(--accent-amber)]">{n}</span>
+            <span className="text-[10px] text-[var(--text-muted)] group-hover:text-[var(--accent-amber)] transition-colors">
+              {n === 1 ? 'direction' : 'directions'}
+            </span>
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setShowCustom(true)}
+          className="flex flex-col items-center gap-1 px-5 py-3 rounded-xl border border-dashed border-[var(--accent-amber)]/30 bg-[var(--bg-tertiary)] hover:border-[var(--accent-amber)] hover:bg-[var(--accent-amber)]/10 transition-all cursor-pointer group"
+        >
+          <span className="text-2xl font-bold text-[var(--text-muted)] group-hover:text-[var(--accent-amber)] transition-colors">?</span>
+          <span className="text-[10px] text-[var(--text-muted)] group-hover:text-[var(--accent-amber)] transition-colors">custom</span>
+        </button>
+      </div>
+      {showCustom && (
+        <div className="flex items-center gap-2">
+          <input
+            autoFocus
+            type="number"
+            min={1}
+            max={20}
+            placeholder="Nombre (1–20)"
+            value={customValue}
+            onChange={(e) => setCustomValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const n = parseInt(customValue, 10);
+                if (!isNaN(n) && n >= 1 && n <= 20) onSelect(n);
+              }
+            }}
+            className="w-36 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--accent-amber)]/40 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-amber)]"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const n = parseInt(customValue, 10);
+              if (!isNaN(n) && n >= 1 && n <= 20) onSelect(n);
+            }}
+            className="px-3 py-2 rounded-lg bg-[var(--accent-amber)] text-black text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+          >
+            Go →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IdeaCardsGrid({
   ideas,
   scores,
   onSelect,
@@ -266,6 +368,7 @@ function IdeaCards({
           return (
             <button
               key={i}
+              type="button"
               onClick={() => onSelect(idea)}
               className="group w-full text-left bg-[var(--bg-card)] border border-[var(--accent-amber)]/20 rounded-xl px-5 py-4 hover:border-[var(--accent-amber)]/50 hover:bg-[var(--accent-amber-dim)] transition-all"
             >
@@ -395,8 +498,6 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
   const [running, setRunning] = useState(false);
   const [boardPhase, setBoardPhase] = useState<BoardPhase>('idle');
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
-  const [pendingIdeas, setPendingIdeas] = useState<{ title: string; body: string }[]>([]);
-  const [pendingIdeaScores, setPendingIdeaScores] = useState<{ index: number; total: number; flags?: string[] }[]>([]);
 
   const [enabledAgents, setEnabledAgents] = useState<AgentId[]>(['strategist', 'bigidea', 'architect', 'copywriter', 'devil', 'yam']);
   const [agentStyles, setAgentStyles] = useState<Record<AgentId, AgentStyle>>({
@@ -418,12 +519,17 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
   const userScrolledUpRef = useRef(false);
   const phase1OutputsRef = useRef({ strategist: '', bigidea: '' });
   const storedOutputsRef = useRef<{ strategist: string; bigidea: string } | null>(null);
+  const [pendingIdeas, setPendingIdeas] = useState<{ title: string; body: string }[]>([]);
+  const [pendingIdeaScores, setPendingIdeaScores] = useState<{ index: number; total: number; flags?: string[] }[]>([]);
   const savedReportRef = useRef(false);
   const addDocument = useAppStore((s) => s.addDocument);
   const clientIdRef = useRef<string | null>(null);
+  const projectIdRef = useRef<string | null>(null);
   useEffect(() => {
     const cid = sessionStorage.getItem('creative-board-client-id');
     if (cid) clientIdRef.current = cid;
+    const pid = sessionStorage.getItem('creative-board-project-id');
+    if (pid) projectIdRef.current = pid;
   }, []);
 
   useEffect(() => {
@@ -528,6 +634,10 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
       if (event.agent === 'bigidea') phase1OutputsRef.current.bigidea += event.text;
     } else if (event.type === 'agent_done') {
       markAgentDone(event.agent);
+    } else if (event.type === 'awaiting_idea_count') {
+      storedOutputsRef.current = { ...phase1OutputsRef.current };
+      addEntry({ kind: 'idea_count_picker' });
+      setBoardPhase('counting');
     } else if (event.type === 'awaiting_selection') {
       storedOutputsRef.current = { ...phase1OutputsRef.current };
       setPendingIdeas(event.ideas);
@@ -540,10 +650,12 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
       if (cid && !savedReportRef.current) {
         savedReportRef.current = true;
         sessionStorage.removeItem('creative-board-client-id');
+        sessionStorage.removeItem('creative-board-project-id');
+        const pid = projectIdRef.current ?? useAppStore.getState().selectedProjectId ?? undefined;
         const title = `Stratégie créative - ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
         const content = event.data ? JSON.stringify(event.data) : event.text;
-        addDocument(cid, { type: 'creative-strategy', title, content })
-          .then(() => toast.success('Stratégie enregistrée dans la fiche client'))
+        addDocument(cid, { type: 'creative-strategy', title, content }, pid || undefined)
+          .then(() => toast.success(pid ? 'Stratégie enregistrée dans le projet' : 'Stratégie enregistrée dans la fiche client'))
           .catch((err) => toast.error(`Impossible d'enregistrer : ${err instanceof Error ? err.message : 'Erreur inconnue'}`));
       } else {
         toast.success('Board terminé — Stratégie prête');
@@ -602,6 +714,35 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
     });
     await processStream(res);
     setRunning(false);
+    setBoardPhase(prev => (prev === 'selecting' || prev === 'counting') ? prev : 'done');
+  };
+
+  const handleSelectIdeaCount = async (count: number) => {
+    if (!storedOutputsRef.current) return;
+    setBoardPhase('phase1');
+    setRunning(true);
+
+    const payload: Record<string, unknown> = {
+      brief, phase: 1,
+      skipStrategist: true,
+      ideaCount: count,
+      strategistOutput: storedOutputsRef.current.strategist,
+      enabledAgents, agentStyles,
+    };
+    const customPrompts = Object.fromEntries(
+      Object.entries(agentPrompts).filter(([, v]) => typeof v === 'string' && v.trim() !== '')
+    ) as Partial<Record<AgentId, string>>;
+    if (Object.keys(customPrompts).length > 0) payload.agentPrompts = customPrompts;
+    if (presets) payload.agentPresets = presets;
+
+    const res = await fetch('/api/creative-board', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    await processStream(res);
+    setRunning(false);
+    setBoardPhase(prev => prev === 'selecting' ? prev : 'done');
   };
 
   const handleSelectIdea = async (idea: { title: string; body: string }) => {
@@ -652,16 +793,18 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
     return null;
   }, [timeline]);
 
-  const isBlocked = running || boardPhase === 'selecting';
+  const isBlocked = running || boardPhase === 'selecting' || boardPhase === 'counting';
 
   const statusLabel =
     running ? 'Session en cours'
+    : boardPhase === 'counting' ? 'Combien d\'idées ?'
     : boardPhase === 'selecting' ? 'Choisissez une direction'
     : boardPhase === 'done' ? 'Session terminée'
     : null;
 
   const statusColor =
     running ? 'var(--accent-lime)'
+    : boardPhase === 'counting' ? 'var(--accent-amber)'
     : boardPhase === 'selecting' ? 'var(--accent-amber)'
     : 'var(--text-muted)';
 
@@ -811,13 +954,13 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
             disabled={isBlocked}
             className="w-full px-4 py-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-vertical focus:outline-none focus:border-[var(--accent-violet)]/40 focus:ring-2 focus:ring-[var(--accent-violet)]/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed leading-relaxed"
           />
-          <div className="flex justify-end">
+<div className="flex justify-end">
             <button
               onClick={handleSubmit}
               disabled={isBlocked || !brief.trim() || enabledAgents.length === 0}
               className="px-5 py-2.5 rounded-xl bg-[var(--accent-lime)] text-black text-sm font-bold tracking-tight hover:bg-[var(--accent-lime)]/90 disabled:bg-[var(--bg-tertiary)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed transition-all"
             >
-              {running ? 'Board en cours…' : boardPhase === 'selecting' ? 'Choisissez une direction ↓' : 'Lancer le Board →'}
+              {running ? 'Board en cours…' : boardPhase === 'counting' ? 'Combien d\'idées ? ↓' : boardPhase === 'selecting' ? 'Choisissez une direction ↓' : 'Lancer le Board →'}
             </button>
           </div>
         </div>
@@ -905,9 +1048,14 @@ export function CreativeBoardPage({ embedded = false }: { embedded?: boolean } =
                 title={(timeline.find((e) => e.kind === 'selection') as { title: string } | undefined)?.title ?? ''}
               />
             )}
+            {boardPhase === 'counting' && timeline.some(e => e.kind === 'idea_count_picker') && (
+              <div className="animate-fade-in-up">
+                <IdeaCountPicker onSelect={handleSelectIdeaCount} />
+              </div>
+            )}
             {boardPhase === 'selecting' && pendingIdeas.length > 0 && (
               <div className="animate-fade-in-up">
-                <IdeaCards ideas={pendingIdeas} scores={pendingIdeaScores} onSelect={handleSelectIdea} />
+                <IdeaCardsGrid ideas={pendingIdeas} scores={pendingIdeaScores} onSelect={handleSelectIdea} />
               </div>
             )}
             {timeline.some((e) => e.kind === 'report') && (

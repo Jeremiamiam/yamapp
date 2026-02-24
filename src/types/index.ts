@@ -36,6 +36,15 @@ export interface Contact {
 
 export type DocumentType = 'brief' | 'report' | 'note' | 'creative-strategy' | 'web-brief' | 'social-brief' | 'link';
 
+export interface DocumentVersion {
+  id: string;
+  documentId: string;
+  versionNumber: number;
+  label?: string;
+  content: string;
+  createdAt: Date;
+}
+
 export interface ClientDocument {
   id: string;
   type: DocumentType;
@@ -96,6 +105,8 @@ export interface Project {
   name: string;
   /** Si true, le projet apparaît dans le backlog "À planifier" */
   inBacklog?: boolean;
+  /** Date/heure planifiée sur la timeline (carte projet unique) */
+  scheduledAt?: Date;
   quoteAmount?: number | null;
   quoteDate?: string;
   depositAmount?: number;

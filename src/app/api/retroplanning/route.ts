@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { jsonrepair } from 'jsonrepair';
 import type { RetroplanningTaskColor } from '@/types';
+import { getPrompt } from '@/lib/agent-prompts';
 import { computeDatesFromDeadline } from '@/lib/retroplanning-utils';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -93,12 +94,14 @@ ${truncatedBrief}
 
 Génère le retroplanning pour ce projet.`;
 
+  const systemPrompt = await getPrompt('retroplanning', SYSTEM_PROMPT);
+
   try {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       temperature: 0.5,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: 'user', content: userContent }],
     });
 

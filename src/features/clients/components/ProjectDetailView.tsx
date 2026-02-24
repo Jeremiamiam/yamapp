@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import type { Project, Client, Deliverable, DocumentType } from '@/types';
 import { useAppStore } from '@/lib/store';
 import { useModal } from '@/hooks';
@@ -199,6 +199,15 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
 
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
+  // Pré-sélectionner un produit si on arrive depuis la timeline
+  useEffect(() => {
+    const id = sessionStorage.getItem('timeline-select-product-id');
+    if (id && projectDeliverables.some((d) => d.id === id)) {
+      setSelectedProductId(id);
+      sessionStorage.removeItem('timeline-select-product-id');
+    }
+  }, [projectDeliverables]);
+
   const selectedProduct = projectDeliverables.find((d) => d.id === selectedProductId) ?? null;
 
   const tabs: { key: ProjectTab; label: string; count?: number }[] = [
@@ -243,24 +252,44 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
             </span>
           )}
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => updateProject(project.id, { inBacklog: !project.inBacklog })}
-              className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer
-                         ${project.inBacklog
-                           ? 'bg-[var(--accent-violet)]/20 text-[var(--accent-violet)]'
-                           : 'bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/20'
-                         }`}
-              title={project.inBacklog ? 'Retirer du backlog' : 'Mettre dans le backlog'}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              <span className="hidden sm:inline">{project.inBacklog ? 'Dans backlog' : 'À planifier'}</span>
-            </button>
+            {project.scheduledAt ? (
+              <button
+                type="button"
+                onClick={() => updateProject(project.id, { scheduledAt: undefined, inBacklog: false })}
+                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer bg-[var(--accent-lime)]/20 text-[var(--accent-lime)] hover:bg-[var(--accent-lime)]/30"
+                title="Retirer de la timeline"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                  <polyline points="9 11 12 14 16 10"/>
+                </svg>
+                <span className="hidden sm:inline">
+                  Planifié le {new Date(project.scheduledAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => updateProject(project.id, { inBacklog: !project.inBacklog })}
+                className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer
+                           ${project.inBacklog
+                             ? 'bg-[var(--accent-violet)]/20 text-[var(--accent-violet)]'
+                             : 'bg-[var(--accent-violet)]/10 text-[var(--accent-violet)] hover:bg-[var(--accent-violet)]/20'
+                           }`}
+                title={project.inBacklog ? 'Retirer du backlog' : 'Mettre dans le backlog'}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span className="hidden sm:inline">{project.inBacklog ? 'Dans backlog' : 'À planifier'}</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => openProjectModal(client.id, project)}
@@ -343,6 +372,7 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
                 selectedProductId={selectedProductId}
                 onSelectProduct={setSelectedProductId}
                 clientId={client.id}
+                projectId={project.id}
               />
             </div>
           </div>
@@ -450,12 +480,14 @@ function ProductsMasterDetail({
   selectedProductId,
   onSelectProduct,
   clientId,
+  projectId,
 }: {
   products: Deliverable[];
   selectedProduct: Deliverable | null;
   selectedProductId: string | null;
   onSelectProduct: (id: string | null) => void;
   clientId: string;
+  projectId?: string;
 }) {
   const openModal = useAppStore((state) => state.openModal);
   const team = useAppStore((state) => state.team);
@@ -467,7 +499,7 @@ function ProductsMasterDetail({
         <p className="text-sm text-[var(--text-muted)]">Aucun produit</p>
         <button
           type="button"
-          onClick={() => openModal({ type: 'deliverable', mode: 'create', clientId })}
+          onClick={() => openModal({ type: 'deliverable', mode: 'create', clientId, projectId })}
           className="text-sm font-medium px-4 py-2 rounded-lg bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/20 transition-colors cursor-pointer"
         >
           + Ajouter un produit
@@ -526,7 +558,7 @@ function ProductsMasterDetail({
           })}
           <button
             type="button"
-            onClick={() => openModal({ type: 'deliverable', mode: 'create', clientId })}
+            onClick={() => openModal({ type: 'deliverable', mode: 'create', clientId, projectId })}
             className="w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium text-[var(--accent-cyan)]
                        hover:bg-[var(--accent-cyan)]/10 transition-colors cursor-pointer border border-dashed border-[var(--border-subtle)]"
           >
@@ -1611,6 +1643,14 @@ interface OrphanProductsViewProps {
 export function OrphanProductsView({ client, deliverables, onBack }: OrphanProductsViewProps) {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const selectedProduct = deliverables.find((d) => d.id === selectedProductId) ?? null;
+
+  useEffect(() => {
+    const id = sessionStorage.getItem('timeline-select-product-id');
+    if (id && deliverables.some((d) => d.id === id)) {
+      setSelectedProductId(id);
+      sessionStorage.removeItem('timeline-select-product-id');
+    }
+  }, [deliverables]);
 
   return (
     <div className="h-full flex flex-col">

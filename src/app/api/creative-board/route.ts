@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { jsonrepair } from 'jsonrepair';
 import { computeGenerationCost } from '@/lib/api-cost';
+import { getPrompt as getDbPrompt } from '@/lib/agent-prompts';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -12,6 +13,7 @@ export type BoardEvent =
   | { type: 'agent_start'; agent: AgentId }
   | { type: 'agent_chunk'; agent: AgentId; text: string }
   | { type: 'agent_done'; agent: AgentId }
+  | { type: 'awaiting_idea_count' }
   | { type: 'awaiting_selection'; ideas: { title: string; body: string }[]; scores?: { index: number; total: number; flags?: string[] }[] }
   | { type: 'report'; text: string; data?: CreativeStrategyReport }
   | { type: 'error'; message: string };
@@ -383,16 +385,17 @@ Format de sortie OBLIGATOIRE : réponds UNIQUEMENT avec un JSON valide, sans mar
 
 export type AgentPresetsPayload = Partial<Record<AgentId, Partial<Record<AgentStyle, string>>>>;
 
-function getPrompt(
+async function getPrompt(
   agentId: AgentId,
   style: AgentStyle,
   customPrompt?: string | null,
   agentPresets?: AgentPresetsPayload | null
-): string {
+): Promise<string> {
   if (customPrompt?.trim()) return customPrompt.trim();
   const preset = agentPresets?.[agentId]?.[style];
   if (preset?.trim()) return preset.trim();
-  return AGENTS[agentId].prompts[style];
+  // Vérifier un override DB avant de retourner le défaut hardcodé
+  return getDbPrompt(agentId, AGENTS[agentId].prompts[style], style);
 }
 
 // ─── Parser BigIdea output → idées structurées ────────────────────────────────
@@ -510,7 +513,7 @@ async function runAgent(
   return { fullText, usage };
 }
 
-/** Phase 2 : Scorer — évalue les idées, retourne scores triés (top 5) */
+/** Phase 2 : Scorer — évalue les idées, retourne scores triés (top 10) */
 async function runScorerAgent(
   brief: string,
   strategistOutput: string,
@@ -519,10 +522,11 @@ async function runScorerAgent(
   if (ideas.length === 0) return { topIdeas: [], scores: [] };
   const ideasStr = ideas.map((i, idx) => `[${idx}] ${i.title}\n${i.body}`).join('\n\n');
 
+  const scorerPrompt = await getDbPrompt('scorer', SCORER_SYSTEM_PROMPT);
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 2048,
-    system: SCORER_SYSTEM_PROMPT,
+    system: scorerPrompt,
     messages: [{
       role: 'user',
       content: `Brief : ${brief.slice(0, 1500)}\n\nTension stratégique :\n${strategistOutput.slice(0, 2000)}\n\n--- Idées à scorer ---\n${ideasStr}\n\nScore chaque idée. Retourne le JSON.`,
@@ -532,17 +536,17 @@ async function runScorerAgent(
   const textBlock = message.content.find((b) => b.type === 'text');
   const rawText = (textBlock && 'text' in textBlock ? (textBlock as { text: string }).text : '') ?? '';
   const parsed = tryParseJson<{ scores: { index: number; total: number; breakdown?: Record<string, number>; flags?: string[] }[] }>(rawText, true);
-  if (!parsed?.scores?.length) return { topIdeas: ideas.slice(0, 5), scores: [] };
+  if (!parsed?.scores?.length) return { topIdeas: ideas.slice(0, 10), scores: [] };
 
   const withScores = parsed.scores
     .filter((s) => s.index >= 0 && s.index < ideas.length)
     .map((s) => ({ idea: ideas[s.index], score: s.total, flags: s.flags ?? [] }));
   withScores.sort((a, b) => b.score - a.score);
-  const top5 = withScores.slice(0, 5);
+  const top10 = withScores.slice(0, 10);
 
   return {
-    topIdeas: top5.map((x) => x.idea),
-    scores: top5.map((x) => ({
+    topIdeas: top10.map((x) => x.idea),
+    scores: top10.map((x) => ({
       index: ideas.indexOf(x.idea),
       total: x.score,
       flags: x.flags.length ? x.flags : undefined,
@@ -595,10 +599,11 @@ ${yamText || '(vide)'}
 
 Évalue chaque section. Pour Stratège et Architecte, effectue des recherches web pour vérifier les faits (marché, concurrence, positionnement). Retourne le JSON requis.`;
 
+  const auditorPrompt = await getDbPrompt('auditor', AUDITOR_SYSTEM_PROMPT);
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 2048,
-    system: AUDITOR_SYSTEM_PROMPT,
+    system: auditorPrompt,
     messages: [{ role: 'user', content: userContent }],
     tools: STRATEGIST_TOOLS,
   });
@@ -633,6 +638,8 @@ export async function POST(req: Request) {
     agentStyles = {} as Partial<Record<AgentId, AgentStyle>>,
     agentPrompts = {} as Partial<Record<AgentId, string>>,
     agentPresets = null as AgentPresetsPayload | null,
+    skipStrategist = false,
+    ideaCount = 10,
   } = body;
 
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -659,59 +666,62 @@ export async function POST(req: Request) {
 
       try {
         if (phase === 1) {
-          // ── Phase 1 : Stratège (si activé) → Big Idea (si activé) → sélection ──
+          // ── Phase 1 : Stratège → pause (choix nb idées) → Big Idea → sélection ──
 
-          emit({
-            type: 'orchestrator',
-            text: 'Brief reçu. On lance les agents configurés.',
-          });
+          let strategistOut = prevStrategist ?? '';
 
-          let strategistOut = '';
-          if (enabledSet.has('strategist')) {
-            emit({ type: 'handoff', from: 'Orchestrateur', to: 'strategist', reason: 'Trouver la tension' });
-            const strategistMessage = [
-              'Consigne : effectue d’abord au moins une recherche web (marché, concurrence ou tendances en lien avec le brief), puis rédige ta synthèse en t’appuyant sur les résultats.',
-              '',
-              `Brief client : ${brief}`,
-            ].join('\n');
-            const strategistRes = await runAgent(
-              'strategist',
-              resolvePrompt('strategist', style('strategist')),
-              strategistMessage,
-              emit
-            );
-            strategistOut = strategistRes.fullText;
-          }
+          if (!skipStrategist) {
+            emit({ type: 'orchestrator', text: 'Brief reçu. On lance les agents configurés.' });
 
-          if (enabledSet.has('bigidea')) {
-            emit({
-              type: 'orchestrator',
-              text: 'Tension posée. Génération des directions créatives…',
-            });
-            emit({ type: 'handoff', from: 'Orchestrateur', to: 'bigidea', reason: '10-15 directions' });
-            const bigideaRes = await runAgent(
-              'bigidea',
-              resolvePrompt('bigidea', style('bigidea')),
-              `Brief client : ${brief}\n\nTension stratégique :\n${strategistOut || '(non fournie)'}`,
-              emit
-            );
-            const allIdeas = parseBigIdeas(bigideaRes.fullText);
-            let ideasToShow = allIdeas;
-            let scores: { index: number; total: number; flags?: string[] }[] | undefined;
-            if (allIdeas.length > 5) {
-              emit({ type: 'orchestrator', text: 'Scoring des idées… Top 5 bientôt prêt.' });
-              const { topIdeas, scores: scorerScores } = await runScorerAgent(brief, strategistOut, allIdeas);
-              ideasToShow = topIdeas;
-              scores = scorerScores;
+            if (enabledSet.has('strategist')) {
+              emit({ type: 'handoff', from: 'Orchestrateur', to: 'strategist', reason: 'Trouver la tension' });
+              const strategistMessage = [
+                "Consigne : effectue d'abord au moins une recherche web (marché, concurrence ou tendances en lien avec le brief), puis rédige ta synthèse en t'appuyant sur les résultats.",
+                '',
+                `Brief client : ${brief}`,
+              ].join('\n');
+              const strategistRes = await runAgent(
+                'strategist',
+                await resolvePrompt('strategist', style('strategist')),
+                strategistMessage,
+                emit
+              );
+              strategistOut = strategistRes.fullText;
             }
-            emit({
-              type: 'orchestrator',
-              text: ideasToShow.length <= 5 ? 'À vous de choisir.' : 'Top 5 — à vous de choisir.',
-            });
-            emit({ type: 'awaiting_selection', ideas: ideasToShow, scores });
+
+            if (enabledSet.has('bigidea')) {
+              // Pause : demander combien d'idées
+              emit({ type: 'orchestrator', text: 'Tension posée. Combien de directions créatives voulez-vous ?' });
+              emit({ type: 'awaiting_idea_count' });
+            } else {
+              emit({ type: 'orchestrator', text: 'Phase 1 terminée (Big Idea désactivé).' });
+            }
           } else {
-            // Pas de Big Idea : pas de sélection, on considère phase 1 terminée sans idées
-            emit({ type: 'orchestrator', text: 'Phase 1 terminée (Big Idea désactivé).' });
+            // Reprise après choix du nombre d'idées → lancer le Concepteur
+            if (enabledSet.has('bigidea')) {
+              const targetCount = Math.max(1, Math.min(20, Number(ideaCount) || 10));
+              emit({ type: 'orchestrator', text: `Génération de ${targetCount} direction${targetCount > 1 ? 's' : ''} créative${targetCount > 1 ? 's' : ''}…` });
+              emit({ type: 'handoff', from: 'Orchestrateur', to: 'bigidea', reason: `${targetCount} direction${targetCount > 1 ? 's' : ''}` });
+              const basePrompt = await resolvePrompt('bigidea', style('bigidea'));
+              const bigideaPrompt = `${basePrompt}\n\nNombre d'idées à proposer : exactement ${targetCount}. Pas plus, pas moins.`;
+              const bigideaRes = await runAgent(
+                'bigidea',
+                bigideaPrompt,
+                `Brief client : ${brief}\n\nTension stratégique :\n${strategistOut || '(non fournie)'}`,
+                emit
+              );
+              const allIdeas = parseBigIdeas(bigideaRes.fullText);
+              let ideasToShow = allIdeas;
+              let scores: { index: number; total: number; flags?: string[] }[] | undefined;
+              if (allIdeas.length > targetCount) {
+                emit({ type: 'orchestrator', text: `Scoring… Top ${targetCount} bientôt prêt.` });
+                const { topIdeas, scores: scorerScores } = await runScorerAgent(brief, strategistOut, allIdeas);
+                ideasToShow = topIdeas.slice(0, targetCount);
+                scores = scorerScores;
+              }
+              emit({ type: 'orchestrator', text: 'À vous de choisir.' });
+              emit({ type: 'awaiting_selection', ideas: ideasToShow, scores });
+            }
           }
         } else {
           // ── Phase 2 : Architecte (si activé) → Copywriter (si activé) → Devil (si activé) → rapport ──
@@ -728,7 +738,7 @@ export async function POST(req: Request) {
             emit({ type: 'handoff', from: 'Orchestrateur', to: 'architect', reason: 'Vision, Mission, Valeurs, Promesse' });
             architectRes = await runAgent(
               'architect',
-              resolvePrompt('architect', style('architect')),
+              await resolvePrompt('architect', style('architect')),
               `Brief client : ${brief}\n\nTension stratégique :\n${prevStrategist}\n\nAngle créatif retenu :\n${selectedIdea}`,
               emit
             );
@@ -744,7 +754,7 @@ export async function POST(req: Request) {
             emit({ type: 'handoff', from: 'Orchestrateur', to: 'copywriter', reason: 'Territoire de ton, manifeste, taglines' });
             copywriterRes = await runAgent(
               'copywriter',
-              resolvePrompt('copywriter', style('copywriter')),
+              await resolvePrompt('copywriter', style('copywriter')),
               `Brief client : ${brief}\n\nTension stratégique :\n${prevStrategist}\n\nAngle créatif retenu :\n${selectedIdea}`,
               emit
             );
@@ -760,7 +770,7 @@ export async function POST(req: Request) {
             emit({ type: 'handoff', from: 'Orchestrateur', to: 'devil', reason: 'Bullshit audit + questions client' });
             devilRes = await runAgent(
               'devil',
-              resolvePrompt('devil', style('devil')),
+              await resolvePrompt('devil', style('devil')),
               `Brief client : ${brief}\n\nTension stratégique :\n${prevStrategist}\n\nAngle créatif retenu :\n${selectedIdea}\n\nPlateforme de marque :\n${architectOut}\n\nProposition copy :\n${copywriterOut}`,
               emit
             );
@@ -785,7 +795,7 @@ export async function POST(req: Request) {
             ].filter(Boolean).join('\n\n---\n\n');
             yamRes = await runAgent(
               'yam',
-              resolvePrompt('yam', style('yam')),
+              await resolvePrompt('yam', style('yam')),
               fullContext,
               emit
             );

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { jsonrepair } from 'jsonrepair';
+import { getPrompt } from '@/lib/agent-prompts';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -104,12 +105,14 @@ ${customPrompt.trim()}
 
 Réécris le content de cette section en respectant le prompt. Retourne UNIQUEMENT l'objet content au format JSON.`;
 
+  const systemPrompt = await getPrompt('section-rewrite', SYSTEM_PROMPT);
+
   try {
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       temperature: 0.6,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: 'user', content: userContent }],
     });
 

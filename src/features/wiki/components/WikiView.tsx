@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 import { LayoutGallery } from '@/features/layout-gallery/components/LayoutGallery';
+import { WikiPromptsSection } from './WikiPromptsSection';
 import {
   FEATURE_SECTIONS,
   CREATIVE_BOARD_AGENTS,
@@ -113,6 +114,14 @@ const LayoutGridIcon = () => (
     <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
   </svg>
 );
+const Settings2Icon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 7H4"/><path d="M20 12H4"/><path d="M20 17H4"/>
+    <circle cx="9" cy="7" r="2.5" fill="var(--bg-card)" stroke="currentColor" strokeWidth="2"/>
+    <circle cx="15" cy="12" r="2.5" fill="var(--bg-card)" stroke="currentColor" strokeWidth="2"/>
+    <circle cx="9" cy="17" r="2.5" fill="var(--bg-card)" stroke="currentColor" strokeWidth="2"/>
+  </svg>
+);
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   'calendar': <CalendarIcon />,
@@ -128,6 +137,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   'layout-grid': <LayoutGridIcon />,
   'sparkle': <SparkleIcon />,
   'link': <LinkIcon />,
+  'settings2': <Settings2Icon />,
 };
 
 function resolveIcon(icon: string): React.ReactNode {
@@ -607,6 +617,7 @@ export function WikiView() {
     { id: 'web-brief', label: 'Web Brief IA', color: 'var(--accent-magenta)' },
     { id: 'plaud', label: 'PLAUD', color: 'var(--accent-cyan)' },
     { id: 'retroplanning-agents', label: 'Retroplanning IA', color: 'var(--accent-amber)' },
+    { id: 'prompts-ia', label: 'Prompts IA', color: 'var(--accent-violet)' },
   ];
 
   return (
@@ -679,6 +690,7 @@ export function WikiView() {
             <WebBriefAgentsSection />
             <PlaudAgentsSection />
             <RetroplanningAgentsSection />
+            <WikiPromptsSection />
           </div>
 
           {/* Mobile only: liens utiles inline (below cards) */}

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ReportPlaudTemplate } from '@/types/document-templates';
+import { getPrompt } from '@/lib/agent-prompts';
 
 const SYSTEM_PROMPT = `Tu es un assistant expert en synthèse de réunions pour une agence créative.
 Tu analyses des transcriptions de réunions (enregistrées via Plaud) et tu en extrais les informations clés.
@@ -46,10 +47,11 @@ export async function POST(req: Request) {
     }
 
     const client = new Anthropic({ apiKey });
+    const systemPrompt = await getPrompt('analyze-plaud', SYSTEM_PROMPT);
     const message = await client.messages.create({
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 8192,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: 'user', content: USER_PROMPT(transcript.trim()) }],
     });
 

@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { getPrompt } from '@/lib/agent-prompts';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -233,10 +234,11 @@ Adapte l'extraction des données pour correspondre à cette structure. Chaque cl
 
 Rappel : extraction défensive avec \`as\` + fallbacks, CSS variables uniquement, Tailwind pour le layout.`;
 
+    const systemPrompt = await getPrompt('generate-layout', SYSTEM_PROMPT);
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     });
 

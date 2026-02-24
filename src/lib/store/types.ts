@@ -1,4 +1,4 @@
-import type { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, TeamMember, Contact, ClientDocument, DayTodo, BillingHistory, BillingStatus, Project, RetroplanningPlan } from '@/types';
+import type { Client, ClientLink, ClientStatus, Deliverable, Call, CallType, TeamMember, Contact, ClientDocument, DocumentVersion, DayTodo, BillingHistory, BillingStatus, Project, RetroplanningPlan } from '@/types';
 
 export type ViewType = 'timeline' | 'clients' | 'client-detail' | 'compta' | 'admin' | 'production' | 'creative-board' | 'wiki';
 export type ClientStatusFilter = 'all' | 'prospect' | 'client';
@@ -13,7 +13,7 @@ export type ModalType =
   | { type: 'contact'; mode: 'create' | 'edit'; clientId: string; contact?: Contact; presetContact?: Partial<Contact> }
   | { type: 'document'; mode: 'create' | 'edit'; clientId: string; document?: ClientDocument; projectId?: string }
   | { type: 'report-upload'; clientId: string; projectId?: string }
-  | { type: 'deliverable'; mode: 'create' | 'edit'; clientId?: string; deliverable?: Deliverable }
+  | { type: 'deliverable'; mode: 'create' | 'edit'; clientId?: string; projectId?: string; deliverable?: Deliverable }
   | { type: 'call'; mode: 'create' | 'edit'; clientId?: string; call?: Call; presetCallType?: CallType }
   | { type: 'client'; mode: 'create' | 'edit'; client?: Client; presetStatus?: ClientStatus }
   | { type: 'project'; presetClientId?: string; project?: Project; initialTab?: 'projet' | 'billing' }
@@ -89,6 +89,11 @@ export interface AppState {
   addDocument: (clientId: string, doc: Omit<ClientDocument, 'id' | 'createdAt' | 'updatedAt'>, projectId?: string) => Promise<ClientDocument>;
   updateDocument: (clientId: string, docId: string, data: Partial<ClientDocument>) => Promise<void>;
   deleteDocument: (clientId: string, docId: string) => Promise<void>;
+
+  // Document Versioning
+  saveDocumentVersion: (docId: string, currentContent: string, label?: string) => Promise<DocumentVersion>;
+  updateDocumentVersion: (versionId: string, content: string) => Promise<void>;
+  loadDocumentVersions: (docId: string) => Promise<DocumentVersion[]>;
 
   // CRUD Actions - Deliverables
   addDeliverable: (deliverable: Omit<Deliverable, 'id' | 'createdAt'>) => Promise<void>;

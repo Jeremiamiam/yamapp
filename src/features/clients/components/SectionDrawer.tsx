@@ -354,6 +354,7 @@ export interface SectionDrawerProps {
   // Edit panel
   editingSectionId?: string | null;
   onCloseEdit?: () => void;
+  onValidate?: () => void;
   onContentChange?: (sectionId: string, patch: Record<string, unknown>) => void;
   // Role change (layout picker)
   onRoleChange?: (sectionId: string, newRole: string) => void;
@@ -546,6 +547,7 @@ export function SectionDrawer({
   onGenerateLayout,
   editingSectionId,
   onCloseEdit,
+  onValidate,
   onContentChange,
   onRoleChange,
   onAiSubmit,
@@ -802,7 +804,7 @@ export function SectionDrawer({
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={onCloseEdit}
+                onClick={() => { onValidate?.(); onCloseEdit?.(); }}
                 className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[var(--accent-cyan)] text-black hover:opacity-90 transition-opacity"
                 title="Valider (Enter)"
               >

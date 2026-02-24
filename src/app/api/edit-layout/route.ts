@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
+import { getPrompt } from '@/lib/agent-prompts';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -64,10 +65,11 @@ export async function POST(req: NextRequest) {
 
     const userMessage = `Modifie ce composant React selon l'instruction suivante.\n\nInstruction : "${prompt}"\n\nCode actuel :\n\`\`\`tsx\n${existingCode}\n\`\`\`\n\nRéponds uniquement avec le code TSX modifié complet.`;
 
+    const systemPrompt = await getPrompt('edit-layout', SYSTEM_PROMPT);
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
     });
 

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { jsonrepair } from 'jsonrepair';
+import { getPrompt } from '@/lib/agent-prompts';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -112,6 +113,7 @@ ${reportTrimmed ? `Rapport complet :\n${reportTrimmed}` : ''}
 
 Génère l'arborescence du menu du site (navigation principale + footer) au format JSON demandé.`;
 
+  const systemPrompt = await getPrompt('web-architect', SYSTEM_PROMPT);
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -121,7 +123,7 @@ Génère l'arborescence du menu du site (navigation principale + footer) au form
           model: 'claude-sonnet-4-6',
           max_tokens: 2000,
           temperature: 0.5,
-          system: SYSTEM_PROMPT,
+          system: systemPrompt,
           messages: [{ role: 'user', content: userContent }],
         });
 

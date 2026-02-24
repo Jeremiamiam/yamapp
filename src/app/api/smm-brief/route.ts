@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { jsonrepair } from 'jsonrepair';
 import type { SocialBriefData } from '@/types/social-brief';
+import { getPrompt } from '@/lib/agent-prompts';
 import { computeGenerationCost } from '@/lib/api-cost';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -80,6 +81,7 @@ export async function POST(req: Request) {
     .filter(Boolean)
     .join('\n\n---\n\n');
 
+  const systemPrompt = await getPrompt('smm-brief', SYSTEM_PROMPT);
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -94,7 +96,7 @@ export async function POST(req: Request) {
         const message = await client.messages.create({
           model: 'claude-sonnet-4-6',
           max_tokens: 4096,
-          system: SYSTEM_PROMPT,
+          system: systemPrompt,
           messages: [{ role: 'user', content: userMessage }],
         });
 

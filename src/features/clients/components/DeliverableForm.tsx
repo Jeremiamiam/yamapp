@@ -55,6 +55,7 @@ export function DeliverableForm() {
   const isOpen = activeModal?.type === 'deliverable';
   const mode = isOpen ? activeModal.mode : 'create';
   const modalClientId = isOpen ? activeModal.clientId : undefined;
+  const modalProjectId = isOpen && activeModal.mode === 'create' ? activeModal.projectId : undefined;
   const modalDeliverable = isOpen && activeModal.mode === 'edit' ? activeModal.deliverable : undefined;
   const showClientSelector = isOpen && mode === 'create' && modalClientId === undefined;
   
@@ -194,11 +195,11 @@ export function DeliverableForm() {
         });
         setSelectedTeamIds([]);
         setFreelances([]);
-        setSelectedProjectId('');
+        setSelectedProjectId(modalProjectId ?? '');
         setBillingData({});
       }
     }
-  }, [isOpen, existingDeliverable, modalClientId, reset]);
+  }, [isOpen, existingDeliverable, modalClientId, modalProjectId, reset]);
 
   const onSubmit = async (data: DeliverableFormData) => {
     // En création, c'est toujours backlog (pas de date)
