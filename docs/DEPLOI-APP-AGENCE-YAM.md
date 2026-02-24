@@ -30,6 +30,9 @@ Sans ces variables, l’app affiche en prod : *"Your project's URL and Key are r
    - **Key** : `NEXT_PUBLIC_SUPABASE_ANON_KEY`  
      **Value** : la clé **anon public**.  
      Même écran Supabase → **Project API keys** → **anon** **public** (tu peux la copier).
+   - **Key** : `NEXT_PUBLIC_SITE_URL` (recommandé)  
+     **Value** : l’URL de prod (ex. `https://app.agence-yam.fr`).  
+     Requis pour que le reset de mot de passe redirige vers la prod et non localhost.
 3. **Scopes** : coche au minimum **Builds** et **Deploy previews** (ou **All**).
 4. **Sauvegarde**.
 5. **Redéploie** le site : **Deploys** → **Trigger deploy** → **Deploy site** (pour que le prochain build prenne les variables en compte).

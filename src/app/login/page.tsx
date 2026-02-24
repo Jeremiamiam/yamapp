@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { getAuthErrorMessage } from '@/lib/supabase/auth-errors';
+import { getAuthRedirectBaseUrl } from '@/lib/auth/get-redirect-url';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,8 +26,9 @@ export default function LoginPage() {
     }
     setLoading(true);
     const supabase = createClient();
+    const baseUrl = getAuthRedirectBaseUrl();
     const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/`,
+      redirectTo: `${baseUrl}/auth/update-password`,
     });
     setLoading(false);
     if (err) {
