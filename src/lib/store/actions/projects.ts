@@ -24,6 +24,7 @@ function mapRow(row: Record<string, unknown>): Project {
     balanceAmount: row.balance_amount != null ? Number(row.balance_amount) : undefined,
     balanceDate: row.balance_date as string | undefined,
     potentiel: row.potentiel != null ? Number(row.potentiel) : undefined,
+    isActive: row.is_active !== false,
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
   };
@@ -51,6 +52,7 @@ export function createProjectActions(set: SetState, get: GetState) {
         balanceAmount: data.balanceAmount,
         balanceDate: data.balanceDate,
         potentiel: data.potentiel,
+        isActive: data.isActive !== false,
         createdAt: now,
         updatedAt: now,
       };
@@ -71,6 +73,7 @@ export function createProjectActions(set: SetState, get: GetState) {
           balance_amount: data.balanceAmount ?? null,
           balance_date: data.balanceDate ?? null,
           potentiel: data.potentiel ?? null,
+          is_active: data.isActive ?? true,
         });
 
         if (error) throw error;
@@ -107,6 +110,7 @@ export function createProjectActions(set: SetState, get: GetState) {
         if (data.potentiel !== undefined) dbData.potentiel = data.potentiel ?? null;
         if (data.inBacklog !== undefined) dbData.in_backlog = data.inBacklog;
         if (data.scheduledAt !== undefined) dbData.scheduled_at = data.scheduledAt ? data.scheduledAt.toISOString() : null;
+        if (data.isActive !== undefined) dbData.is_active = data.isActive;
 
         const { error } = await supabase.from('projects').update(dbData).eq('id', id);
         if (error) throw error;
@@ -133,15 +137,22 @@ export function createProjectActions(set: SetState, get: GetState) {
     deleteProject: async (id: string) => {
       try {
         const supabase = createClient();
+        const projectDeliverables = get().deliverables.filter((d) => d.projectId === id);
+        const deliverableIds = projectDeliverables.map((d) => d.id);
+
+        // Supprimer les produits associés au projet
+        if (deliverableIds.length > 0) {
+          const { error: delivError } = await supabase.from('deliverables').delete().in('id', deliverableIds);
+          if (delivError) throw delivError;
+        }
+
         const { error } = await supabase.from('projects').delete().eq('id', id);
         if (error) throw error;
         invalidateDataCache();
 
         set((state) => ({
           projects: state.projects.filter((p) => p.id !== id),
-          deliverables: state.deliverables.map((d) =>
-            d.projectId === id ? { ...d, projectId: undefined } : d
-          ),
+          deliverables: state.deliverables.filter((d) => d.projectId !== id),
         }));
       } catch (err) {
         const e = err as Record<string, unknown>;

@@ -44,13 +44,14 @@ type FilterMode = 'all' | 'with-validated' | 'with-potential';
 type ClientTableRow = {
   clientId: string;
   clientName: string;
-  isProspect: boolean;
   rentreesValidees: number;
   sousTraitance: number;
   margeNette: number;
   margePotentielleYam: number;
   totalGlobal: number;
   billedDeliverables: Deliverable[];
+  /** Produits avec ST mais pas encore facturés (billingStatus pending) — affichés dans le détail */
+  stOnlyDeliverables: Deliverable[];
   margePotentielleDeliverables: Deliverable[];
 };
 
@@ -78,6 +79,12 @@ const ArrowUpDown = ({ direction }: { direction: 'asc' | 'desc' }) => (
   </svg>
 );
 
+/** Sous-traitance déductible de notre marge (ST ne facture pas le client directement) */
+function stDeductible(d: Deliverable): number {
+  if (d.stHorsFacture) return 0;
+  return d.coutSousTraitance ?? 0;
+}
+
 export function ComptaView() {
   const { isAdmin, loading: roleLoading } = useUserRole();
   const { deliverables, getClientById, comptaYear, clients, projects } = useAppStore();
@@ -86,12 +93,13 @@ export function ComptaView() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
 
-  // Filter deliverables by selected year (dueDate, fallback to createdAt for backlog items)
+  // Filter deliverables by selected year. Sans dueDate = inclus pour l'année sélectionnée.
   const yearDeliverables = useMemo(() => {
     return deliverables.filter(d => {
-      const date = d.dueDate ?? d.createdAt;
-      if (!date) return false;
-      return new Date(date).getFullYear() === comptaYear;
+      if (!d.dueDate) {
+        return true; // Produits sans date : toujours inclus (visibles pour l'année consultée)
+      }
+      return new Date(d.dueDate).getFullYear() === comptaYear;
     });
   }, [deliverables, comptaYear]);
 
@@ -101,22 +109,30 @@ export function ComptaView() {
     [yearDeliverables]
   );
 
+  // Deliverables avec sous-traitance (billed OU pending) — pour afficher la ST même avant facturation
+  const deliverablesAvecST = useMemo(() =>
+    yearDeliverables.filter(d => stDeductible(d) > 0),
+    [yearDeliverables]
+  );
+
   // Marge potentielle deliverables = no billing progress + margePotentielle set
   const margePotentielleDeliverables = useMemo(() =>
     yearDeliverables.filter(d => d.billingStatus === 'pending' && (d.margePotentielle ?? 0) > 0),
     [yearDeliverables]
   );
 
-  // KPI calculations: rentrées, dépenses, marge (from billed deliverables only)
+  // KPI calculations: rentrées (billed only), dépenses (tous produits avec ST), marge
   const { totalFacturé, totalDépensé, margeNette } = useMemo(() => {
     let facturé = 0;
     let dépensé = 0;
     for (const d of billedDeliverables) {
       facturé += d.prixFacturé ?? 0;
-      dépensé += d.coutSousTraitance ?? 0;
+    }
+    for (const d of deliverablesAvecST) {
+      dépensé += stDeductible(d);
     }
     return { totalFacturé: facturé, totalDépensé: dépensé, margeNette: facturé - dépensé };
-  }, [billedDeliverables]);
+  }, [billedDeliverables, deliverablesAvecST]);
 
   // Potentiel projet (projets sans devis signé, avec potentiel renseigné)
   const totalPotentielProjets = useMemo(() => {
@@ -140,6 +156,10 @@ export function ComptaView() {
     return clientIds.size;
   }, [yearDeliverables]);
 
+  // Helper: clientId depuis deliverable ou projet
+  const getEffectiveClientId = (d: Deliverable): string | undefined =>
+    d.clientId ?? (d.projectId ? projects.find(p => p.id === d.projectId)?.clientId : undefined);
+
   // Build table rows: one row per client
   const tableRows = useMemo(() => {
     const map = new Map<string, ClientTableRow>();
@@ -150,13 +170,13 @@ export function ComptaView() {
         map.set(clientId, {
           clientId,
           clientName: client?.name ?? 'Sans nom',
-          isProspect: client?.status === 'prospect',
           rentreesValidees: 0,
           sousTraitance: 0,
           margeNette: 0,
           margePotentielleYam: 0,
           totalGlobal: 0,
           billedDeliverables: [],
+          stOnlyDeliverables: [],
           margePotentielleDeliverables: [],
         });
       }
@@ -165,10 +185,11 @@ export function ComptaView() {
 
     // Billed deliverables → rentrées / sous-traitance / marge nette
     for (const d of billedDeliverables) {
-      if (!d.clientId) continue;
-      const row = ensureRow(d.clientId);
+      const cid = getEffectiveClientId(d);
+      if (!cid) continue;
+      const row = ensureRow(cid);
       const prix = d.prixFacturé ?? 0;
-      const st = d.coutSousTraitance ?? 0;
+      const st = stDeductible(d);
       row.rentreesValidees += prix;
       row.sousTraitance += st;
       row.margeNette = row.rentreesValidees - row.sousTraitance;
@@ -176,10 +197,25 @@ export function ComptaView() {
       row.billedDeliverables.push(d);
     }
 
+    // Sous-traitance des produits pending (ST uniquement, pas encore facturés)
+    const billedIds = new Set(billedDeliverables.map(d => d.id));
+    for (const d of deliverablesAvecST) {
+      if (billedIds.has(d.id)) continue;
+      const cid = getEffectiveClientId(d);
+      if (!cid) continue;
+      const row = ensureRow(cid);
+      const st = stDeductible(d);
+      row.sousTraitance += st;
+      row.margeNette = row.rentreesValidees - row.sousTraitance;
+      row.totalGlobal += st; // pour que la ligne apparaisse au tri
+      row.stOnlyDeliverables.push(d);
+    }
+
     // Marge potentielle deliverables → marge Yam
     for (const d of margePotentielleDeliverables) {
-      if (!d.clientId) continue;
-      const row = ensureRow(d.clientId);
+      const cid = getEffectiveClientId(d);
+      if (!cid) continue;
+      const row = ensureRow(cid);
       const marge = d.margePotentielle ?? 0;
       row.margePotentielleYam += marge;
       row.totalGlobal += marge;
@@ -214,7 +250,7 @@ export function ComptaView() {
     });
 
     return rows;
-  }, [billedDeliverables, margePotentielleDeliverables, projects, getClientById, sortDirection, filterMode]);
+  }, [billedDeliverables, deliverablesAvecST, margePotentielleDeliverables, projects, getClientById, sortDirection, filterMode]);
 
   if (roleLoading) {
     return (
@@ -357,11 +393,6 @@ export function ComptaView() {
                         <ChevronDown open={isExpanded} />
                         <span className="font-medium text-[var(--text-primary)] truncate">
                           {row.clientName}
-                          {row.isProspect && row.rentreesValidees === 0 && (
-                            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full border border-amber-500/50 text-amber-600">
-                              P
-                            </span>
-                          )}
                         </span>
                       </div>
                       <span className="text-sm font-bold text-[var(--text-primary)] shrink-0">
@@ -411,10 +442,29 @@ export function ComptaView() {
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0 text-xs">
                                   <span className="text-[#22c55e]">{formatEur(d.prixFacturé ?? 0)}</span>
-                                  {(d.coutSousTraitance ?? 0) > 0 && (
-                                    <span className="text-[#ef4444]">− {formatEur(d.coutSousTraitance ?? 0)}</span>
+                                  {stDeductible(d) > 0 && (
+                                    <span className="text-[#ef4444]">− {formatEur(stDeductible(d))}</span>
                                   )}
                                 </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {row.stOnlyDeliverables.length > 0 && filterMode !== 'with-potential' && (
+                        <div>
+                          <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2">
+                            Sous-traitance en attente ({row.stOnlyDeliverables.length})
+                          </p>
+                          <ul className="space-y-1.5">
+                            {row.stOnlyDeliverables.map((d) => (
+                              <li
+                                key={d.id}
+                                onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
+                                className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] text-sm cursor-pointer active:bg-[var(--bg-tertiary)]"
+                              >
+                                <span className="text-[var(--text-primary)] truncate flex-1">{d.name}</span>
+                                <span className="text-[#ef4444] shrink-0 text-xs">− {formatEur(stDeductible(d))}</span>
                               </li>
                             ))}
                           </ul>
@@ -491,11 +541,6 @@ export function ComptaView() {
                         </td>
                         <td className="py-4 px-4 text-[var(--text-primary)] font-medium">
                           {row.clientName}
-                          {row.isProspect && row.rentreesValidees === 0 && (
-                            <span className="ml-2 text-xs px-2 py-0.5 rounded-full border border-amber-500/50 text-amber-600 dark:text-amber-400">
-                              P
-                            </span>
-                          )}
                         </td>
                         <td className="py-4 px-4 text-right text-[#22c55e] font-medium">
                           {filterMode === 'with-potential' ? '—' : (row.rentreesValidees > 0 ? formatEur(row.rentreesValidees) : '—')}
@@ -533,10 +578,31 @@ export function ComptaView() {
                                         </div>
                                         <div className="flex items-center gap-4 shrink-0 text-xs">
                                           <span className="text-[#22c55e]">{formatEur(d.prixFacturé ?? 0)}</span>
-                                          {(d.coutSousTraitance ?? 0) > 0 && (
-                                            <span className="text-[#ef4444]">− {formatEur(d.coutSousTraitance ?? 0)}</span>
+                                          {stDeductible(d) > 0 && (
+                                            <span className="text-[#ef4444]">− {formatEur(stDeductible(d))}</span>
                                           )}
                                         </div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Sous-traitance en attente (produits pas encore facturés) */}
+                              {row.stOnlyDeliverables.length > 0 && filterMode !== 'with-potential' && (
+                                <div>
+                                  <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-3">
+                                    Sous-traitance en attente ({row.stOnlyDeliverables.length})
+                                  </p>
+                                  <ul className="space-y-2">
+                                    {row.stOnlyDeliverables.map((d) => (
+                                      <li
+                                        key={d.id}
+                                        onClick={(e) => { e.stopPropagation(); openDeliverableModal(row.clientId, d); }}
+                                        className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] text-sm cursor-pointer hover:border-[var(--accent-violet)]/50 hover:bg-[var(--bg-tertiary)]/30 transition-colors"
+                                      >
+                                        <span className="text-[var(--text-primary)] truncate">{d.name}</span>
+                                        <span className="text-[#ef4444] shrink-0 text-xs">− {formatEur(stDeductible(d))}</span>
                                       </li>
                                     ))}
                                   </ul>

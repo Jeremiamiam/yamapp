@@ -79,15 +79,6 @@ export const createDeliverablesActions: StateCreator<AppState, [], [], Pick<AppS
       const { error } = await supabase.from('deliverables').update(dbPayload).eq('id', id);
       if (error) throw error;
       invalidateDataCache();
-
-      // Auto-promote prospect → client when billing progresses
-      const billingProgressed = data.billingStatus && data.billingStatus !== 'pending' && prev.billingStatus === 'pending';
-      if (billingProgressed && prev.clientId) {
-        const client = get().clients.find((c) => c.id === prev.clientId);
-        if (client && client.status === 'prospect') {
-          get().updateClient(prev.clientId, { status: 'client' });
-        }
-      }
     } catch (e) {
       set((state) => ({
         deliverables: state.deliverables.map((d) => (d.id === id ? prev : d)),

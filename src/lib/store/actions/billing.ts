@@ -47,14 +47,6 @@ export const createBillingActions: StateCreator<AppState, [], [], Pick<AppState,
       }));
 
       await get().loadBillingHistory(id);
-
-      // Auto-promote prospect → client when billing progresses
-      if (newStatus !== 'pending' && prev.billingStatus === 'pending' && prev.clientId) {
-        const client = get().clients.find((c) => c.id === prev.clientId);
-        if (client && client.status === 'prospect') {
-          get().updateClient(prev.clientId, { status: 'client' });
-        }
-      }
     } catch (e) {
       const message = e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e);
       handleError(new AppError(message, 'BILLING_UPDATE_FAILED', "Impossible de modifier le statut de facturation"));

@@ -237,6 +237,11 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
         </h2>
 
         <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+          {project.isActive === false && (
+            <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded border border-[var(--accent-violet)]/50 text-[var(--accent-violet)] bg-[var(--accent-violet)]/5">
+              Inactif
+            </span>
+          )}
           {project.quoteAmount != null && project.quoteAmount > 0 && (
             <span className="text-xs text-[var(--text-muted)]">
               {formatEuro(project.quoteAmount)}
@@ -304,7 +309,7 @@ export function ProjectDetailView({ project, client, deliverables, onBack }: Pro
             <button
               type="button"
               onClick={async () => {
-                if (window.confirm(`Supprimer le projet "${project.name}" ? Les produits seront détachés du projet.`)) {
+                if (window.confirm(`Supprimer le projet "${project.name}" ? Les ${projectDeliverables.length} produit(s) associé(s) seront également supprimés.`)) {
                   await deleteProject(project.id);
                   onBack();
                 }
@@ -1332,6 +1337,7 @@ function BillingCardContent({
   projectDeliverables: Deliverable[];
 }) {
   const updateProject = useAppStore((state) => state.updateProject);
+  const isActive = project.isActive !== false;
   const hasQuote = project.quoteAmount != null && project.quoteAmount > 0;
 
   const saveProject = useCallback(
@@ -1376,21 +1382,59 @@ function BillingCardContent({
 
           {/* Editable project billing fields */}
           <div className="rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-subtle)] p-3 sm:p-4 space-y-3">
-            {/* Potentiel — montant pipeline */}
+            {/* Toggle Actif / Inactif */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <span className="text-sm text-[var(--text-muted)]">Statut projet</span>
+              <div className="flex rounded-lg border border-[var(--border-subtle)] p-0.5 bg-[var(--bg-tertiary)]">
+                <button
+                  type="button"
+                  onClick={() => saveProject({ isActive: false })}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${!isActive ? 'bg-[var(--accent-violet)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                >
+                  Inactif
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveProject({ isActive: true })}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${isActive ? 'bg-[var(--accent-cyan)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                >
+                  Actif
+                </button>
+              </div>
+              <span className="text-[10px] text-[var(--text-muted)]">
+                {isActive ? 'Devis, acompte, etc. éditables' : 'Potentiel uniquement (pipeline)'}
+              </span>
+            </div>
+
+            {/* Potentiel — montant pipeline (éditable si inactif, lecture seule si actif) */}
             <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto] gap-2 sm:gap-3 sm:items-center">
-              <label className="text-sm text-[var(--accent-violet)]">Potentiel</label>
-              <input
-                key={`potentiel-${project.id}`}
-                type="text"
-                defaultValue={project.potentiel ? formatEuro(project.potentiel) : ''}
-                placeholder="0 €"
-                onBlur={(e) => saveProject({ potentiel: parseEur(e.target.value) })}
-                className="text-sm bg-[var(--bg-secondary)] border border-[var(--accent-violet)]/30 rounded-lg px-3 py-2 text-[var(--accent-violet)] focus:border-[var(--accent-violet)] focus:outline-none transition-colors w-24 text-right placeholder:text-[var(--text-muted)]"
-              />
+              <label className={`text-sm ${isActive ? 'text-[var(--text-muted)]' : 'text-[var(--accent-violet)]'}`}>
+                Potentiel
+                {isActive && <span className="ml-1 text-[10px] font-normal">(lecture seule)</span>}
+              </label>
+              {isActive ? (
+                <span
+                  className="text-sm rounded-lg px-3 py-2 w-24 text-right bg-[var(--bg-tertiary)] text-[var(--text-muted)] border border-[var(--border-subtle)]"
+                  title="Potentiel verrouillé : projet actif"
+                >
+                  {project.potentiel ? formatEuro(project.potentiel) : '—'}
+                </span>
+              ) : (
+                <input
+                  key={`potentiel-${project.id}`}
+                  type="text"
+                  defaultValue={project.potentiel ? formatEuro(project.potentiel) : ''}
+                  placeholder="0 €"
+                  onBlur={(e) => saveProject({ potentiel: parseEur(e.target.value) })}
+                  className="text-sm bg-[var(--bg-secondary)] border border-[var(--accent-violet)]/30 rounded-lg px-3 py-2 text-[var(--accent-violet)] focus:border-[var(--accent-violet)] focus:outline-none transition-colors w-24 text-right placeholder:text-[var(--text-muted)]"
+                />
+              )}
             </div>
 
             <div className="border-t border-[var(--border-subtle)]" />
 
+            {isActive && (
+              <>
             <BillingFieldRow label="Devis" amountKey="quoteAmount" dateKey="quoteDate" product={project as unknown as Deliverable} onSave={(data) => saveProject(data as Partial<Project>)} />
 
             {hasQuote && (
@@ -1513,8 +1557,10 @@ function BillingCardContent({
               </>
             )}
 
-            {!hasQuote && (
+            {isActive && !hasQuote && (
               <p className="text-sm text-[var(--text-muted)]">Renseignez un devis pour débloquer la facturation projet.</p>
+            )}
+            </>
             )}
           </div>
 

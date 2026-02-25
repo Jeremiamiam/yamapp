@@ -57,6 +57,7 @@ export function ProjectModal({ project, presetClientId, initialTab, onClose }: P
 
   const [name, setName] = useState(project?.name || '');
   const [clientId, setClientId] = useState(project?.clientId || presetClientId || '');
+  const [isActive, setIsActive] = useState(project ? project.isActive !== false : false);
   const [quoteAmount, setQuoteAmount] = useState(project?.quoteAmount?.toString() || '');
   const [quoteDate, setQuoteDate] = useState(project?.quoteDate || '');
   const [saving, setSaving] = useState(false);
@@ -72,6 +73,10 @@ export function ProjectModal({ project, presetClientId, initialTab, onClose }: P
   );
   const [progressDates, setProgressDates] = useState<string[]>(project?.progressDates || []);
   const [balanceDate, setBalanceDate] = useState(project?.balanceDate || '');
+
+  useEffect(() => {
+    if (project) setIsActive(project.isActive !== false);
+  }, [project?.id]);
 
   useEffect(() => {
     if (initialTab) setTab(initialTab);
@@ -116,6 +121,7 @@ export function ProjectModal({ project, presetClientId, initialTab, onClose }: P
       await updateProject(project.id, {
         name: name.trim(),
         clientId,
+        isActive,
         // Champ vidé = null en base pour garder BDD et affichage cohérents
         quoteAmount: quoteAmount.trim() !== '' ? parseFloat(quoteAmount) : null,
         quoteDate: quoteDate || undefined,
@@ -145,6 +151,7 @@ export function ProjectModal({ project, presetClientId, initialTab, onClose }: P
       const newProject = await addProject({
         name: name.trim(),
         clientId,
+        isActive,
         quoteAmount: quoteAmount ? parseFloat(quoteAmount) : undefined,
         quoteDate: quoteDate || undefined,
       });
@@ -313,6 +320,32 @@ export function ProjectModal({ project, presetClientId, initialTab, onClose }: P
               placeholder="Ex : Refonte site web"
               autoFocus
             />
+          </FormField>
+
+          <FormField label="Statut projet">
+            <div className="flex rounded-lg border border-[var(--border-subtle)] p-0.5 bg-[var(--bg-tertiary)]">
+              <button
+                type="button"
+                onClick={() => setIsActive(false)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  !isActive ? 'bg-[var(--accent-violet)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                Inactif
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsActive(true)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  isActive ? 'bg-[var(--accent-cyan)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                Actif
+              </button>
+            </div>
+            <p className="text-[10px] text-[var(--text-muted)] mt-1.5">
+              {isActive ? 'Devis, acompte, etc. éditables' : 'Potentiel uniquement (pipeline)'}
+            </p>
           </FormField>
 
           <FormField label="Client" required>

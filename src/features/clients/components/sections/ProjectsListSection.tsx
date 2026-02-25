@@ -77,7 +77,7 @@ export function ProjectsListSection({
 }: ProjectsListSectionProps) {
   const deliverables = useAppStore((state) => state.deliverables);
   const assignDeliverableToProject = useAppStore((s) => s.assignDeliverableToProject);
-  const { openProjectModal } = useModal();
+  const { openProjectModal, openDeliverableModal } = useModal();
 
   const [diversOpen, setDiversOpen] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -277,26 +277,33 @@ export function ProjectsListSection({
                   {orphanDeliverables.map((d) => (
                     <div
                       key={d.id}
-                      draggable
-                      onDragStart={(e) => {
-                        setDraggingId(d.id);
-                        e.dataTransfer.setData('text/plain', d.id);
-                        e.dataTransfer.effectAllowed = 'move';
-                      }}
-                      onDragEnd={() => { setDraggingId(null); setOverProjectId(null); }}
                       className={`
                         flex items-center gap-2 px-2 py-1.5 rounded-lg
-                        cursor-grab active:cursor-grabbing
-                        hover:bg-[var(--bg-secondary)] transition-colors
+                        hover:bg-[var(--bg-secondary)] transition-colors group
                         ${draggingId === d.id ? 'opacity-40' : ''}
                       `}
                     >
-                      <span className="text-[var(--text-muted)] flex-shrink-0">
+                      <span
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggingId(d.id);
+                          e.dataTransfer.setData('text/plain', d.id);
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        onDragEnd={() => { setDraggingId(null); setOverProjectId(null); }}
+                        className="text-[var(--text-muted)] flex-shrink-0 cursor-grab active:cursor-grabbing p-0.5 -m-0.5 rounded hover:bg-[var(--bg-tertiary)]"
+                        title="Glisser vers un projet"
+                      >
                         <GripVertical />
                       </span>
-                      <span className="text-[11px] text-[var(--text-primary)] flex-1 truncate">
+                      <button
+                        type="button"
+                        onClick={() => openDeliverableModal(client.id, d)}
+                        className="text-[11px] text-[var(--text-primary)] flex-1 truncate text-left hover:text-[var(--accent-cyan)] transition-colors cursor-pointer"
+                        title="Ouvrir pour modifier ou supprimer"
+                      >
                         {d.name}
-                      </span>
+                      </button>
                       {d.type && (
                         <span className="text-[9px] font-medium text-[var(--text-muted)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded flex-shrink-0">
                           {d.type}
@@ -305,7 +312,7 @@ export function ProjectsListSection({
                     </div>
                   ))}
                   <p className="text-[9px] text-[var(--text-muted)] opacity-60 pt-1 text-center">
-                    Glisser vers un projet pour assigner
+                    Glisser le grip vers un projet pour assigner · clic sur le nom pour modifier
                   </p>
                 </div>
               )}

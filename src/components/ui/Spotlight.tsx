@@ -199,7 +199,6 @@ export function Spotlight() {
           ) : (
             filteredClients.map((client, index) => {
               const isSelected = index === selectedIndex;
-              const isProspect = client.status === 'prospect';
               return (
                 <button
                   key={client.id}
@@ -212,13 +211,7 @@ export function Spotlight() {
                   onClick={() => selectClient(client.id)}
                   onMouseEnter={() => setSelectedIndex(index)}
                 >
-                  <span
-                    className={`p-2 rounded-lg ${
-                      isProspect
-                        ? 'bg-[var(--accent-amber)]/10 text-[var(--accent-amber)]'
-                        : 'bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)]'
-                    }`}
-                  >
+                  <span className="p-2 rounded-lg bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)]">
                     <UserIcon />
                   </span>
                   <div className="flex-1 min-w-0">
@@ -226,14 +219,8 @@ export function Spotlight() {
                       {client.name}
                     </p>
                   </div>
-                  <span
-                    className={`flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                      isProspect
-                        ? 'bg-[var(--accent-amber)]/20 text-[var(--accent-amber)]'
-                        : 'bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)]'
-                    }`}
-                  >
-                    {isProspect ? 'Prospect' : 'Client'}
+                  <span className="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[var(--accent-cyan)]/20 text-[var(--accent-cyan)]">
+                    Client
                   </span>
                 </button>
               );

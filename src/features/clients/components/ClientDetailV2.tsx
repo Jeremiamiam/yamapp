@@ -108,7 +108,7 @@ export function ClientDetailV2() {
     ? clientProjects.find((p) => p.id === selectedProjectId) ?? null
     : null;
 
-  const isProspect = client.status === 'prospect';
+  const isProspect = false; // Actif/inactif au niveau projet
 
   return (
     <div className="h-full flex flex-col bg-[var(--bg-primary)]">

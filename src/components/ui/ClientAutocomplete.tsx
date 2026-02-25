@@ -186,9 +186,6 @@ export function ClientAutocomplete({
               }`}
             >
               {client.name}
-              <span className="ml-2 text-xs text-[var(--text-muted)]">
-                {client.status === 'prospect' ? '(prospect)' : ''}
-              </span>
             </button>
           ))}
 

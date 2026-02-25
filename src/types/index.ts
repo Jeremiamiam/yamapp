@@ -117,6 +117,8 @@ export interface Project {
   balanceDate?: string;
   /** Montant potentiel — pipeline, pas encore signé */
   potentiel?: number;
+  /** false = pipeline (potentiel uniquement), true = client actif (devis, acompte, etc.) */
+  isActive?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

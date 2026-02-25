@@ -78,6 +78,7 @@ interface ProjectRow {
   balance_amount?: number | null;
   balance_date?: string | null;
   potentiel?: number | null;
+  is_active?: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -224,6 +225,7 @@ export function mapProjectRow(row: ProjectRow): Project {
     balanceAmount: row.balance_amount != null ? Number(row.balance_amount) : undefined,
     balanceDate: row.balance_date ?? undefined,
     potentiel: row.potentiel != null ? Number(row.potentiel) : undefined,
+    isActive: row.is_active !== false,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };
